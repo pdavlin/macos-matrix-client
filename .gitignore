@@ -8,3 +8,6 @@
 xcuserdata/
 .DS_Store
 build/
+
+# Claude Code runtime files
+.claude/scheduled_tasks.lock
