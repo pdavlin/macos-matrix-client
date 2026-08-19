@@ -1,3 +1,10 @@
+# Local-only project management coordinates
+.plane.local.md
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# Upstream (Mactrix)
 xcuserdata/
 .DS_Store
 build/
