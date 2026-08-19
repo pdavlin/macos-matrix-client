@@ -63,6 +63,7 @@ Until those exist, there is nothing to build. Do not fabricate xcodebuild invoca
 Stories live in Plane. Coordinates (base URL, workspace/project UUIDs, state map) are in `.plane.local.md` at the repo root — gitignored, read it first. The API key is the `PLANE_API_KEY` env var (set via `.claude/settings.local.json`); pass it as the `X-API-Key` header. Never print or commit the key.
 
 Workflow:
+- Stories in Plane are self-contained: the description carries the full story text (all steps, outputs, sequencing, known findings, and the definition of done), not a summary plus a pointer. Update the description when the story's scope or known facts change.
 - On starting a story: PATCH the issue to the "In Progress" state.
 - On tests green: move to "Review". Never move anything to "Done" — that's Patrick's click.
 - Every move to "Review" must carry a resolution comment on the issue: what was done, key findings/decisions, output artifacts (files, commits), and anything deferred. Post the comment before or with the state change.
