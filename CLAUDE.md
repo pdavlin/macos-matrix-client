@@ -67,5 +67,6 @@ Workflow:
 - On starting a story: PATCH the issue to the "In Progress" state AND post a start-of-work comment: who picked it up (which session/agent), the planned approach, and any known blocker.
 - On tests green: move to "Review". Never move anything to "Done" — that's Patrick's click.
 - Every move to "Review" must carry a resolution comment on the issue: what was done, key findings/decisions, output artifacts (files, commits), and anything deferred. Post the comment before or with the state change.
+- Contract §11 rows are append-only and WILL conflict between concurrent branches. On a PR conflict in docs/PROJECT_CONTRACT.md, rebase onto main and keep all rows, earliest-merged first. Verify the build after any rebase before force-pushing (--force-with-lease only).
 - Stories that change code are done on a branch named `s-XX/short-slug`, not on main. Moving such a story to "Review" requires an open PR against main; put the PR link in the resolution comment. Docs-only changes may commit straight to main. Never merge a PR — that's Patrick's click, same as "Done". Never put Claude session links in PR bodies or comments.
 - States have per-project UUIDs. If the map in `.plane.local.md` is empty, GET `.../projects/<uuid>/states/` once and record it there.
