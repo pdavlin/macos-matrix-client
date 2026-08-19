@@ -64,7 +64,7 @@ Stories live in Plane. Coordinates (base URL, workspace/project UUIDs, state map
 
 Workflow:
 - Stories in Plane are self-contained: the description carries the full story text (all steps, outputs, sequencing, known findings, and the definition of done), not a summary plus a pointer. Update the description when the story's scope or known facts change.
-- On starting a story: PATCH the issue to the "In Progress" state.
+- On starting a story: PATCH the issue to the "In Progress" state AND post a start-of-work comment: who picked it up (which session/agent), the planned approach, and any known blocker.
 - On tests green: move to "Review". Never move anything to "Done" — that's Patrick's click.
 - Every move to "Review" must carry a resolution comment on the issue: what was done, key findings/decisions, output artifacts (files, commits), and anything deferred. Post the comment before or with the state change.
 - States have per-project UUIDs. If the map in `.plane.local.md` is empty, GET `.../projects/<uuid>/states/` once and record it there.
