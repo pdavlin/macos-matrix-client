@@ -11,3 +11,9 @@ build/
 
 # Claude Code runtime files
 .claude/scheduled_tasks.lock
+
+# Swift Package Manager build products (spike/)
+.build/
+
+# Timeline spike measurement dumps
+timeline-spike-*.json
