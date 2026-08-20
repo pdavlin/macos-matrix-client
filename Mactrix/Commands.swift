@@ -52,7 +52,7 @@ struct AppCommands: Commands {
         .help("Create a new room")
         .keyboardShortcut("N", modifiers: [.command, .shift])
     }
-    
+
     var fontSizeCommands: some Commands {
         CommandGroup(after: .toolbar) {
             Button {
@@ -73,7 +73,7 @@ struct AppCommands: Commands {
 
             Button {
                 fontSize -= 1
-                    
+
             } label: {
                 Text("Make Text Smaller")
             }

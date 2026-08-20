@@ -278,5 +278,5 @@ struct SpikeHarnessTests {
 /// A decoding stand-in used only to assert that the report's top-level keys exist. It
 /// deliberately decodes nothing: the point is the shape, not the values.
 private struct AnyCodableProbe: Decodable {
-    init(from decoder: Decoder) throws {}
+    init(from _: Decoder) throws {}
 }

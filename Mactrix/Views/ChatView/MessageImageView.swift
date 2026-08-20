@@ -10,9 +10,9 @@ struct MessageImageView: View {
 
     @Environment(AppState.self) private var appState
 
-    @State private var imageData: Data? = nil
-    @State private var image: Image? = nil
-    @State private var errorMessage: String? = nil
+    @State private var imageData: Data?
+    @State private var image: Image?
+    @State private var errorMessage: String?
 
     init(content: ImageMessageContent) {
         self.content = content

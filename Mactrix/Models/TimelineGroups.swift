@@ -12,7 +12,11 @@ public struct TimelineGroups: Hashable {
             version += 1
         }
 
-        let version = if let overrideVersion { overrideVersion } else { self.version }
+        let version = if let overrideVersion {
+            overrideVersion
+        } else {
+            self.version
+        }
 
         if let event = item.asEvent() {
             if case let .msgLike(content: content) = event.content {

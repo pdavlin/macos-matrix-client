@@ -6,7 +6,7 @@ public protocol Mentions {
 }
 
 public protocol MessageContent {
-    //var msgType: MessageType { get }
+    // var msgType: MessageType { get }
     var body: String { get }
     var isEdited: Bool { get }
     var mentions: Mentions? { get }

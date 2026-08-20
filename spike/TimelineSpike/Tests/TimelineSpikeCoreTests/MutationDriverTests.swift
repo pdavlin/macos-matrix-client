@@ -183,7 +183,7 @@ struct MutationDriverTests {
             for mutation in driver.step(store: store, visibleRange: 0 ..< 40) {
                 guard let had = before[mutation.target],
                       let now = store.event(with: mutation.target)
-                          .map({ !$0.reactions.isEmpty }) else { continue }
+                      .map({ !$0.reactions.isEmpty }) else { continue }
                 if !had, now { appeared = true }
                 if had, !now { disappeared = true }
             }

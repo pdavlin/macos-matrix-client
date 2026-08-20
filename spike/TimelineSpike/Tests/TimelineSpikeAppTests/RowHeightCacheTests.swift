@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 import Testing
-import TimelineSpikeCore
 @testable import TimelineSpikeApp
+import TimelineSpikeCore
 
 @Suite("Row height cache")
 struct RowHeightCacheTests {

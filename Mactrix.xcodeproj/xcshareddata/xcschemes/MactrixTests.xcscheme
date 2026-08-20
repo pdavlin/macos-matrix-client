@@ -14,25 +14,11 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <TestPlans>
          <TestPlanReference
-            reference = "container:Mactrix/TestPlan.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:MactrixLibrary"
+            reference = "container:Mactrix/TestPlan.xctestplan"
             default = "YES">
          </TestPlanReference>
       </TestPlans>
       <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "345E77EE2ED9F42E002E5B9A"
-               BuildableName = "MactrixTests.xctest"
-               BlueprintName = "MactrixTests"
-               ReferencedContainer = "container:Mactrix.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

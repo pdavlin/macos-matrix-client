@@ -95,7 +95,8 @@ final class VisibleSetTracker {
         ordered = ids.sorted()
         guard let lowest = ordered.first, let highest = ordered.last,
               let lowerIndex = store.itemIndex(for: lowest),
-              let upperIndex = store.itemIndex(for: highest) else {
+              let upperIndex = store.itemIndex(for: highest)
+        else {
             range = nil
             return
         }

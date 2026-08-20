@@ -34,6 +34,14 @@ jobs:
             -scheme "$scheme" \
             -project Mactrix.xcodeproj \
             -destination 'platform=macOS' | xcpretty && exit ${PIPESTATUS[0]}
+      - name: Test MactrixLibrary (SPM)
+        run: swift test --package-path MactrixLibrary
+      - name: Test spike/TimelineSpike (SPM)
+        run: swift test --package-path spike/TimelineSpike
+      - name: Lint
+        run: |
+          brew install swiftformat swiftlint
+          scripts/lint.sh
       - name: Build release artifact
         if: |
           matrix.macos-version == 'macos-26' &&

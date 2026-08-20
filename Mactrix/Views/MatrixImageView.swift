@@ -7,14 +7,15 @@ struct MatrixImageView: View {
     let mimeType: String?
 
     @Environment(AppState.self) private var appState
-    @State private var image: Image? = nil
-    @State private var errorMessage: String? = nil
+    @State private var image: Image?
+    @State private var errorMessage: String?
 
     init(mediaSource: MediaSource?, mimeType: String?) {
         self.mediaSource = mediaSource
         self.mimeType = mimeType
         if let url = mediaSource?.url(),
-           let cached = MatrixClient.imageCache.object(forKey: NSString(string: url)) {
+           let cached = MatrixClient.imageCache.object(forKey: NSString(string: url))
+        {
             self._image = State(initialValue: Image(nsImage: cached))
         }
     }

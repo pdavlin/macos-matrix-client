@@ -41,7 +41,7 @@ public struct RoomRow: View {
     let joinRoom: (() async throws -> Void)?
 
     @State private var joining: Bool = false
-    @State private var error: Error? = nil
+    @State private var error: Error?
     @State private var isErrorVisible: Bool = false
     @ScaledMetric(relativeTo: .body) private var roomAvatarSize: CGFloat = 22.0
 

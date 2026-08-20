@@ -6,9 +6,9 @@ import Utils
 struct LoadMatrixUriScreen: View {
     @Environment(AppState.self) var appState
     @Environment(WindowState.self) var windowState
-    
+
     let matrixUri: Utils.MatrixUriScheme
-    
+
     @ViewBuilder
     var content: some View {
         switch matrixUri.kind {
@@ -26,17 +26,17 @@ struct LoadMatrixUriScreen: View {
             }
         }
     }
-    
+
     var body: some View {
         content
             .task(id: matrixUri) {
                 Logger.viewCycle.debug("LoadMatrixUriScreen TASK")
-                
+
                 guard let matrixClient = appState.matrixClient else {
                     Logger.viewCycle.warning("Matrix client was nil so could not follow url")
                     return
                 }
-                    
+
                 switch matrixUri.kind {
                 case .roomId(let roomId):
                     Logger.viewCycle.debug("Matrix uri match roomId")

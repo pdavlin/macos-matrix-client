@@ -10,7 +10,7 @@ import TimelineSpikeCore
 struct DisplayLinkHost: NSViewRepresentable {
     let harness: SpikeHarness
 
-    func makeNSView(context: Context) -> HostView {
+    func makeNSView(context _: Context) -> HostView {
         let view = HostView()
         view.onEnterWindow = { [harness] hostView in
             harness.attachDisplayLink(to: hostView)
@@ -21,7 +21,7 @@ struct DisplayLinkHost: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: HostView, context: Context) {}
+    func updateNSView(_: HostView, context _: Context) {}
 
     final class HostView: NSView {
         var onEnterWindow: ((HostView) -> Void)?

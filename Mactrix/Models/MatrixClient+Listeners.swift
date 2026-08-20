@@ -78,7 +78,7 @@ extension MatrixClient: RoomListServiceSyncIndicatorListener {
 }
 
 extension MatrixClient: MatrixRustSDK.ClientDelegate {
-    nonisolated func onBackgroundTaskErrorReport(taskName: String, error: MatrixRustSDK.BackgroundTaskFailureReason) {
+    nonisolated func onBackgroundTaskErrorReport(taskName: String, error _: MatrixRustSDK.BackgroundTaskFailureReason) {
         Logger.matrixClient.error("onBackgroundTaskErrorReport taskName: \(taskName)")
     }
 

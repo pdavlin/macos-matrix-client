@@ -33,8 +33,7 @@ public enum RoomKind {
     /**
      * It's a custom implementation.
      */
-    case custom(value: String
-    )
+    case custom(value: String)
 }
 
 public struct MockRoom: Room, Identifiable {

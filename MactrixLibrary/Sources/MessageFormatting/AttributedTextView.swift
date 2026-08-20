@@ -7,7 +7,7 @@ public struct AttributedTextView: NSViewRepresentable {
         self.attributedString = attributedString.trimmed
     }
 
-    public func makeNSView(context: Context) -> NSTextField {
+    public func makeNSView(context _: Context) -> NSTextField {
         let textField = NSTextField(labelWithAttributedString: attributedString)
 
         textField.isEditable = false
@@ -21,20 +21,20 @@ public struct AttributedTextView: NSViewRepresentable {
         return textField
     }
 
-    public func updateNSView(_ textField: NSTextField, context: Context) {
+    public func updateNSView(_ textField: NSTextField, context _: Context) {
         if textField.attributedStringValue != attributedString {
             textField.attributedStringValue = attributedString
         }
     }
 
-    public func sizeThatFits(_ proposal: ProposedViewSize, nsView textField: NSTextField, context: Context) -> CGSize? {
+    public func sizeThatFits(_ proposal: ProposedViewSize, nsView textField: NSTextField, context _: Context) -> CGSize? {
         guard let width = proposal.width, width > 0, width != .infinity else { return nil }
 
         textField.preferredMaxLayoutWidth = width
         guard let size = textField.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: CGFloat.greatestFiniteMagnitude)) else {
             return nil
         }
-        
+
         return CGSize(width: ceil(size.width), height: ceil(size.height))
     }
 }

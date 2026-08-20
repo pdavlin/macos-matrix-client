@@ -89,7 +89,7 @@ final class TimelineTableView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         preconditionFailure("TimelineTableView is created in code, never from a nib")
     }
 
@@ -384,7 +384,7 @@ final class TimelineTableView: NSView {
     }
 
     @objc
-    private func clipViewBoundsDidChange(_ notification: Notification) {
+    private func clipViewBoundsDidChange(_: Notification) {
         reportGeometry()
         guard !isApplyingStoreChange else {
             // The anchor compensation moves the origin itself. Telling the pagination driver
@@ -475,19 +475,19 @@ final class TimelineTableView: NSView {
 // MARK: - Table data source and delegate
 
 extension TimelineTableView: NSTableViewDataSource {
-    func numberOfRows(in tableView: NSTableView) -> Int {
+    func numberOfRows(in _: NSTableView) -> Int {
         renderedRowCount
     }
 }
 
 extension TimelineTableView: NSTableViewDelegate {
-    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    func tableView(_: NSTableView, heightOfRow row: Int) -> CGFloat {
         max(1, cache.height(row: row))
     }
 
     func tableView(
         _ tableView: NSTableView,
-        viewFor tableColumn: NSTableColumn?,
+        viewFor _: NSTableColumn?,
         row: Int
     ) -> NSView? {
         let recycled = tableView.makeView(
@@ -501,7 +501,7 @@ extension TimelineTableView: NSTableViewDelegate {
         return view
     }
 
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+    func tableView(_: NSTableView, shouldSelectRow _: Int) -> Bool {
         false
     }
 }

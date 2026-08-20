@@ -22,6 +22,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ZhgChgLi/ZMarkupParser.git", from: "1.12.0"),
         // .package(url: "https://github.com/matrix-org/matrix-rust-components-swift", from: "25.10.27"),
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing.git", exact: "1.19.4"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -32,6 +33,14 @@ let package = Package(
         ),
         .target(name: "Utils"),
         .testTarget(name: "UtilsTests", dependencies: ["Utils"]),
+        .testTarget(
+            name: "UITests",
+            dependencies: [
+                "UI",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+            ],
+            resources: [.copy("__Snapshots__")]
+        ),
         /* .target(
                 name: "TimelineUI",
                 dependencies: ["Models", .product(name: "MatrixRustSDK", package: "matrix-rust-components-swift")]

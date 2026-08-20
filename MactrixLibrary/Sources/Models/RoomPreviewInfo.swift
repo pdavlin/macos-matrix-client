@@ -69,7 +69,7 @@ public protocol RoomPreviewInfo {
      * The membership state for the current user, if known.
      */
     var userMembership: Membership? { get }
-    
+
     /**
      * The join rule for this room (private, public, knock, etc.).
      */
@@ -86,51 +86,51 @@ public protocol RoomPreviewInfo {
 
 public struct MockRoomPreviewInfo: RoomPreviewInfo {
     public init() {}
-    
+
     public var userMembership: Membership? {
         nil
     }
-    
+
     public var joinRuleInfo: JoinRule? {
         .public
     }
-    
+
     public var roomKind: RoomKind {
         .room
     }
-    
+
     public var roomId: String {
         "roomId"
     }
-    
+
     public var canonicalAlias: String? {
         "#room:matrix.org"
     }
-    
+
     public var name: String? {
         "Room Name"
     }
-    
+
     public var topic: String? {
         "The topic of the **room** being previewed"
     }
-    
+
     public var avatarUrl: String? {
         nil
     }
-    
+
     public var numJoinedMembers: UInt64 {
         22
     }
-    
+
     public var numActiveMembers: UInt64? {
         4
     }
-    
+
     public var isHistoryWorldReadable: Bool? {
         true
     }
-    
+
     public var isDirect: Bool? {
         false
     }

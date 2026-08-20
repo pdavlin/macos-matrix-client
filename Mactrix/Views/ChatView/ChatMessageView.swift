@@ -47,7 +47,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
         guard case let .eventId(eventId: eventId) = event.eventOrTransactionId else { return }
         Task {
             do {
-                let _ = try await timeline?.timeline?.pinEvent(eventId: eventId)
+                _ = try await timeline?.timeline?.pinEvent(eventId: eventId)
             } catch {
                 Logger.viewCycle.error("Failed to ping message: \(error)")
             }
@@ -83,7 +83,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
                     .fixedSize(horizontal: false, vertical: true)
             case let .text(content: content):
                 FormattedBodyView(messageContent: content)
-                //Text(content.body.formatAsMarkdown)
+            // Text(content.body.formatAsMarkdown)
             case let .location(content: content):
                 Text("Location: \(content.body) \(content.geoUri)").textSelection(.enabled)
             case let .other(msgtype: msgtype, body: body):
@@ -98,7 +98,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
                 .italic()
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-        case .unableToDecrypt(msg: _):
+        case .unableToDecrypt:
             Text("Unable to decrypt")
                 .italic()
                 .foregroundStyle(.secondary)

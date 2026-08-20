@@ -282,13 +282,11 @@ extension MatrixRustSDK.TimelineItemContent: @retroactive CustomStringConvertibl
             "room membership event not implemented"
         }
 
-        let message: String = if let reason {
+        return if let reason {
             "\(changeMsg) because \(reason)"
         } else {
             changeMsg
         }
-
-        return message
     }
 }
 
@@ -303,7 +301,7 @@ extension MatrixRustSDK.MsgLikeKind: @retroactive CustomStringConvertible {
             return "Poll: \(question)"
         case .redacted:
             return "Redacted"
-        case .unableToDecrypt(msg: _):
+        case .unableToDecrypt:
             return "Unable to decrypt"
         case let .other(eventType: eventType):
             return "Other: \(eventType)"
@@ -411,7 +409,7 @@ extension MatrixRustSDK.OtherState: @retroactive CustomStringConvertible {
             return "changed policy rule for user"
         case .roomAliases:
             return "changed room aliases"
-        case .roomAvatar(url: _):
+        case .roomAvatar:
             return "changed room avatar"
         case .roomCanonicalAlias:
             return "changed room canonical alias"
@@ -427,13 +425,13 @@ extension MatrixRustSDK.OtherState: @retroactive CustomStringConvertible {
             return "changed room join rules"
         case let .roomName(name: name):
             return "changed room name to '\(name ?? "empty")'"
-        case .roomPinnedEvents(change: _):
+        case .roomPinnedEvents:
             return "changed room pinned events"
-        case .roomPowerLevels(events: _, previousEvents: _, users: _, previousUsers: _, thresholds: _, previousThresholds: _):
+        case .roomPowerLevels:
             return "changed room power levels"
         case .roomServerAcl:
             return "changed room server acl"
-        case .roomThirdPartyInvite(displayName: _):
+        case .roomThirdPartyInvite:
             return "changed room third party invite"
         case .roomTombstone:
             return "room tombstone"

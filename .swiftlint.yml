@@ -1,0 +1,36 @@
+excluded:
+  - docs/ffi
+  - "**/.build"
+  - "**/DerivedData"
+  - "**/.swiftpm"
+
+# Existing code mixes trailing-comma-in-multi-line-collection style; SwiftFormat's
+# equivalent rule is disabled for the same reason (see .swiftformat).
+disabled_rules:
+  - trailing_comma
+
+line_length:
+  warning: 140
+  error: 220
+  ignores_urls: true
+  ignores_comments: true
+
+identifier_name:
+  min_length:
+    warning: 1
+  max_length:
+    warning: 60
+    error: 80
+  allowed_symbols: ["_"]
+
+cyclomatic_complexity:
+  warning: 20
+  error: 35
+
+function_body_length:
+  warning: 80
+  error: 120
+
+file_length:
+  warning: 500
+  error: 800

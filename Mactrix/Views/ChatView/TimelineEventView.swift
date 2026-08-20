@@ -7,7 +7,7 @@ struct TimelineStateEventRow: View {
 
     var body: some View {
         switch event.content {
-        case .msgLike(content: _):
+        case .msgLike:
             Text("Unreachable state")
                 .foregroundStyle(.red)
         case .callInvite:

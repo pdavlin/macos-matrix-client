@@ -91,7 +91,7 @@ public final class AnchorProbe {
     /// Three is enough for a change that lands in the next layout pass and is presented on
     /// the frame after that, with one frame of margin. See SCENARIOS.md §10 for when to
     /// raise it.
-    nonisolated public static let defaultSettleTicks = 3
+    public nonisolated static let defaultSettleTicks = 3
 
     /// The settle window in frames. Always at least 1: a zero-tick window would close the
     /// sample inside `beginSample`, before the change it is measuring has been laid out.

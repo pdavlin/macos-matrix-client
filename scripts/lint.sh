@@ -1,11 +1,10 @@
 #!/bin/bash
 # lint.sh — run SwiftFormat --lint and SwiftLint.
 #
-# SwiftFormat and SwiftLint configs are not committed yet (story S-11 owns
-# that). Until they exist, and until both binaries are installed, this
-# script is a fail-soft stub: it prints a notice and exits 0 so it does not
-# block other scripts or CI. Once S-11 lands the configs, this script runs
-# the real checks and propagates their failures.
+# Reads .swiftformat and .swiftlint.yml at the repo root. Requires both
+# swiftformat and swiftlint on PATH (install via `brew install swiftformat
+# swiftlint`). Fails the script if either tool is missing, or if either
+# check reports a failure.
 #
 # Usage: scripts/lint.sh (runs correctly from any working directory)
 
@@ -16,18 +15,18 @@ repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null || dirna
 
 cd "$repo_root"
 
-have_swiftformat=0
-have_swiftlint=0
-command -v swiftformat >/dev/null 2>&1 && have_swiftformat=1
-command -v swiftlint >/dev/null 2>&1 && have_swiftlint=1
+if ! command -v swiftformat >/dev/null 2>&1; then
+    echo "error: swiftformat not found. Install it with: brew install swiftformat" >&2
+    exit 1
+fi
 
-if [[ ! -f ".swiftformat" || ! -f ".swiftlint.yml" || "$have_swiftformat" -eq 0 || "$have_swiftlint" -eq 0 ]]; then
-    echo "lint not configured yet (S-11)"
-    exit 0
+if ! command -v swiftlint >/dev/null 2>&1; then
+    echo "error: swiftlint not found. Install it with: brew install swiftlint" >&2
+    exit 1
 fi
 
 echo "==> swiftformat --lint"
-swiftformat --lint .
+swiftformat . --lint
 
 echo "==> swiftlint"
-swiftlint
+swiftlint lint

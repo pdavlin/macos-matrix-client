@@ -34,7 +34,7 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
 
     var helpText: String {
         let sendersString = reaction.senders.prefix(5)
-            .map { $0.senderId }
+            .map(\.senderId)
             .joined(separator: ", ")
 
         return "Reacted by \(sendersString)"

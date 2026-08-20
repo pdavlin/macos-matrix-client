@@ -57,11 +57,11 @@ struct TimelineTableRepresentable: NSViewRepresentable {
     let harness: SpikeHarness
     let revision: StoreRevision
 
-    func makeNSView(context: Context) -> TimelineTableView {
+    func makeNSView(context _: Context) -> TimelineTableView {
         TimelineTableView(harness: harness)
     }
 
-    func updateNSView(_ nsView: TimelineTableView, context: Context) {
+    func updateNSView(_ nsView: TimelineTableView, context _: Context) {
         nsView.sync()
     }
 }

@@ -5,7 +5,7 @@ import SwiftUI
 struct TimelineVideoPlayer: NSViewRepresentable {
     let videoPlayer: AVPlayer
 
-    func makeNSView(context: Context) -> AVPlayerView {
+    func makeNSView(context _: Context) -> AVPlayerView {
         let playerView = AVPlayerView()
         playerView.allowsPictureInPicturePlayback = true
         playerView.showsFullScreenToggleButton = true
@@ -16,7 +16,7 @@ struct TimelineVideoPlayer: NSViewRepresentable {
         return playerView
     }
 
-    func updateNSView(_ playerView: AVPlayerView, context: Context) {
+    func updateNSView(_ playerView: AVPlayerView, context _: Context) {
         playerView.player = videoPlayer
     }
 

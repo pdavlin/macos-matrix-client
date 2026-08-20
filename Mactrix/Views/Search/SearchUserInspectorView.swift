@@ -9,7 +9,7 @@ struct SearchUserInspectorView: View {
 
     @State var searchedUsers: [UserProfile] = []
     @State var searching: Bool = false
-    @State var userListSelection: String? = nil
+    @State var userListSelection: String?
 
     var body: some View {
         List(selection: $userListSelection) {

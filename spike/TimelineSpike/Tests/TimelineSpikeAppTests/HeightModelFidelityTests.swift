@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 import Testing
-import TimelineSpikeCore
 @testable import TimelineSpikeApp
+import TimelineSpikeCore
 
 /// Checks `SpikeRowHeightModel` against SwiftUI's own layout of the same row.
 ///

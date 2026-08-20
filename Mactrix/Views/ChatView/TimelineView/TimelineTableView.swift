@@ -162,7 +162,7 @@ class TimelineViewController: NSViewController {
         listenForFocusTimelineItem()
     }
 
-    @objc func handleTableResize(_ notification: Notification) {
+    @objc func handleTableResize(_: Notification) {
         if oldWidth != tableView.frame.width {
             oldWidth = tableView.frame.width
 
@@ -179,7 +179,7 @@ class TimelineViewController: NSViewController {
 
     var timelineFetchTask: Task<Void, Never>?
 
-    @objc func viewDidScroll(_ notification: Notification) {
+    @objc func viewDidScroll(_: Notification) {
         let currentOffset = scrollView.contentView.bounds.origin.y
         let timelineHeight = scrollView.contentView.documentRect.height
         let viewHeight = scrollView.contentView.documentVisibleRect.height
@@ -219,7 +219,7 @@ class TimelineViewController: NSViewController {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) is not available")
     }
 
@@ -270,11 +270,11 @@ class TimelineViewController: NSViewController {
 }
 
 extension TimelineViewController: NSTableViewDelegate {
-    func selectionShouldChange(in tableView: NSTableView) -> Bool {
+    func selectionShouldChange(in _: NSTableView) -> Bool {
         return false
     }
 
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+    func tableView(_: NSTableView, shouldSelectRow _: Int) -> Bool {
         return false
     }
 

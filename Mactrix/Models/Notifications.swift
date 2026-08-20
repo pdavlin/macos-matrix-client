@@ -3,7 +3,7 @@ import OSLog
 import UserNotifications
 
 // This class is Sendable because MatrixRustSDK.SyncNotificationListener requires it to be so
-@MainActor @Observable final class MatrixNotifications: NSObject, Sendable {
+@MainActor @Observable final class MatrixNotifications: NSObject {
     var selectedRoomId: String?
 
     typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
@@ -28,7 +28,7 @@ import UserNotifications
 }
 
 extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let roomId = response.notification.request.content.userInfo["roomId"] as? String
         Logger.notification.info("Notification delegate didReceive: \(roomId ?? "<no room id>")")
         selectedRoomId = roomId
@@ -87,7 +87,7 @@ extension MatrixNotifications {
 
     func notificationBody(for notification: NotificationItem) -> String {
         switch notification.event {
-        case .invite(sender: _):
+        case .invite:
             return "Room \(notification.roomInfo.displayName)"
         case let .timeline(event: event):
             do {

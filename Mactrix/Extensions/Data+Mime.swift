@@ -33,7 +33,7 @@ extension Data {
     /// so we route through CIImage which handles it correctly.
     struct ImageDecodeError: Error {}
 
-    func toOrientedImage(contentType: UTType? = nil) throws -> NSImage {
+    func toOrientedImage(contentType _: UTType? = nil) throws -> NSImage {
         guard
             let source = CGImageSourceCreateWithData(self as CFData, nil),
             let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil)

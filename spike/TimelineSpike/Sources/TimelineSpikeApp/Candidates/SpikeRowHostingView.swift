@@ -74,7 +74,7 @@ final class SpikeRowHostingView: NSHostingView<HostedSpikeRow> {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         preconditionFailure("SpikeRowHostingView is created in code, never from a nib")
     }
 

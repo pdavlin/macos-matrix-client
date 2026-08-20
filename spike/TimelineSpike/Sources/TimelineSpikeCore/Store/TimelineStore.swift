@@ -142,11 +142,10 @@ public final class TimelineStore {
             items[index].daySeparator = opensDay ? day : nil
 
             let sameSender = previous?.sender.id == event.sender.id
-            let closeInTime: Bool
-            if let previous {
-                closeInTime = event.timestamp.timeIntervalSince(previous.timestamp) < 300
+            let closeInTime: Bool = if let previous {
+                event.timestamp.timeIntervalSince(previous.timestamp) < 300
             } else {
-                closeInTime = false
+                false
             }
             items[index].startsSenderRun = opensDay || !sameSender || !closeInTime
         }

@@ -31,7 +31,7 @@ public final class FrameRecorder: NSObject {
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval?
 
-    public override init() {
+    override public init() {
         super.init()
     }
 

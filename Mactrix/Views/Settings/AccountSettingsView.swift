@@ -44,8 +44,8 @@ struct ChangableField: View {
 struct AccountSettingsView: View {
     @Environment(AppState.self) var appState
 
-    @State private var logoutError: String? = nil
-    @State private var displayName: String? = nil
+    @State private var logoutError: String?
+    @State private var displayName: String?
 
     var body: some View {
         if let matrixClient = appState.matrixClient {
