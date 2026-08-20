@@ -1,0 +1,27 @@
+# SwiftFormat configuration for macos-matrix-client.
+#
+# Tuned to the codebase's existing idiom rather than SwiftFormat's full
+# default rule set: the app target and MactrixLibrary already use 4-space
+# indent and mostly avoid the newer "wrap*"/"trailingCommas"/"redundantSelf"
+# style SwiftFormat now defaults to. Rules below are disabled where turning
+# them on would rewrite large parts of the codebase into a different house
+# style rather than fix real formatting drift (whitespace, indent).
+
+--swiftversion 6.1
+--indent 4
+
+--exclude docs/ffi,**/.build,**/DerivedData,**/.swiftpm
+
+--disable wrapPropertyBodies
+--disable trailingCommas
+--disable redundantReturn
+--disable redundantSelf
+--disable hoistPatternLet
+--disable numberFormatting
+--disable wrapIfStatementBodies
+--disable docComments
+--disable redundantMemberwiseInit
+--disable redundantViewBuilder
+--disable redundantFileprivate
+--disable wrapLoopBodies
+--disable redundantOptionalBinding
