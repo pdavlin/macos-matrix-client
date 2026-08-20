@@ -1,0 +1,7 @@
+name = "davlin-matrix-wellknown"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+routes = [
+  { pattern = "davlin.io/.well-known/matrix/*", zone_name = "davlin.io" }
+]
