@@ -210,9 +210,12 @@ It must not throttle, coalesce or debounce store reads. That is the thing being 
 A: it has no anchoring strategy and no height estimation, and its numbers must never appear
 in the comparison.
 
-Candidate A is `SwiftUIListRenderer` (S-13), listed in the picker as "SwiftUI (LazyVStack,
-anchored)". Its file documents which anchoring mechanism owns which behaviour, so a failing
-scenario can be attributed rather than guessed at.
+Candidate A was `SwiftUIListRenderer` (S-13), removed after the S-15 decision (2026-08-20,
+contract §11): its S3 worst anchor drift was 4238pt against AppKit's 815pt, and it captured
+18 of 20 prepend samples in S4 against AppKit's perfect 20/20 at 0.0pt. The surviving
+renderer is `AppKitTableRenderer` (S-14). The measurement dumps for both candidates and the
+placeholder live in `spike/results/`. The harness stays for M1 regression use: re-run these
+scenarios whenever the row workload or the real timeline implementation changes.
 
 ## 9. Determinism
 

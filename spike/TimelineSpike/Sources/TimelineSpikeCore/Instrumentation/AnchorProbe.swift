@@ -73,7 +73,10 @@ public struct DriftAccumulator: Sendable, Equatable, Codable {
 /// 2. Call `reportOffset(_:for:)` for `trackedID` whenever that item's position changes.
 ///    The offset is in **points from the top edge of the viewport, increasing downward**.
 ///    A SwiftUI candidate reads `frame(in: .named(...)).minY` against a coordinate space on
-///    the scroll view; an AppKit candidate reads `convert(rowRect, to: clipView).minY`.
+///    the scroll view; an AppKit candidate reads `convert(rowRect, to: clipView).minY`
+///    **minus `clipView.bounds.origin.y`** — the document view's frame lives in the clip
+///    view's bounds space and scrolling moves the bounds origin, so the raw converted
+///    value registers every scroll as drift (cost S-14 real debugging time).
 ///    Both must exclude the scroll position itself, otherwise every scroll registers as
 ///    drift.
 ///
