@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Primary host** | exe.dev VM (name TBD at deployment — NOT sectional-cache, which runs the Beeper bridges) |
+| **Primary host** | exe.dev VM `davlin-matrix` (https://davlin-matrix.exe.xyz/) |
 | **Failover / standby host** | davbuntu (Ubuntu 24.04, local homelab) |
-| **Server name** | TBD before first account creation — a davlin.io name with `.well-known` delegation. THE SERVER NAME NEVER CHANGES. |
+| **Server name** | **davlin.io** (decided S-17, contract §11 2026-08-20), delegated via Worker-served `.well-known` pointing at `davlin-matrix.exe.xyz:443`. THE SERVER NAME NEVER CHANGES. |
 | **Source of truth** | This file in the repo (`docs/SYNAPSE-MIGRATION-PLAN.md`). Copies on both hosts are convenience copies; re-copy after each edit. |
-| **Status** | v1 draft — written before Synapse deployment. The deployment story fills every TBD and tests this plan once. |
+| **Status** | Deployed 2026-08-20 (S-18). matrix-synapse-py3 1.159.0+noble1 installed via the matrix.org apt repo, Postgres 16.15 backend (`synapse` DB, C collation). Registration disabled; federation left on defaults. No accounts created yet (S-20). |
 
 ## Invariants — read before any migration
 
