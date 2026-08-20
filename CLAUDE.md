@@ -62,7 +62,7 @@ Each script auto-detects `DEVELOPER_DIR` (existing env value, else Xcode-beta.ap
 
 Stories live in Plane. Coordinates (base URL, workspace/project UUIDs, state map) are in `.plane.local.md` at the repo root — gitignored, read it first. The API key is the `PLANE_API_KEY` env var (set via `.claude/settings.local.json`); pass it as the `X-API-Key` header. Never print or commit the key.
 
-Workflow:
+Workflow (orchestrator-only: in multi-agent sessions, ONLY the main session calls the Plane API; subagents never touch Plane or read its key — they report back and the orchestrator updates the board):
 - Stories in Plane are self-contained: the description carries the full story text (all steps, outputs, sequencing, known findings, and the definition of done), not a summary plus a pointer. Update the description when the story's scope or known facts change.
 - On starting a story: PATCH the issue to the "In Progress" state AND post a start-of-work comment: who picked it up (which session/agent), the planned approach, and any known blocker.
 - On tests green: move to "Review". Never move anything to "Done" — that's Patrick's click.
