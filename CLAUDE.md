@@ -4,12 +4,12 @@ Single-user, Mac-native Matrix client. Hard fork of Mactrix (SwiftUI + matrix-ru
 
 ## Repo state
 
-Pre-fork. The Mactrix fork has not landed yet (story S-01). Current contents:
+The Mactrix fork has landed. Current layout:
 
-- `docs/PROJECT_CONTRACT.md` — the source of truth for scope. Read it before any planning work.
-- `docs/epics/E-M0-01-foundation.md` — the active epic (M0: fork, build, inherit, timeline spike).
-
-Update this file as part of S-09 when the code exists. Sections marked **[after S-01]** describe the intended layout, not the current one.
+- `Mactrix/` — the app target: SwiftUI shell, views, models, extensions.
+- `MactrixLibrary/` — a local Swift Package Manager package with the `UI`, `Models`, `Utils`, and `MessageFormatting` libraries and their tests.
+- `docs/` — `PROJECT_CONTRACT.md` (the source of truth for scope, read it before any planning work) and `docs/epics/E-M0-01-foundation.md` (the active epic).
+- `scripts/` — `build.sh`, `test.sh`, `lint.sh`.
 
 ## Hard rules
 
@@ -20,7 +20,7 @@ Update this file as part of S-09 when the code exists. Sections marked **[after 
 5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/` **[after S-10]**. If the signature is not there, read the package sources in `DerivedData`/SPM checkouts. Never write an SDK call from memory.
 6. **Pin discipline.** `matrix-rust-components-swift` is pinned by exact version. Do not bump it inside a feature story. SDK bumps are their own story with a changelog review.
 
-## Build and test **[after S-09]**
+## Build and test
 
 ```
 scripts/build.sh    # xcodebuild build, xcbeautify, non-zero exit on failure
@@ -28,7 +28,7 @@ scripts/test.sh     # xcodebuild test incl. snapshot tests
 scripts/lint.sh     # SwiftFormat --lint + SwiftLint
 ```
 
-Until those exist, there is nothing to build. Do not fabricate xcodebuild invocations.
+Each script auto-detects `DEVELOPER_DIR` (existing env value, else Xcode-beta.app, else Xcode.app) unless it is already set.
 
 ## Definition of done (every story)
 
