@@ -7,8 +7,8 @@ import TimelineSpikeCore
 enum RendererCatalog {
     static let all: [RendererDescriptor] = [
         RendererDescriptor(PlaceholderRenderer.self),
-        RendererDescriptor(SwiftUIListRenderer.self)
-        // S-14: RendererDescriptor(AppKitTimelineRenderer.self)
+        RendererDescriptor(SwiftUIListRenderer.self),
+        RendererDescriptor(AppKitTableRenderer.self),
     ]
 
     static var `default`: RendererDescriptor {

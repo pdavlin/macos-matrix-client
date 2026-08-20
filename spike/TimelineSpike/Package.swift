@@ -22,6 +22,12 @@ let package = Package(
         .testTarget(
             name: "TimelineSpikeCoreTests",
             dependencies: ["TimelineSpikeCore"]
+        ),
+        // The candidates live in the app target, so their pure logic — height arithmetic and
+        // scroll-anchor maths — is tested from here.
+        .testTarget(
+            name: "TimelineSpikeAppTests",
+            dependencies: ["TimelineSpikeApp"]
         )
     ]
 )
