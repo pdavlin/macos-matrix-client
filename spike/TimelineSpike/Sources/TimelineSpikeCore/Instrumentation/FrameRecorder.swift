@@ -17,9 +17,10 @@ import QuartzCore
 /// for an Instruments trace when the answer is "why".
 @MainActor
 public final class FrameRecorder: NSObject {
-    /// Ticks that must elapse before a drift sample is read back. Two ticks let a prepend
-    /// or a mutation propagate through layout and reach the screen.
-    public static let settleTicks = 3
+    // The drift settle window used to live here as `settleTicks`. It is now
+    // `AnchorProbe.settleTicks`, an instance property set from
+    // `HarnessConfiguration.driftSettleTicks`: it describes the probe, not the recorder,
+    // and a scenario with animated height changes needs to raise it.
 
     public private(set) var statistics = FrameStatistics()
     public private(set) var isRunning = false

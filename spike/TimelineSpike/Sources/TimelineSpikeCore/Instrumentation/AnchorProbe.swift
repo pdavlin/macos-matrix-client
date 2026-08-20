@@ -78,14 +78,27 @@ public struct DriftAccumulator: Sendable, Equatable, Codable {
 ///    drift.
 ///
 /// The probe does the rest. Around a prepend or a mutation the harness calls
-/// `beginSample(kind:)`, then `settle()` once per frame; after `FrameRecorder.settleTicks`
-/// frames the sample closes with whatever offset the renderer last reported.
+/// `beginSample(kind:)`, then `settle()` once per frame; after `settleTicks` frames the
+/// sample closes with whatever offset the renderer last reported.
 ///
 /// A pending sample is discarded, not recorded as zero, when the tracked event leaves the
 /// viewport before it settles. Recording it would flatter a renderer that scrolled the
 /// anchor off screen entirely.
 @MainActor
 public final class AnchorProbe {
+    /// Frames a sample waits before it closes.
+    ///
+    /// Three is enough for a change that lands in the next layout pass and is presented on
+    /// the frame after that, with one frame of margin. See SCENARIOS.md §10 for when to
+    /// raise it.
+    nonisolated public static let defaultSettleTicks = 3
+
+    /// The settle window in frames. Always at least 1: a zero-tick window would close the
+    /// sample inside `beginSample`, before the change it is measuring has been laid out.
+    public var settleTicks: Int {
+        didSet { settleTicks = max(1, settleTicks) }
+    }
+
     public private(set) var visibleIDs: [EventID] = []
     public private(set) var visibleRange: Range<Int>?
     public private(set) var trackedID: EventID?
@@ -105,7 +118,9 @@ public final class AnchorProbe {
         var ticksRemaining: Int
     }
 
-    public init() {}
+    public init(settleTicks: Int = AnchorProbe.defaultSettleTicks) {
+        self.settleTicks = max(1, settleTicks)
+    }
 
     // MARK: - Renderer callbacks
 
@@ -138,7 +153,7 @@ public final class AnchorProbe {
             kind: kind,
             eventID: trackedID,
             beforeOffset: trackedOffset,
-            ticksRemaining: FrameRecorder.settleTicks
+            ticksRemaining: settleTicks
         )
         return true
     }

@@ -88,7 +88,7 @@ struct FrameStatisticsTests {
 @MainActor
 struct AnchorProbeTests {
     private func settle(_ probe: AnchorProbe) {
-        for _ in 0 ..< FrameRecorder.settleTicks {
+        for _ in 0 ..< probe.settleTicks {
             probe.settle()
         }
     }
@@ -207,7 +207,7 @@ struct SpikeHarnessTests {
         #expect(harness.store.items.count == 350)
 
         harness.probe.reportOffset(150, for: harness.probe.trackedID ?? EventID(0))
-        for _ in 0 ..< FrameRecorder.settleTicks { harness.probe.settle() }
+        for _ in 0 ..< harness.probe.settleTicks { harness.probe.settle() }
         #expect(harness.probe.prependDrift.count == 1)
         #expect(harness.probe.prependDrift.worstMagnitude == 0)
     }

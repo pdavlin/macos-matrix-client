@@ -49,11 +49,14 @@ Machine conditions:
 1. Select the candidate in the picker. Switching candidates resets the instruments.
 2. Set the scenario label in the console. Use the exact names below.
 3. Scroll to the bottom of the timeline and wait two seconds for the app to settle.
-4. Press "Reset instruments" (Cmd-R). Never record a run that includes app launch or a
+4. Check the HUD shows a non-zero `visible` count and a `tracked` id. A candidate that
+   never reports its visible set produces zero drift samples, and every drift column in the
+   run comes out empty. That is a broken run, not a good result.
+5. Press "Reset instruments" (Cmd-R). Never record a run that includes app launch or a
    candidate switch: first-layout cost is real, but it is a separate question from steady
    state and it swamps the percentiles.
-5. Run the scenario.
-6. Press "Dump stats to JSON" (Cmd-D). Keep the file.
+6. Run the scenario.
+7. Press "Dump stats to JSON" (Cmd-D). Keep the file.
 
 ## 4. The four scenarios
 
@@ -134,8 +137,12 @@ One JSON file per scenario, plus a table in the S-13 / S-14 story:
 | Scenario | p50 ms | p95 ms | p99 ms | worst ms | hitches | prepend drift mean/worst pt | mutation drift mean/worst pt |
 |---|---|---|---|---|---|---|---|
 
-Attach the JSON files to the story. They carry the seed, the driver settings, the OS version
-and the machine model, so a number can always be traced back to the run that produced it.
+Attach the JSON files to the story. They carry the seed, the driver settings, the drift
+settle window, the workload fingerprint, the OS version and the machine model, so a number
+can always be traced back to the run that produced it.
+
+Before building the table, check that every file shares one `workloadFingerprint` and one
+`configuration.driftSettleTicks`. If they do not, the rows are not comparable. See §10.
 
 ## 6. Pass bar
 
@@ -166,9 +173,18 @@ AppKit, reduce item complexity, and carry a perf story into M1.
   frame. The nominal interval is read from the display link, so it is correct on a ProMotion
   display and on an external 60 Hz panel.
 - **Drift is measured against one tracked event**, the middle visible one, in points from
-  the top of the viewport. It closes three frames after the change. If the tracked event
-  leaves the viewport before the sample closes, the sample is discarded and counted in
-  `discardedDriftSampleCount` rather than scored as zero.
+  the top of the viewport. It closes `configuration.driftSettleTicks` frames after the
+  change, three by default. If the tracked event leaves the viewport before the sample
+  closes, the sample is discarded and counted in `discardedDriftSampleCount` rather than
+  scored as zero.
+- **Drift is not only anchoring failure.** The tracked event is the middle visible one, so
+  a mutation that grows an event *above* it but still on screen moves it legitimately: the
+  content really did get taller. In S2 and S3, where half the mutations target the visible
+  range by design, some of `mutationDrift` is content movement that no renderer can or
+  should prevent. Compare the two candidates against each other on this number; do not read
+  a single candidate's `mutationDrift` as its anchoring error. `prependDrift` in S4 has no
+  such confound: a prepend only inserts above the viewport, so every point of drift there
+  is anchoring failure.
 - **The HUD refreshes at 5 Hz from a snapshot**, not from live observation. Do not
   "improve" this: binding the HUD to the display link would make the instrument perturb the
   thing it measures.
@@ -194,9 +210,80 @@ It must not throttle, coalesce or debounce store reads. That is the thing being 
 A: it has no anchoring strategy and no height estimation, and its numbers must never appear
 in the comparison.
 
+Candidate A is `SwiftUIListRenderer` (S-13), listed in the picker as "SwiftUI (LazyVStack,
+anchored)". Its file documents which anchoring mechanism owns which behaviour, so a failing
+scenario can be attributed rather than guessed at.
+
 ## 9. Determinism
 
 The generator is a pure function of `(seed, index)`. The same seed produces the same 10k
 events on any machine, and the same events for every back-pagination batch, without bound.
 Day separators use a fixed UTC calendar for the same reason. If two runs disagree, the
 difference is the renderer or the machine, never the data.
+
+## 10. Measurement hygiene
+
+Added in S-13. This section governs the S-13 to S-15 window.
+
+### The row workload is frozen
+
+`SpikeRowView` and `SpikeRowMetrics` do not change until S-15 lands in Contract §11.
+
+Every frame time in this comparison is dominated by how much text and how many shapes a
+row lays out. Change one padding and every row height changes, every viewport holds a
+different number of rows, and the two candidates' numbers stop meaning the same thing. The
+change is invisible in the JSON, which is what makes it dangerous: nothing about the file
+says it came from a different workload.
+
+Detection is now mechanical. Every dump carries `workloadFingerprint`, a digest of the
+`SpikeRowMetrics` constants, the behaviour of `imageSize(for:availableWidth:)` at fixed
+probe points, and the `SpikeCorpus` pools. **Two dumps with different fingerprints must not
+appear in the same table.** The console shows the current value next to the dump button, so
+it can be checked without opening the file.
+
+The fingerprint is pinned by `WorkloadFingerprintTests`. A workload edit fails the test
+suite. Do not update the pinned constant to make it pass: revert the edit, or, if the
+change is genuinely wanted, re-run every scenario for every candidate and say so in the
+story.
+
+Two gaps the fingerprint cannot close, both covered by this freeze instead:
+
+- The *structure* of `SpikeRowView`. A `View` is not introspectable, so an added row of
+  chrome is invisible to the digest.
+- Font weights and designs, which live inside `Font` values with no stable textual form.
+  Deriving the digest from those would make it vary by OS build, which would break
+  cross-machine comparison — a worse failure than the one it fixes.
+
+### Prefer a workload that is slightly too expensive
+
+If the synthetic row is ever revised, err on the side of heavier than the real client, not
+lighter.
+
+The two errors are not symmetric. A workload that is too cheap makes both candidates clear
+the bar, the spike concludes "either is fine", and the real timeline — with formatted
+bodies, replies, read receipts and inline media — misses the budget in M1, when the
+architecture is no longer cheap to change. A workload that is too expensive costs a
+candidate that would have been adequate, and the fallback in §6 is already written down.
+Pay for a conservative architecture decision, not for an optimistic one.
+
+### The drift settle window
+
+`configuration.driftSettleTicks` sets how many display-link frames a drift sample waits
+before it closes. It defaults to 3 and is exported in every dump, because a run measured
+with a six-frame window is not comparable to a run measured with three. Changing it in the
+console clears the drift accumulators for that reason.
+
+Leave it at 3 for the four scored scenarios. Three frames cover a change that lands in the
+next layout pass and is presented on the frame after that, with one frame of margin.
+
+Raise it only for a candidate whose height changes are **animated**. An animated row
+expansion is still in flight three frames in, so the sample closes mid-animation and scores
+the transient position as drift, which reports a stable renderer as a drifting one. Set the
+window past the animation's duration in frames — for a 0.25 s animation on a 120 Hz
+display, at least 30 — and record the value you used in the story alongside the numbers.
+
+Do not raise it to flatter a candidate that jumps and then corrects itself. That is the
+failure this instrument exists to catch: at a long enough window, a renderer that scrolls
+the content wrong and snaps it back a few frames later reports zero drift, and the user
+still sees the flinch. If you raise the window, S4's by-eye check in §4 stops being
+optional and becomes the primary result.
