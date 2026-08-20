@@ -1,0 +1,8 @@
+# S-21: cron entries installed into the `pdavlin` user crontab on davbuntu
+# (crontab -e / crontab -l). Not a system crontab file — no user field.
+#
+# Nightly backup pipeline, 03:17 local to avoid the top of the hour.
+17 3 * * * /srv/synapse-standby/bin/synapse-backup.sh >> /srv/synapse-standby/backup.log 2>&1
+
+# Delegation-drift probe, every 30 minutes.
+*/30 * * * * /srv/synapse-standby/bin/drift-probe.sh >> /srv/synapse-standby/probe.log 2>&1

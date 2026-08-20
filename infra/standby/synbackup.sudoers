@@ -1,0 +1,14 @@
+# S-21: installed on the primary VM (davlin-matrix.exe.xyz) at
+# /etc/sudoers.d/synbackup, mode 440, owned by root:root.
+#
+# Grants the dedicated `synbackup` automation account exactly two
+# passwordless sudo rights, each pinned to one fixed command with no
+# argument wildcards, so the forced-command dispatcher (vm-dispatch.sh)
+# cannot be used to run anything else even if it were compromised.
+#
+# Media access does NOT go through sudo: synbackup is a member of the
+# matrix-synapse unix group and reads the media tree via normal group-read
+# permissions, restricted read-only at the SSH layer by rrsync.
+
+synbackup ALL=(postgres) NOPASSWD: /usr/bin/pg_dump -Fc synapse
+synbackup ALL=(root) NOPASSWD: /usr/bin/tar -cf - -C /etc/matrix-synapse homeserver.yaml conf.d homeserver.signing.key
