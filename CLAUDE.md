@@ -17,7 +17,7 @@ The Mactrix fork has landed. Current layout:
 2. **Glass on the navigation layer only.** Toolbar, sidebar, sheets, popovers. Never `.glassEffect()` on scrollable content. The timeline is opaque.
 3. **The prod account is never used for automated or agent-driven testing.** Use the dev account only. If credentials are ambiguous, stop and ask.
 4. **Scope comes from the contract.** Deferred means deferred. Do not add calls, threads, spaces, or multi-account work without a §11 amendment.
-5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/` **[after S-10]**. If the signature is not there, read the package sources in `DerivedData`/SPM checkouts. Never write an SDK call from memory.
+5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/`. If the signature is not there, read the package sources in `DerivedData`/SPM checkouts. Never write an SDK call from memory.
 6. **Pin discipline.** `matrix-rust-components-swift` is pinned by exact version. Do not bump it inside a feature story. SDK bumps are their own story with a changelog review.
 
 ## Build and test
@@ -55,8 +55,8 @@ Each script auto-detects `DEVELOPER_DIR` (existing env value, else Xcode-beta.ap
 
 ## Reference material
 
-- `docs/ffi/` **[after S-10]** — vendored generated FFI Swift interfaces for the pinned SDK. Read-only. Refresh via `scripts/refresh-ffi-docs.sh` on every SDK bump.
-- `docs/skills/` **[after S-10]** — exported Xcode agent skills (SwiftUI Specialist, What's New in SwiftUI). Read these before Liquid Glass or macOS 26/27 API work.
+- `docs/ffi/` — vendored generated FFI Swift interfaces for the pinned SDK. Read-only. Refresh via `scripts/refresh-ffi-docs.sh` on every SDK bump.
+- `docs/skills/` — exported Xcode agent skills (SwiftUI Specialist, What's New in SwiftUI). Read these before Liquid Glass or macOS 26/27 API work.
 
 ## Project Management
 
