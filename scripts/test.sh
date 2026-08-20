@@ -1,13 +1,18 @@
 #!/bin/bash
 # test.sh — run every test suite in the repo.
 #
-# Three suites, in order:
+# Four suites, in order:
 #   1. `swift test --package-path MactrixLibrary` — the local SPM package's
 #      unit tests.
 #   2. `swift test --package-path spike/TimelineSpike` — the timeline spike
 #      package's unit tests.
 #   3. `xcodebuild test -scheme MactrixTests` — the app test plan, which
 #      runs the MactrixLibrary tests through the app project's test plan.
+#   4. `xcodebuild test -scheme MactrixIntegrationTests` — the S-05 headless
+#      login/discovery integration test against davlin.io. Skips itself
+#      (exit 0) unless MATRIX_DEV_USER / MATRIX_DEV_PASSWORD are present in
+#      its environment; see MactrixIntegrationTests/LoginIntegrationTests.swift
+#      for how to supply them, both from Xcode and headlessly.
 #
 # Exits non-zero if any suite fails.
 #
@@ -44,5 +49,12 @@ echo "==> xcodebuild test -scheme MactrixTests"
 xcodebuild test \
     -project Mactrix.xcodeproj \
     -scheme MactrixTests \
+    -destination "platform=macOS,arch=arm64" \
+    -disableAutomaticPackageResolution
+
+echo "==> xcodebuild test -scheme MactrixIntegrationTests"
+xcodebuild test \
+    -project Mactrix.xcodeproj \
+    -scheme MactrixIntegrationTests \
     -destination "platform=macOS,arch=arm64" \
     -disableAutomaticPackageResolution
