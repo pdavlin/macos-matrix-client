@@ -3,7 +3,6 @@ import Models
 import SnapshotTesting
 import SwiftUI
 import Testing
-
 @testable import UI
 
 @MainActor

@@ -15,7 +15,7 @@ public final class SidebarSpaceRoom {
     }
 
     func loadChildren() async {
-        if case .loaded(children: _) = children {
+        if case .loaded = children {
             return
         }
 

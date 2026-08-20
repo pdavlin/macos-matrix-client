@@ -18,9 +18,9 @@ public struct SessionVerificationModal<VerificationEmoji: SessionVerificationEmo
 
     var subtitle: String {
         switch verificationData {
-        case .emojis(emojis: _, indices: _):
+        case .emojis:
             "Do the emojis match with the other device?"
-        case .decimals(values: _):
+        case .decimals:
             "Do the numbers match with the other device?"
         }
     }

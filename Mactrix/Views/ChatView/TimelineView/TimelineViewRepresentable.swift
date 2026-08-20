@@ -31,7 +31,7 @@ struct TimelineViewRepresentable: NSViewControllerRepresentable {
         return TimelineViewController(coordinator: context.coordinator, timeline: timeline, timelineItems: items)
     }
 
-    func updateNSViewController(_ timelineViewController: TimelineViewController, context: Context) {
+    func updateNSViewController(_ timelineViewController: TimelineViewController, context _: Context) {
         timelineViewController.updateTimelineItems(items)
     }
 }

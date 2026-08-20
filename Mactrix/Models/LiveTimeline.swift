@@ -80,11 +80,11 @@ public final class LiveTimeline {
 
         await listenToTimelineChanges()
 
-		do {
-			try await listenToPaginationStatus(threadId: threadId)
-		} catch {
-			Logger.liveTimeline.error("Failed to listen to pagination status: \(error)")
-		}
+        do {
+            try await listenToPaginationStatus(threadId: threadId)
+        } catch {
+            Logger.liveTimeline.error("Failed to listen to pagination status: \(error)")
+        }
     }
 
     private func listenToTimelineChanges() async {
@@ -101,17 +101,17 @@ public final class LiveTimeline {
         }
     }
 
-	private func listenToPaginationStatus(threadId: String?) async throws {
+    private func listenToPaginationStatus(threadId: String?) async throws {
         guard let timeline else { return }
 
         let listener = AsyncSDKListener<PaginationStatus>()
-		// Only main timelines can subscibe to back pagination status
-		if threadId == nil {
-			paginateHandle = try await timeline.subscribeToBackPaginationStatus(listener: listener)
-		} else {
-			// if in a thread, instead push one initial status manually to kick off message fetching
-			listener.publishValue(.idle(hitTimelineStart: false))
-		}
+        // Only main timelines can subscibe to back pagination status
+        if threadId == nil {
+            paginateHandle = try await timeline.subscribeToBackPaginationStatus(listener: listener)
+        } else {
+            // if in a thread, instead push one initial status manually to kick off message fetching
+            listener.publishValue(.idle(hitTimelineStart: false))
+        }
 
         Task { [weak self] in
             for await status in listener {
@@ -120,7 +120,7 @@ public final class LiveTimeline {
                 Logger.liveTimeline.debug("updating timeline paginating: \(status.debugDescription)")
                 paginating = status
 
-                if paginating == .idle(hitTimelineStart: false) && timelineItems.count < 20 {
+                if paginating == .idle(hitTimelineStart: false), timelineItems.count < 20 {
                     try await Task.sleep(for: .milliseconds(500))
                     try await fetchOlderMessages()
                 }
@@ -204,6 +204,6 @@ extension LiveTimeline {
 
 extension LiveTimeline: Equatable {
     public nonisolated static func == (lhs: LiveTimeline, rhs: LiveTimeline) -> Bool {
-		lhs.room.id == rhs.room.id && lhs.focusedThreadId == rhs.focusedThreadId
+        lhs.room.id == rhs.room.id && lhs.focusedThreadId == rhs.focusedThreadId
     }
 }

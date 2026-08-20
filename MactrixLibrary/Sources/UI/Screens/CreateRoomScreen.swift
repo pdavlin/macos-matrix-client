@@ -4,7 +4,7 @@ import SwiftUI
 public struct CreateRoomScreen: View {
     @State private var params = CreateRoomParams()
     @State private var submitting = false
-    @State private var errorMsg: Error? = nil
+    @State private var errorMsg: Error?
 
     let onSubmit: (_ params: CreateRoomParams) async throws -> Void
 

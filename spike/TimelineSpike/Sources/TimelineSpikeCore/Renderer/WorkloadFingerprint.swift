@@ -58,7 +58,7 @@ public enum WorkloadFingerprint {
     /// The exact byte string the digest is taken over. Exposed so a failing fingerprint
     /// test can print what changed rather than only that something changed.
     public static var canonicalDescription: String {
-        var lines: [String] = ["version=\(formatVersion)"]
+        var lines = ["version=\(formatVersion)"]
         for (name, number) in metricConstants {
             lines.append("metric.\(name)=\(bits(number))")
         }

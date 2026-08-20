@@ -50,7 +50,7 @@ public struct MatrixUriScheme: Hashable, Codable {
         let queryComponents = query?.split(separator: "&") ?? []
 
         var routingVia = [String]()
-        var action: Action? = nil
+        var action: Action?
 
         for queryComponent in queryComponents {
             let component = queryComponent.split(separator: "=")

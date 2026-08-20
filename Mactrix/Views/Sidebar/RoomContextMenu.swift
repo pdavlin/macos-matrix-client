@@ -1,6 +1,6 @@
 import MatrixRustSDK
-import SwiftUI
 import OSLog
+import SwiftUI
 
 struct RoomContextMenu: View {
     @Environment(WindowState.self) var windowState

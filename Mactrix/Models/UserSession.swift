@@ -48,7 +48,7 @@ struct UserSession: Codable {
 
     static func loadUserFromKeychain() throws -> Self? {
         Logger.matrixClient.debug("Load user from keychain")
-        if let keychainData = try AppKeychain().load(forKey: Self.keychainKey) {
+        if let keychainData = try AppKeychain().load(forKey: keychainKey) {
             return try JSONDecoder().decode(Self.self, from: keychainData)
         }
         return nil

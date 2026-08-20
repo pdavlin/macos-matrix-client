@@ -1,5 +1,5 @@
 //
-//  MultilineBanner.swift
+//  MultilineBannerLabelStyle.swift
 //  Mactrix
 //
 //  Created by Marquis Kurt on 15-02-2026.

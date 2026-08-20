@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 import Testing
-import TimelineSpikeCore
 @testable import TimelineSpikeApp
+import TimelineSpikeCore
 
 /// Drives the real view in an off-screen window.
 ///
@@ -225,7 +225,7 @@ struct TimelineTableViewTests {
         )
         harness.store.apply(.editText(harness.store.items[below].id, newBody: body))
         rig.view.sync()
-        #expect(abs(try #require(trackedOffset(harness)) - before) <= 0.5)
+        #expect(try abs(#require(trackedOffset(harness)) - before) <= 0.5)
     }
 
     @Test("The visible set the probe receives matches what the table says is on screen")

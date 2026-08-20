@@ -46,7 +46,7 @@ struct SearchViewModifier: ViewModifier {
                     .foregroundStyle(.secondary)
             }
             Divider()
-        case .lookingForUser(userId: _):
+        case .lookingForUser:
             HStack {
                 ProgressView()
                     .scaleEffect(0.5)
@@ -58,7 +58,7 @@ struct SearchViewModifier: ViewModifier {
             Label("Room not found", systemImage: "exclamationmark.circle")
                 .foregroundStyle(.secondary)
             Divider()
-        case .userNotFound(userId: _):
+        case .userNotFound:
             Label("User not found", systemImage: "exclamationmark.circle")
                 .foregroundStyle(.secondary)
             Divider()
@@ -163,8 +163,7 @@ struct SearchViewModifier: ViewModifier {
             } else {
                 windowState.searchDirectResult = nil
             }
-        } catch is CancellationError {}
-        catch {
+        } catch is CancellationError {} catch {
             Logger.viewCycle.error("failed to resolve search query '\(query)': \(error)")
         }
     }

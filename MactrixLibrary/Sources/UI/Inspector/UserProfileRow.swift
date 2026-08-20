@@ -5,7 +5,7 @@ public struct UserProfileRow<Profile: UserProfile>: View {
     let profile: Profile
     let imageLoader: ImageLoader?
 
-    @State private var image: Image? = nil
+    @State private var image: Image?
 
     public init(profile: Profile, imageLoader: ImageLoader?) {
         self.profile = profile
@@ -53,7 +53,7 @@ public struct UserProfileRowLarge<Profile: UserProfile>: View {
         UserProfileRow(profile: MockUserProfile(), imageLoader: nil)
         UserProfileRow(profile: MockUserProfile(), imageLoader: nil)
         UserProfileRow(profile: MockUserProfile(), imageLoader: nil)
-        
+
         UserProfileRowLarge(profile: MockUserProfile(), imageLoader: nil)
         UserProfileRowLarge(profile: MockUserProfile(), imageLoader: nil)
         UserProfileRowLarge(profile: MockUserProfile(), imageLoader: nil)

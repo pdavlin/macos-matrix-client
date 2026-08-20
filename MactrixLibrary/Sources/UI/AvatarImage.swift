@@ -37,7 +37,7 @@ public struct AvatarImage<Preview: View>: View {
         }
     }
 
-    @State private var avatar: Image? = nil
+    @State private var avatar: Image?
 
     @ViewBuilder
     var imageOrPlaceholder: some View {

@@ -1,7 +1,7 @@
 import MatrixRustSDK
+import OSLog
 import SwiftUI
 import UI
-import OSLog
 
 struct SpaceDisclosureGroup: View {
     @Environment(AppState.self) var appState

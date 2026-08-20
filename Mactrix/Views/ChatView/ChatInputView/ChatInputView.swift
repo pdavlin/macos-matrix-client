@@ -46,11 +46,10 @@ struct ChatInputView: View {
             return
         }
 
-        let draftType: ComposerDraftType
-        if let replyTo {
-            draftType = .reply(eventId: replyTo.eventOrTransactionId.id)
+        let draftType: ComposerDraftType = if let replyTo {
+            .reply(eventId: replyTo.eventOrTransactionId.id)
         } else {
-            draftType = .newMessage
+            .newMessage
         }
         let draft = ComposerDraft(
             plainText: chatInput,

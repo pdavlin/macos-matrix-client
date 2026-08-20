@@ -8,14 +8,14 @@ struct WelcomeSheetView: View {
 
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
-    @State private var homeserverLogin: HomeserverLogin? = nil
+    @State private var homeserverLogin: HomeserverLogin?
 
     @State private var homeserverField: String = ""
     @State private var usernameField: String = ""
     @State private var passwordField: String = ""
 
     @State private var loading: Bool = false
-    @State private var showError: Error? = nil
+    @State private var showError: Error?
 
     private let defaultHomeserver = "matrix.org"
 
@@ -123,10 +123,10 @@ struct WelcomeSheetView: View {
                 let message: String = {
                     switch showError {
                     case let MatrixRustSDK.ClientBuildError
-                           .InvalidServerName(message: msg):
+                        .InvalidServerName(message: msg):
                         return msg
                     case let MatrixRustSDK.ClientBuildError
-                           .ServerUnreachable(message: msg):
+                        .ServerUnreachable(message: msg):
                         return msg
                     default:
                         return showError.localizedDescription
@@ -134,8 +134,8 @@ struct WelcomeSheetView: View {
                 }()
 
                 Text(message)
-                  .foregroundStyle(Color.red)
-                  .textSelection(.enabled)
+                    .foregroundStyle(Color.red)
+                    .textSelection(.enabled)
             }
         }
         .padding()

@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 import Testing
-import TimelineSpikeCore
 @testable import TimelineSpikeApp
+import TimelineSpikeCore
 
 /// The candidate has to reach the harness through the seam the console uses, not only through
 /// the AppKit class the other tests drive directly.

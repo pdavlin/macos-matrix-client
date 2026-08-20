@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 import Testing
-import TimelineSpikeCore
 @testable import TimelineSpikeApp
+import TimelineSpikeCore
 
 /// Deterministic stand-in for Core Text, so the arithmetic can be checked by hand.
 ///
@@ -18,7 +18,7 @@ struct StubMeasurer: SpikeTextMeasuring {
         }
     }
 
-    func lineCount(of text: String, role: SpikeFontRole, width: CGFloat) -> Int {
+    func lineCount(of text: String, role _: SpikeFontRole, width: CGFloat) -> Int {
         guard !text.isEmpty else { return 1 }
         let perLine = max(1, Int(width / pointsPerCharacter))
         return max(1, Int(ceil(Double(text.count) / Double(perLine))))

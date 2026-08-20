@@ -174,7 +174,8 @@ struct ControlPanelView: View {
     private func regenerate() {
         guard let seed = UInt64(seedText.trimmingCharacters(in: .whitespaces)),
               let count = Int(eventCountText.trimmingCharacters(in: .whitespaces)),
-              count > 0 else {
+              count > 0
+        else {
             return
         }
         applyDriverSettings()

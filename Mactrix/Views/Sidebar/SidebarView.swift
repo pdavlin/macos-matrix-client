@@ -17,7 +17,7 @@ struct SidebarView: View {
         (appState.matrixClient?.rooms ?? [])
             .filter { room in
                 let isDirect = room.roomInfo?.isDirect == true
-                let favoriteIDs = Set(favorites.map { $0.id })
+                let favoriteIDs = Set(favorites.map(\.id))
                 return isDirect && !favoriteIDs.contains(room.id)
             }
     }

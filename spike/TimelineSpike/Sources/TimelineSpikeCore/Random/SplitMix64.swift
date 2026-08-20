@@ -64,7 +64,8 @@ public struct SplitMix64: RandomNumberGenerator, Sendable {
 
     /// Picks one element of a non-empty collection.
     public mutating func element<C: RandomAccessCollection>(of collection: C) -> C.Element
-        where C.Index == Int {
+        where C.Index == Int
+    {
         precondition(!collection.isEmpty, "collection must not be empty")
         return collection[collection.startIndex + int(in: 0 ..< collection.count)]
     }

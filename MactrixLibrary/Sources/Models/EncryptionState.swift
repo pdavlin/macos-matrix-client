@@ -1,4 +1,3 @@
-
 @MainActor
 public enum EncryptionState {
     /**

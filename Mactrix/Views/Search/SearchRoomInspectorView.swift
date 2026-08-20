@@ -8,9 +8,9 @@ struct SearchRoomInspectorView: View {
     @Environment(WindowState.self) var windowState
 
     @State var searching: Bool = false
-    @State var roomListSelection: String? = nil
+    @State var roomListSelection: String?
 
-    @State var roomSearch: LiveRoomSearch? = nil
+    @State var roomSearch: LiveRoomSearch?
 
     var body: some View {
         List(selection: $roomListSelection) {

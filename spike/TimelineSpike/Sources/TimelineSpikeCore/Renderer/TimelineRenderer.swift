@@ -50,7 +50,7 @@ public struct RendererDescriptor: Identifiable, Sendable, Hashable {
     public let summary: String
     private let build: @MainActor @Sendable (SpikeHarness) -> AnyView
 
-    public init<Renderer: TimelineRenderer>(_ type: Renderer.Type) {
+    public init<Renderer: TimelineRenderer>(_: Renderer.Type) {
         self.id = Renderer.rendererID
         self.displayName = Renderer.displayName
         self.summary = Renderer.summary
