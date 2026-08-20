@@ -48,6 +48,28 @@ public final class TimelineStore {
         itemIndex(for: id).map { items[$0].event }
     }
 
+    /// The item-index range spanned by a set of on-screen identifiers.
+    ///
+    /// A renderer knows which rows are visible but not where they sit in `items`, and the
+    /// mutation driver needs the range to split on-screen from off-screen targets. Only the
+    /// extremes matter, so this is O(n) over the visible rows with no allocation, not a
+    /// sort.
+    ///
+    /// Identifiers outside the loaded window are ignored rather than treated as an error: a
+    /// prepend can land between the renderer reading its visible set and this call.
+    /// Returns `nil` when nothing in `ids` is loaded.
+    public func visibleRange(spanning ids: some Sequence<EventID>) -> Range<Int>? {
+        var lowest: Int?
+        var highest: Int?
+        for id in ids {
+            guard let index = itemIndex(for: id) else { continue }
+            lowest = min(lowest ?? index, index)
+            highest = max(highest ?? index, index)
+        }
+        guard let lowest, let highest else { return nil }
+        return lowest ..< (highest + 1)
+    }
+
     // MARK: - Back-pagination
 
     /// Prepends a batch of older events and returns the inserted item-index range.

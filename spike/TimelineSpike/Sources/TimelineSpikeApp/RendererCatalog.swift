@@ -6,8 +6,8 @@ import TimelineSpikeCore
 /// else in the harness changes.
 enum RendererCatalog {
     static let all: [RendererDescriptor] = [
-        RendererDescriptor(PlaceholderRenderer.self)
-        // S-13: RendererDescriptor(SwiftUITimelineRenderer.self)
+        RendererDescriptor(PlaceholderRenderer.self),
+        RendererDescriptor(SwiftUIListRenderer.self)
         // S-14: RendererDescriptor(AppKitTimelineRenderer.self)
     ]
 

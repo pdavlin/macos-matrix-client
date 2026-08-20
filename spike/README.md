@@ -49,13 +49,15 @@ TimelineSpike/
     Renderer/TimelineRenderer.swift         the candidate seam
     Renderer/SpikeRowMetrics.swift          layout spec both candidates must match
     Renderer/SpikeRowView.swift             shared SwiftUI row
+    Renderer/WorkloadFingerprint.swift      digest of the frozen row workload
   Sources/TimelineSpikeApp/           executable: window, console, HUD, placeholder
+    Candidates/                       the measured renderers
   Tests/TimelineSpikeCoreTests/       generator determinism, driver invariants, instruments
 ```
 
 ### Adding a candidate (S-13, S-14)
 
-1. Add one file to `Sources/TimelineSpikeApp/` with a type conforming to
+1. Add one file to `Sources/TimelineSpikeApp/Candidates/` with a type conforming to
    `TimelineRenderer`.
 2. Add one line to `RendererCatalog.all`.
 

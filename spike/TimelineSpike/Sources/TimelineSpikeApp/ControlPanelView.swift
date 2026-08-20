@@ -14,6 +14,7 @@ struct ControlPanelView: View {
     @State private var onScreenBias: Double
     @State private var batchSize: Double
     @State private var automaticPagination: Bool
+    @State private var settleTicks: Int
 
     init(harness: SpikeHarness, renderer: Binding<RendererDescriptor>) {
         self.harness = harness
@@ -26,6 +27,7 @@ struct ControlPanelView: View {
         _onScreenBias = State(initialValue: configuration.mutation.onScreenBias)
         _batchSize = State(initialValue: Double(configuration.pagination.batchSize))
         _automaticPagination = State(initialValue: configuration.pagination.isAutomatic)
+        _settleTicks = State(initialValue: configuration.driftSettleTicks)
     }
 
     var body: some View {
@@ -108,8 +110,23 @@ struct ControlPanelView: View {
             }
 
             Section("Instruments") {
+                Stepper(
+                    "Drift settle window: \(settleTicks) frames",
+                    value: $settleTicks,
+                    in: 1 ... 12
+                )
+                Text("Leave this at 3 unless SCENARIOS.md §10 says otherwise. Changing it "
+                    + "clears the drift accumulators, because samples taken with two "
+                    + "windows are two measurements.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Button("Reset instruments") { harness.resetInstrumentation() }
                 Button("Dump stats to JSON") { harness.dumpReport() }
+                // Shown so the operator can confirm two dumps came from the same row
+                // workload without opening the JSON.
+                LabeledContent("Workload", value: WorkloadFingerprint.value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 if let url = harness.lastReportURL {
                     Text(url.path)
                         .font(.caption)
@@ -129,6 +146,7 @@ struct ControlPanelView: View {
         .onChange(of: onScreenBias) { _, _ in applyDriverSettings() }
         .onChange(of: batchSize) { _, _ in applyDriverSettings() }
         .onChange(of: automaticPagination) { _, _ in applyDriverSettings() }
+        .onChange(of: settleTicks) { _, newValue in harness.updateDriftSettleTicks(newValue) }
     }
 
     private var rateDescription: String {
@@ -165,7 +183,8 @@ struct ControlPanelView: View {
                 seed: seed,
                 initialEventCount: count,
                 mutation: harness.configuration.mutation,
-                pagination: harness.configuration.pagination
+                pagination: harness.configuration.pagination,
+                driftSettleTicks: settleTicks
             )
         )
     }

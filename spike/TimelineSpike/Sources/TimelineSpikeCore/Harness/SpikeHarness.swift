@@ -49,6 +49,7 @@ public final class SpikeHarness {
             configuration: configuration.mutation
         )
         self.paginationDriver = PaginationDriver(configuration: configuration.pagination)
+        probe.settleTicks = configuration.driftSettleTicks
         wirePagination()
         startHUDTimer()
         frameRecorder.onTick = { [weak self] in
@@ -72,9 +73,24 @@ public final class SpikeHarness {
             configuration: configuration.mutation
         )
         paginationDriver = PaginationDriver(configuration: configuration.pagination)
+        probe.settleTicks = configuration.driftSettleTicks
         wirePagination()
         probe.reset()
         frameRecorder.resetStatistics()
+        refreshHUD()
+    }
+
+    /// Changes the drift settle window and clears the drift accumulators.
+    ///
+    /// The accumulators are cleared because samples taken with two different windows are
+    /// two different measurements, and averaging them would hide that. See SCENARIOS.md
+    /// §10.
+    public func updateDriftSettleTicks(_ ticks: Int) {
+        let clamped = max(1, ticks)
+        guard clamped != configuration.driftSettleTicks else { return }
+        configuration.driftSettleTicks = clamped
+        probe.settleTicks = clamped
+        probe.reset()
         refreshHUD()
     }
 
@@ -245,6 +261,7 @@ public final class SpikeHarness {
             scenario: scenarioLabel,
             rendererID: activeRenderer?.id ?? "unknown",
             rendererName: activeRenderer?.displayName ?? "unknown",
+            workloadFingerprint: WorkloadFingerprint.value,
             configuration: configuration,
             frame: frameRecorder.statistics.summary,
             prependDrift: probe.prependDrift,
