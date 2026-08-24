@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-let applicationID = "dk.qpqp.mactrix"
+let applicationID = Bundle.main.bundleIdentifier ?? "io.davlin.matrixclient"
 
 @main
 struct MactrixApp: App {

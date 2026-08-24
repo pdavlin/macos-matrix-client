@@ -101,7 +101,30 @@ class MatrixClient {
         // Restore the client using the session.
         try await matrixClient.client.restoreSession(session: userSession.session)
 
+        Self.removeOrphanedStores(keeping: userSession.storeID)
+
         return matrixClient
+    }
+
+    /// Removes store directories left behind by login attempts that never
+    /// completed. Safe only once a session is restored: at that point the
+    /// single-account contract means every sibling of the live store is an
+    /// orphan, and no login flow is in progress.
+    static func removeOrphanedStores(keeping storeID: String) {
+        let parents = [
+            URL.sessionData(for: storeID).deletingLastPathComponent(),
+            URL.sessionCaches(for: storeID).deletingLastPathComponent(),
+        ]
+        for parent in parents {
+            for orphan in SessionStores.orphanedDirectories(in: parent, keeping: storeID) {
+                do {
+                    try FileManager.default.removeItem(at: orphan)
+                    Logger.matrixClient.info("removed orphaned session store \(orphan.lastPathComponent)")
+                } catch {
+                    Logger.matrixClient.error("failed to remove orphaned session store: \(error)")
+                }
+            }
+        }
     }
 
     func reset() async throws {
