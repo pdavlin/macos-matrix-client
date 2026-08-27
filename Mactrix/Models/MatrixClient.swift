@@ -96,20 +96,47 @@ class MatrixClient {
     static func attemptRestore() async throws -> MatrixClient? {
         guard let userSession = try UserSession.loadUserFromKeychain() else { return nil }
 
+        // Probe the store BEFORE building the client. `ClientBuilder` creates
+        // the store directory, so once the client exists the directory is
+        // always present and proves nothing about whether the session's crypto
+        // state was ever there.
+        let storePreexisted = FileManager.default.fileExists(
+            atPath: URL.sessionData(for: userSession.storeID).path(percentEncoded: false)
+        )
+
         let matrixClient = try await MatrixClient(userSession: userSession)
 
         // Restore the client using the session.
         try await matrixClient.client.restoreSession(session: userSession.session)
 
-        Self.removeOrphanedStores(keeping: userSession.storeID)
+        // `restoreSession` succeeds on an empty store: the access token and the
+        // device ID come from the keychain, not from the store. So a missing
+        // store yields a live session with no crypto state, and every sibling
+        // directory then looks like an orphan next to it. Sweeping there
+        // deletes the real store. Refuse, and leave the evidence in place for
+        // a human to sort out.
+        if storePreexisted {
+            Self.removeOrphanedStores(keeping: userSession.storeID)
+        } else {
+            Logger.matrixClient.error(
+                """
+                session store \(userSession.storeID, privacy: .public) was missing at restore; \
+                the SDK created an empty one. Skipping the orphan sweep so that no other store is \
+                destroyed. Crypto state is absent: expect UTDs until the store is restored or the \
+                session is replaced.
+                """
+            )
+        }
 
         return matrixClient
     }
 
     /// Removes store directories left behind by login attempts that never
-    /// completed. Safe only once a session is restored: at that point the
-    /// single-account contract means every sibling of the live store is an
-    /// orphan, and no login flow is in progress.
+    /// completed. Safe only once a session is restored AND the restored store
+    /// already existed: at that point the single-account contract means every
+    /// sibling of the live store is an orphan, and no login flow is in
+    /// progress. Never call this with a store the SDK just created — see
+    /// `attemptRestore`.
     static func removeOrphanedStores(keeping storeID: String) {
         let parents = [
             URL.sessionData(for: storeID).deletingLastPathComponent(),
@@ -148,6 +175,7 @@ class MatrixClient {
     @ObservationIgnored fileprivate var syncIndicatorHandle: TaskHandle?
     @ObservationIgnored fileprivate var syncStateHandle: TaskHandle?
     @ObservationIgnored fileprivate var verificationStateHandle: TaskHandle?
+    @ObservationIgnored fileprivate var recoveryStateHandle: TaskHandle?
     @ObservationIgnored fileprivate var ignoredUsersHandle: TaskHandle?
 
     /// The latest session verification request received by another client
@@ -185,7 +213,20 @@ class MatrixClient {
 
         try await client.getSessionVerificationController().setDelegate(delegate: self)
 
+        // UniFFI's handle map owns the delegate once it is lowered, so the
+        // reporter needs no strong reference here. The SDK errors if a delegate
+        // is already set, which is why this is in the once-per-client start
+        // path and not somewhere a view can re-enter.
+        try await client.setUtdDelegate(utdDelegate: UtdReporter())
+
         verificationStateHandle = client.encryption().verificationStateListener(listener: self)
+
+        // Recovery state decides whether this device can pull the backup
+        // decryption key out of secret storage. `disabled` or `incomplete`
+        // means device-historical events stay undecryptable however many times
+        // the device is verified by SAS. Subscribed rather than sampled: the
+        // value reads `unknown` until the first sync settles.
+        recoveryStateHandle = client.encryption().recoveryStateListener(listener: self)
 
         ignoredUsersHandle = client.subscribeToIgnoredUsers(listener: self)
         ignoredUserIds = try await client.ignoredUsers()
