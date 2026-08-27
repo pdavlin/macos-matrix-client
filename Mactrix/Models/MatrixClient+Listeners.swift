@@ -56,8 +56,30 @@ extension MatrixClient: SyncServiceStateObserver {
 extension MatrixClient: VerificationStateListener {
     nonisolated func onUpdate(status: MatrixRustSDK.VerificationState) {
         Task { @MainActor in
+            // Recorded because a session that reports `unverified` on every
+            // launch cannot read the key backup, which shows up downstream as
+            // `historicalMessageAndDeviceIsUnverified` UTDs rather than as
+            // anything that names verification.
+            let name = switch status {
+            case .unknown: "unknown"
+            case .verified: "verified"
+            case .unverified: "unverified"
+            }
+            Logger.matrixClient.info("verification state: \(name, privacy: .public)")
             verificationState = status
         }
+    }
+}
+
+extension MatrixClient: RecoveryStateListener {
+    nonisolated func onUpdate(status: MatrixRustSDK.RecoveryState) {
+        let name = switch status {
+        case .unknown: "unknown"
+        case .enabled: "enabled"
+        case .disabled: "disabled"
+        case .incomplete: "incomplete"
+        }
+        Logger.matrixClient.info("recovery state: \(name, privacy: .public)")
     }
 }
 

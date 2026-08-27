@@ -175,6 +175,7 @@ class MatrixClient {
     @ObservationIgnored fileprivate var syncIndicatorHandle: TaskHandle?
     @ObservationIgnored fileprivate var syncStateHandle: TaskHandle?
     @ObservationIgnored fileprivate var verificationStateHandle: TaskHandle?
+    @ObservationIgnored fileprivate var recoveryStateHandle: TaskHandle?
     @ObservationIgnored fileprivate var ignoredUsersHandle: TaskHandle?
 
     /// The latest session verification request received by another client
@@ -219,6 +220,13 @@ class MatrixClient {
         try await client.setUtdDelegate(utdDelegate: UtdReporter())
 
         verificationStateHandle = client.encryption().verificationStateListener(listener: self)
+
+        // Recovery state decides whether this device can pull the backup
+        // decryption key out of secret storage. `disabled` or `incomplete`
+        // means device-historical events stay undecryptable however many times
+        // the device is verified by SAS. Subscribed rather than sampled: the
+        // value reads `unknown` until the first sync settles.
+        recoveryStateHandle = client.encryption().recoveryStateListener(listener: self)
 
         ignoredUsersHandle = client.subscribeToIgnoredUsers(listener: self)
         ignoredUserIds = try await client.ignoredUsers()
