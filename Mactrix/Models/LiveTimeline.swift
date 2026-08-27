@@ -74,7 +74,10 @@ public final class LiveTimeline {
             internalIdPrefix: nil,
             dateDividerMode: .daily,
             trackReadReceipts: .allEvents,
-            reportUtds: false
+            // Forward this timeline's UTDs to the client's delegate
+            // (`UtdReporter`), so a failure to decrypt is recorded with the
+            // cause the crypto layer assigns it instead of being silent.
+            reportUtds: true
         )
         timeline = try await room.room.timelineWithConfiguration(configuration: config)
 

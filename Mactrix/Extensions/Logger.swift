@@ -17,4 +17,6 @@ extension Logger {
     static let viewCycle = Logger(subsystem: subsystem, category: "viewcycle")
 
     static let notification = Logger(subsystem: subsystem, category: "notification")
+
+    static let utd = Logger(subsystem: subsystem, category: "utd")
 }
