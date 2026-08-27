@@ -5,10 +5,11 @@ import SwiftUI
 import Testing
 @testable import UI
 
-/// Snapshot references are recorded on the primary dev machine (macOS 27 beta, 2x scale).
-/// CI runners image on a different OS build with different font rasterization and backing
-/// scale, so pixel comparison there fails by environment, not by regression. Snapshots are
-/// the local/agent-side gate (contract R-8); CI enforces the compile and logic suites.
+/// Snapshot references are rendered at a fixed 2x through `.scaledImage`, so the backing
+/// scale of whatever display is attached does not affect the result — see
+/// `ScaledImageSnapshotting`. Font rasterization still varies by OS build, so CI runners on a
+/// different macOS build can still differ. Snapshots stay the local/agent-side gate
+/// (contract R-8); CI enforces the compile and logic suites.
 @MainActor
 struct RoomEncryptionBadgeSnapshotTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
@@ -21,6 +22,6 @@ struct RoomEncryptionBadgeSnapshotTests {
         // so an unpinned snapshot flips with light/dark mode and fails by time of day.
         controller.view.appearance = NSAppearance(named: .aqua)
 
-        assertSnapshot(of: controller, as: .image)
+        assertSnapshot(of: controller, as: .scaledImage)
     }
 }
