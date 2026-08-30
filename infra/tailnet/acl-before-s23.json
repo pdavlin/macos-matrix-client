@@ -1,0 +1,45 @@
+{
+ "grants": [
+  {
+   "src": [
+    "*"
+   ],
+   "dst": [
+    "*"
+   ],
+   "ip": [
+    "*"
+   ]
+  }
+ ],
+ "ssh": [
+  {
+   "action": "check",
+   "src": [
+    "autogroup:member"
+   ],
+   "dst": [
+    "autogroup:self"
+   ],
+   "users": [
+    "autogroup:nonroot",
+    "root"
+   ]
+  }
+ ],
+ "nodeAttrs": [
+  {
+   "target": [
+    "autogroup:member"
+   ],
+   "attr": [
+    "funnel"
+   ]
+  }
+ ],
+ "tagOwners": {
+  "tag:davhost-svc": [
+   "autogroup:admin"
+  ]
+ }
+}
