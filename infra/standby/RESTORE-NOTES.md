@@ -209,10 +209,19 @@ The key can be deleted once the pipeline has run under cron for a few nights.
 
 None of this is reachable yet — see Blocker A.
 
-## Restore drill — not run
+## Restore drill — PASSED 2026-08-30
 
-Blocked entirely on Blocker B (no Postgres on davbuntu). Once postgresql-16
-is installed there:
+Run against the first real backup
+(`/srv/synapse-standby/dumps/synapse-2026-08-30.dump`, 341741 bytes, 830
+objects listed by `pg_restore -l`). Result: **175 tables** in the public
+schema, against a >50 pass threshold. `pg_restore` reported no errors and the
+throwaway database was dropped cleanly.
+
+That closes the loop the backups exist for: a dump pulled over the tailnet
+from the primary restores into a different host's Postgres and yields a
+structurally complete Synapse schema.
+
+The procedure, for repeat runs:
 
 ```sh
 sudo -u postgres createdb -O pdavlin synapse_restore_drill
