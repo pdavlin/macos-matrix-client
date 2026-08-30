@@ -127,7 +127,17 @@ classifier correctly blocked it as a privilege-escalation workaround, and
 this agent did not pursue further workarounds. Root on davbuntu should
 come from you, not from an agent finding a side door.
 
-**One-time bootstrap, to run yourself on davbuntu:**
+**DONE 2026-08-30.** Patrick ran the bootstrap. Verified: `/srv/synapse-standby`
+exists owned by `pdavlin`, `.ssh` is mode 700, and PostgreSQL 16.15
+(`16.15-0ubuntu0.24.04.1`) is installed with its cluster online on 5432 —
+an exact match for the primary's 16.15.
+
+Note what this did NOT do, deliberately: it granted no passwordless sudo.
+`pdavlin` owns everything the nightly backup touches, so the pipeline needs
+no sudo rule at all. The only thing still wanting root is the one-off restore
+drill (`sudo -u postgres createdb`), which is run by hand.
+
+**One-time bootstrap, run on davbuntu 2026-08-30:**
 
 ```sh
 sudo mkdir -p /srv/synapse-standby/dumps /srv/synapse-standby/media \
@@ -143,15 +153,20 @@ sudo apt-get install -y postgresql-16
 same major AND minor/patch, better than the "same major" requirement in
 the migration plan.
 
-After that, and after Blocker A is resolved:
+After that:
 
 ```sh
-mv /home/pdavlin/.ssh/synbackup_ed25519* /srv/synapse-standby/.ssh/
 cp infra/standby/synapse-backup.sh infra/standby/drift-probe.sh /srv/synapse-standby/bin/
 chmod +x /srv/synapse-standby/bin/*.sh
 crontab infra/standby/crontab-davbuntu   # or merge by hand if you already have entries
-/srv/synapse-standby/bin/synapse-backup.sh   # first manual run; then let cron take over
 ```
+
+`synapse-backup.sh` is installed and its first real run completed 2026-08-30.
+Cron is NOT yet installed.
+
+Do **not** move `synbackup_ed25519` into place. That key is obsolete: S-23
+moved the transport to Tailscale SSH, which authenticates by tailnet identity.
+The key can be deleted once the pipeline has run under cron for a few nights.
 
 ## What IS installed on the primary VM (davlin-matrix.exe.xyz)
 
