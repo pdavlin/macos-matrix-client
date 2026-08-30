@@ -172,8 +172,25 @@ chmod +x /srv/synapse-standby/bin/*.sh
 crontab infra/standby/crontab-davbuntu   # or merge by hand if you already have entries
 ```
 
-`synapse-backup.sh` is installed and its first real run completed 2026-08-30.
-Cron is NOT yet installed.
+`synapse-backup.sh` and `drift-probe.sh` are installed in
+`/srv/synapse-standby/bin/`, and cron is live as of 2026-08-30 (backup 03:17
+nightly, drift probe every 30 minutes).
+
+**Install cron with the absolute path, on davbuntu:**
+
+```sh
+crontab /srv/synapse-standby/crontab-davbuntu && crontab -l
+```
+
+Do NOT use the repo-relative `crontab infra/standby/crontab-davbuntu`. The repo
+is checked out on the Mac, not on davbuntu, so from the Mac's repo root that
+command succeeds and installs davbuntu's schedule on the laptop — pointing at
+`/srv/synapse-standby` paths that do not exist there. It happened during S-21
+and had to be undone with `crontab -r`. The absolute path fails loudly on the
+wrong host instead of half-working.
+
+Also note `crontab <file>` REPLACES the whole crontab; it does not append.
+Check `crontab -l` first if the account already has entries.
 
 Do **not** move `synbackup_ed25519` into place. That key is obsolete: S-23
 moved the transport to Tailscale SSH, which authenticates by tailnet identity.
