@@ -73,6 +73,9 @@ extension MatrixClient: VerificationStateListener {
 
 extension MatrixClient: RecoveryStateListener {
     nonisolated func onUpdate(status: MatrixRustSDK.RecoveryState) {
+        Task { @MainActor in
+            recoveryState = status
+        }
         let name = switch status {
         case .unknown: "unknown"
         case .enabled: "enabled"

@@ -53,7 +53,10 @@ struct SessionsSettingsView: View {
 
     var body: some View {
         if let matrixClient = appState.matrixClient {
-            sessionVerificationView(matrixClient: matrixClient)
+            VStack(alignment: .leading, spacing: 16) {
+                sessionVerificationView(matrixClient: matrixClient)
+                RecoveryStatusView()
+            }
         } else {
             ContentUnavailableView("User not logged in", systemImage: "person")
         }
