@@ -59,6 +59,13 @@ case "$requested" in
   rsync\ --server*)
     # rrsync validates that the request stays within the given path and is
     # read-only (-ro); it execs the real rsync --server itself.
+    #
+    # rrsync insists on being invoked via sshd: it reads the client's request
+    # out of SSH_ORIGINAL_COMMAND and aborts with "Not invoked via sshd" if
+    # that is unset. Tailscale SSH never sets it, so re-export what we parsed
+    # from the -c argument. Without this the media sync is the one whitelisted
+    # operation that silently fails over the tailnet.
+    export SSH_ORIGINAL_COMMAND="$requested"
     exec /usr/bin/rrsync -ro /var/lib/matrix-synapse/media/
     ;;
   *)

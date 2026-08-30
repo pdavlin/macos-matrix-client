@@ -127,7 +127,17 @@ classifier correctly blocked it as a privilege-escalation workaround, and
 this agent did not pursue further workarounds. Root on davbuntu should
 come from you, not from an agent finding a side door.
 
-**One-time bootstrap, to run yourself on davbuntu:**
+**DONE 2026-08-30.** Patrick ran the bootstrap. Verified: `/srv/synapse-standby`
+exists owned by `pdavlin`, `.ssh` is mode 700, and PostgreSQL 16.15
+(`16.15-0ubuntu0.24.04.1`) is installed with its cluster online on 5432 —
+an exact match for the primary's 16.15.
+
+Note what this did NOT do, deliberately: it granted no passwordless sudo.
+`pdavlin` owns everything the nightly backup touches, so the pipeline needs
+no sudo rule at all. The only thing still wanting root is the one-off restore
+drill (`sudo -u postgres createdb`), which is run by hand.
+
+**One-time bootstrap, run on davbuntu 2026-08-30:**
 
 ```sh
 sudo mkdir -p /srv/synapse-standby/dumps /srv/synapse-standby/media \
@@ -136,22 +146,55 @@ sudo chown -R pdavlin:pdavlin /srv/synapse-standby
 sudo chmod 700 /srv/synapse-standby/.ssh
 sudo apt-get update
 sudo apt-get install -y postgresql-16
+
+# A fresh Postgres install has only the `postgres` role. Without this, both
+# the restore drill and any real failover fail with
+# `role "pdavlin" does not exist`. No flags: an ordinary login role, not a
+# superuser, cannot create databases. Enough to own a restored database.
+sudo -u postgres createuser pdavlin
 ```
+
+**Missed on the first pass (2026-08-30).** The `createuser` line was not in
+the original bootstrap, so the restore drill failed on its first attempt with
+`role "pdavlin" does not exist`. Nothing was created and nothing needed
+cleaning up, but the drill cannot run until the role exists.
 
 `postgresql-16` (candidate `16.15-0ubuntu0.24.04.1` via the standard
 `noble-updates` archive) matches the primary's Postgres 16.15 exactly —
 same major AND minor/patch, better than the "same major" requirement in
 the migration plan.
 
-After that, and after Blocker A is resolved:
+After that:
 
 ```sh
-mv /home/pdavlin/.ssh/synbackup_ed25519* /srv/synapse-standby/.ssh/
 cp infra/standby/synapse-backup.sh infra/standby/drift-probe.sh /srv/synapse-standby/bin/
 chmod +x /srv/synapse-standby/bin/*.sh
 crontab infra/standby/crontab-davbuntu   # or merge by hand if you already have entries
-/srv/synapse-standby/bin/synapse-backup.sh   # first manual run; then let cron take over
 ```
+
+`synapse-backup.sh` and `drift-probe.sh` are installed in
+`/srv/synapse-standby/bin/`, and cron is live as of 2026-08-30 (backup 03:17
+nightly, drift probe every 30 minutes).
+
+**Install cron with the absolute path, on davbuntu:**
+
+```sh
+crontab /srv/synapse-standby/crontab-davbuntu && crontab -l
+```
+
+Do NOT use the repo-relative `crontab infra/standby/crontab-davbuntu`. The repo
+is checked out on the Mac, not on davbuntu, so from the Mac's repo root that
+command succeeds and installs davbuntu's schedule on the laptop — pointing at
+`/srv/synapse-standby` paths that do not exist there. It happened during S-21
+and had to be undone with `crontab -r`. The absolute path fails loudly on the
+wrong host instead of half-working.
+
+Also note `crontab <file>` REPLACES the whole crontab; it does not append.
+Check `crontab -l` first if the account already has entries.
+
+Do **not** move `synbackup_ed25519` into place. That key is obsolete: S-23
+moved the transport to Tailscale SSH, which authenticates by tailnet identity.
+The key can be deleted once the pipeline has run under cron for a few nights.
 
 ## What IS installed on the primary VM (davlin-matrix.exe.xyz)
 
@@ -183,10 +226,19 @@ crontab infra/standby/crontab-davbuntu   # or merge by hand if you already have 
 
 None of this is reachable yet — see Blocker A.
 
-## Restore drill — not run
+## Restore drill — PASSED 2026-08-30
 
-Blocked entirely on Blocker B (no Postgres on davbuntu). Once postgresql-16
-is installed there:
+Run against the first real backup
+(`/srv/synapse-standby/dumps/synapse-2026-08-30.dump`, 341741 bytes, 830
+objects listed by `pg_restore -l`). Result: **175 tables** in the public
+schema, against a >50 pass threshold. `pg_restore` reported no errors and the
+throwaway database was dropped cleanly.
+
+That closes the loop the backups exist for: a dump pulled over the tailnet
+from the primary restores into a different host's Postgres and yields a
+structurally complete Synapse schema.
+
+The procedure, for repeat runs:
 
 ```sh
 sudo -u postgres createdb -O pdavlin synapse_restore_drill

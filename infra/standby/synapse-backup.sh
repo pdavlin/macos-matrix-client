@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # S-21 standing backup pipeline. Runs on davbuntu (cron, nightly).
 #
-# STATUS as of S-21: not yet installed on davbuntu. Two blockers are open
-# — see infra/standby/RESTORE-NOTES.md ("Blocker A" and "Blocker B") —
-# before this script can run for real. It is committed here as the
-# reviewed, ready-to-install target state.
+# STATUS: both S-21 blockers are now clear. Blocker A was resolved by S-23
+# (transport moved to the tailnet, 2026-08-30) and Blocker B by the davbuntu
+# bootstrap (2026-08-30). Not yet installed into cron.
 #
-# Pulls three things from the exe.dev primary (davlin-matrix.exe.xyz) over
-# SSH, using the dedicated read-only automation key (see
-# infra/standby/vm-dispatch.sh and RESTORE-NOTES.md for the VM-side setup):
+# Pulls three things from the primary over Tailscale SSH (see
+# infra/standby/vm-dispatch.sh and infra/tailnet/README.md for the VM-side
+# setup and the tailnet policy):
 #
 #   (a) a pg_dump of the synapse Postgres database
 #   (b) an rsync of the media store
@@ -24,9 +23,14 @@
 
 set -uo pipefail
 
-VM_HOST="davlin-matrix.exe.xyz"
+# The tailnet name, NOT davlin-matrix.exe.xyz. exe.dev's SSH gateway owns
+# auth for the .exe.xyz name and never reaches this account; it is also the
+# path that failed in bursts roughly eight times over 2026-08-29/30. Tailscale
+# SSH intercepts port 22 for the tailnet name, so no key and no -i are needed:
+# authentication is the tailnet identity, authorised by the ACL rule that
+# admits pdavlin@github to tag:matrix-hs as synbackup.
+VM_HOST="davlin-matrix"
 VM_USER="synbackup"
-SSH_KEY="/srv/synapse-standby/.ssh/synbackup_ed25519"
 
 ROOT="/srv/synapse-standby"
 DUMP_DIR="${ROOT}/dumps"
@@ -37,7 +41,10 @@ LOG_FILE="${ROOT}/backup.log"
 RETENTION_DAYS=14
 DATE="$(date -u '+%Y-%m-%d')"
 
-SSH_OPTS=(-i "$SSH_KEY" -o BatchMode=yes -o ConnectTimeout=15 -o IdentitiesOnly=yes)
+# Plain ssh, not `tailscale ssh`. The wrapper rejects the `-l <user>` that
+# rsync passes to its -e transport, so rsync cannot use it. Plain ssh works
+# for both because Tailscale SSH intercepts :22 on the tailnet name.
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15)
 
 mkdir -p "$DUMP_DIR" "$MEDIA_DIR" "$CONFIG_DIR"
 
@@ -45,8 +52,22 @@ log() {
   printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$1" | tee -a "$LOG_FILE"
 }
 
+# ntfy.sh topic, shared with drift-probe.sh. Keep the two in step: if one
+# changes, change both, or half the alerts go to a topic nobody watches.
+NTFY_TOPIC="davlin-matrix-drift-fce26c1e"
+
+# A nightly backup that fails quietly is worse than no backup, because it
+# looks like it is working until a restore is attempted. Logging to a file
+# nobody reads is quiet. cron's own mail goes nowhere on a headless box
+# without an MTA, so failure has to push the same way the drift probe does.
 fail() {
   log "ERROR: $1"
+  curl -fsS \
+    -H "Title: davlin.io standby backup FAILED" \
+    -H "Priority: high" \
+    -H "Tags: rotating_light" \
+    -d "$(hostname): $1" \
+    "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null 2>&1
   exit 1
 }
 
@@ -67,10 +88,16 @@ else
   fail "pg_dump over SSH failed"
 fi
 
-# (b) media rsync, via the VM's restricted rrsync forced command.
+# (b) media rsync, via the VM's restricted rrsync command.
+#
+# The remote path is "/", not "media/". rrsync is invoked with
+# /var/lib/matrix-synapse/media/ as its restricted root, so the client's paths
+# are already relative to that directory — "media/" would resolve to
+# media/media/ and find nothing. rrsync also rejects any path containing "..",
+# so the mirror cannot walk out of the media tree.
 log "rsync media -> ${MEDIA_DIR}"
 if rsync -az --delete -e "ssh ${SSH_OPTS[*]}" \
-    "${VM_USER}@${VM_HOST}:media/" "${MEDIA_DIR}/" >>"$LOG_FILE" 2>&1; then
+    "${VM_USER}@${VM_HOST}:/" "${MEDIA_DIR}/" >>"$LOG_FILE" 2>&1; then
   log "media rsync OK"
 else
   fail "media rsync failed"
