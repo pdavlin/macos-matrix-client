@@ -146,7 +146,18 @@ sudo chown -R pdavlin:pdavlin /srv/synapse-standby
 sudo chmod 700 /srv/synapse-standby/.ssh
 sudo apt-get update
 sudo apt-get install -y postgresql-16
+
+# A fresh Postgres install has only the `postgres` role. Without this, both
+# the restore drill and any real failover fail with
+# `role "pdavlin" does not exist`. No flags: an ordinary login role, not a
+# superuser, cannot create databases. Enough to own a restored database.
+sudo -u postgres createuser pdavlin
 ```
+
+**Missed on the first pass (2026-08-30).** The `createuser` line was not in
+the original bootstrap, so the restore drill failed on its first attempt with
+`role "pdavlin" does not exist`. Nothing was created and nothing needed
+cleaning up, but the drill cannot run until the role exists.
 
 `postgresql-16` (candidate `16.15-0ubuntu0.24.04.1` via the standard
 `noble-updates` archive) matches the primary's Postgres 16.15 exactly —
