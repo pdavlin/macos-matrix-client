@@ -52,8 +52,22 @@ log() {
   printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$1" | tee -a "$LOG_FILE"
 }
 
+# ntfy.sh topic, shared with drift-probe.sh. Keep the two in step: if one
+# changes, change both, or half the alerts go to a topic nobody watches.
+NTFY_TOPIC="davlin-matrix-drift-fce26c1e"
+
+# A nightly backup that fails quietly is worse than no backup, because it
+# looks like it is working until a restore is attempted. Logging to a file
+# nobody reads is quiet. cron's own mail goes nowhere on a headless box
+# without an MTA, so failure has to push the same way the drift probe does.
 fail() {
   log "ERROR: $1"
+  curl -fsS \
+    -H "Title: davlin.io standby backup FAILED" \
+    -H "Priority: high" \
+    -H "Tags: rotating_light" \
+    -d "$(hostname): $1" \
+    "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null 2>&1
   exit 1
 }
 
