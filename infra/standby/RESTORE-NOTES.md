@@ -18,6 +18,38 @@ doing S-21.
 | Drift probe | Script written and tested standalone (pass + dry-run-fail, real ntfy push confirmed). NOT installed into davbuntu cron — blocked on B for its log path; can otherwise run from any host. |
 | Reverse proxy on davbuntu | Not installed. Tailscale already in active use as davbuntu's de facto ingress layer for other services — see "Ingress plan" below. |
 
+## Blocker A — RESOLVED 2026-08-30 by S-23 (tailnet transport)
+
+The backup transport no longer goes through exe.dev's SSH layer. davlin-matrix
+joined the tailnet and the three operations run over Tailscale SSH as
+`synbackup`. See `infra/tailnet/README.md` for the policy that was added and
+why `src` is an identity rather than `davbuntu`.
+
+Working command shape from davbuntu (or any device owned by `pdavlin@github`):
+
+```
+tailscale ssh synbackup@davlin-matrix pg-dump    > dump.pgc
+tailscale ssh synbackup@davlin-matrix tar-config > config.tar
+```
+
+Verified 2026-08-30: both return byte-identical output to the on-VM local run,
+and a dump pulled this way lists 815 objects under `pg_restore -l`.
+
+**One thing changed that operators must know.** Tailscale SSH ignores
+`authorized_keys` entirely — the forced command AND the `no-pty` /
+`no-port-forwarding` restrictions with it. The whitelist therefore moved to
+synbackup's **login shell**, which is now `vm-dispatch.sh` itself. Both
+invocation paths are handled and both were tested. Do not set synbackup's shell
+back to `/bin/bash`: that re-opens an interactive shell on an account whose
+sudoers can read `homeserver.signing.key`.
+
+The original pre-S-23 dispatcher is kept on the VM as
+`/home/synbackup/bin/dispatch.sh.pre-s23`. Admin maintenance access to the
+account, if ever needed, is `sudo -u synbackup /bin/bash`, which bypasses the
+login shell.
+
+The original analysis below is kept as the record of why this route was taken.
+
 ## Blocker A — exe.dev's SSH layer is account-gated, not per-VM-user
 
 The plan (per the S-21 story) was standard: generate an ed25519 keypair on
