@@ -26,9 +26,13 @@ public struct RecoveryKeyDisplaySheet: View {
                 .font(.title2)
                 .bold()
 
-            Text("This key is the only way back into your encrypted history if you lose access to this device. It is shown once and cannot be retrieved later.")
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text("""
+            This key is the only way back into your encrypted history if you \
+            lose access to this device. It is shown once and cannot be \
+            retrieved later.
+            """)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
             Text(recoveryKey)
                 .font(.system(.body, design: .monospaced))

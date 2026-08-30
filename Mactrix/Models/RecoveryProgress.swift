@@ -49,7 +49,9 @@ final class RecoveryProgress {
     /// exactly once, and only `resetRecoveryKey` can issue another — which
     /// invalidates the one the user may already have saved.
     var pendingRecoveryKey: String? {
-        if case let .showingKey(key) = phase { key } else { nil }
+        if case let .showingKey(key) = phase {
+            key
+        } else { nil }
     }
 
     /// Creates secret storage and a new recovery key.

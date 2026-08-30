@@ -87,7 +87,9 @@ struct RecoveryStatusView: View {
     }
 
     private var errorText: String? {
-        if case let .failed(message) = recovery.phase { message } else { nil }
+        if case let .failed(message) = recovery.phase {
+            message
+        } else { nil }
     }
 
     @ViewBuilder
