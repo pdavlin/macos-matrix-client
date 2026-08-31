@@ -14,6 +14,12 @@ jobs:
       matrix:
         macos-version: [macos-26]
     runs-on: ${{ matrix.macos-version }}
+    # Explicit `shell: bash` makes the runner enforce `-eo pipefail` on every
+    # run step, so a failing xcodebuild can never silently green a step even
+    # if a per-block `set -o pipefail` line is ever removed or reordered.
+    defaults:
+      run:
+        shell: bash
     env:
       scheme: ${{ 'Mactrix' }}
     steps:
@@ -22,6 +28,14 @@ jobs:
           xcode-version: latest-stable
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+      # Each xcodebuild step tees its full raw output to a per-step .log and
+      # pipes through xcbeautify (github-actions renderer, so errors become
+      # annotations instead of being consumed the way xcpretty ate them on
+      # 2026-08-31). On failure the raw tail of the log is dumped inline in a
+      # collapsible group; the full logs are uploaded as artifacts at the end.
+      #
       # Sign ad-hoc on CI. The project sets DEVELOPMENT_TEAM so that local
       # builds get a stable designated requirement -- without it the keychain
       # ACL matches a code hash that changes every rebuild, and every build
@@ -30,18 +44,32 @@ jobs:
       # with before the team was introduced.
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild clean build analyze \
             -scheme "$scheme" \
             -project Mactrix.xcodeproj \
             -destination 'platform=macOS' \
-            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" | xcpretty && exit ${PIPESTATUS[0]}
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" 2>&1 | tee build.log | xcbeautify --renderer github-actions || status=$?
+          if [ "${status:-0}" -ne 0 ]; then
+            echo "::group::Raw xcodebuild output (tail of build.log)"
+            tail -n 200 build.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
       - name: Test
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme "$scheme" \
             -project Mactrix.xcodeproj \
             -destination 'platform=macOS' \
-            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" | xcpretty && exit ${PIPESTATUS[0]}
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" 2>&1 | tee test.log | xcbeautify --renderer github-actions || status=$?
+          if [ "${status:-0}" -ne 0 ]; then
+            echo "::group::Raw xcodebuild output (tail of test.log)"
+            tail -n 200 test.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
       - name: Test MactrixLibrary (SPM)
         run: swift test --package-path MactrixLibrary
       - name: Test spike/TimelineSpike (SPM)
@@ -56,12 +84,19 @@ jobs:
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main'
         run: |
+          set -o pipefail
           xcodebuild archive \
             -project Mactrix.xcodeproj \
             -scheme "$scheme" \
             -configuration Release \
             -destination 'platform=macOS' \
-            -archivePath ./Mactrix.xcarchive | xcpretty && exit ${PIPESTATUS[0]}
+            -archivePath ./Mactrix.xcarchive 2>&1 | tee archive.log | xcbeautify --renderer github-actions || status=$?
+          if [ "${status:-0}" -ne 0 ]; then
+            echo "::group::Raw xcodebuild output (tail of archive.log)"
+            tail -n 200 archive.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
       - name: Upload Artifact
         if: |
           matrix.macos-version == 'macos-26' &&
@@ -71,5 +106,15 @@ jobs:
         with:
           name: Mactrix.app
           path: ./Mactrix.xcarchive/Products/Applications/
+      - name: Upload xcodebuild logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-logs-${{ matrix.macos-version }}
+          path: |
+            build.log
+            test.log
+            archive.log
+          if-no-files-found: ignore
 
 
