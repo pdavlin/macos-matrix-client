@@ -29,6 +29,17 @@ extension MatrixRustSDK.RoomMemberRole {
     }
 }
 
+extension MatrixRustSDK.RecoveryState {
+    var asModel: Models.RecoveryStatus {
+        switch self {
+        case .unknown: .unknown
+        case .enabled: .enabled
+        case .disabled: .disabled
+        case .incomplete: .incomplete
+        }
+    }
+}
+
 extension MatrixRustSDK.EncryptionState {
     var asModel: Models.EncryptionState {
         switch self {

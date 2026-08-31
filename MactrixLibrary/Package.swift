@@ -48,6 +48,7 @@ let package = Package(
         .target(
             name: "Models"
         ),
+        .testTarget(name: "ModelsTests", dependencies: ["Models"]),
         .target(
             name: "MessageFormatting",
             dependencies: [

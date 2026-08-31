@@ -1,4 +1,5 @@
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 import UI
@@ -54,34 +55,28 @@ struct RecoveryStatusView: View {
 
     var body: some View {
         Group {
-            switch state {
-            case .unknown:
-                // Reads `unknown` until the first sync settles. Saying anything
-                // here would flash a warning on every launch.
+            switch RecoveryPrompt.decide(status: state.asModel, hasCompletedInitialSync: hasCompletedInitialSync) {
+            case .none:
                 EmptyView()
-            case .enabled:
+            case .healthy:
                 if !compact { enabledRow }
-            case .disabled:
-                if hasCompletedInitialSync {
-                    actionable(
-                        icon: "exclamationmark.shield",
-                        title: "Recovery is not set up",
-                        detail: "Without it, your encrypted history cannot be restored if you lose this device.",
-                        button: "Set up recovery…"
-                    ) {
-                        confirmingSetup = true
-                    }
+            case .offerSetup:
+                actionable(
+                    icon: "exclamationmark.shield",
+                    title: "Recovery is not set up",
+                    detail: "Without it, your encrypted history cannot be restored if you lose this device.",
+                    button: "Set up recovery…"
+                ) {
+                    confirmingSetup = true
                 }
-            case .incomplete:
-                if hasCompletedInitialSync {
-                    actionable(
-                        icon: "key.horizontal",
-                        title: "Recovery key needed",
-                        detail: "Your account has a backup this device cannot read yet. Enter your recovery key to unlock it.",
-                        button: "Enter recovery key…"
-                    ) {
-                        showingEntry = true
-                    }
+            case .offerKeyEntry:
+                actionable(
+                    icon: "key.horizontal",
+                    title: "Recovery key needed",
+                    detail: "Your account has a backup this device cannot read yet. Enter your recovery key to unlock it.",
+                    button: "Enter recovery key…"
+                ) {
+                    showingEntry = true
                 }
             }
         }
