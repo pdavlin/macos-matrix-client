@@ -16,6 +16,16 @@
 		B9393FA0B4454B31B9584BE2 /* MatrixRustSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 9E8341FF3A5B47DB86B6CAB7 /* MatrixRustSDK */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		C4A7386755484B5F87228BA5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3438583A2EB394590010922A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 343858412EB394590010922A;
+			remoteInfo = Mactrix;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		3409F6012EBFDB93009537B4 /* MactrixLibrary */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MactrixLibrary; sourceTree = "<group>"; };
 		343858422EB394590010922A /* Mactrix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mactrix.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -49,6 +59,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		12D7A1D9EB8647EE8D849FC2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B9393FA0B4454B31B9584BE2 /* MatrixRustSDK in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3438583F2EB394590010922A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -59,14 +77,6 @@
 				345E77E82ED9F309002E5B9A /* Utils in Frameworks */,
 				34913F702EC0F59F003034CB /* Models in Frameworks */,
 				348E99882F40ABC3009F57A9 /* AsyncAlgorithms in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		12D7A1D9EB8647EE8D849FC2 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B9393FA0B4454B31B9584BE2 /* MatrixRustSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -199,16 +209,6 @@
 		};
 /* End PBXProject section */
 
-/* Begin PBXContainerItemProxy section */
-		C4A7386755484B5F87228BA5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 3438583A2EB394590010922A /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 343858412EB394590010922A;
-			remoteInfo = Mactrix;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXResourcesBuildPhase section */
 		343858402EB394590010922A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
@@ -227,14 +227,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		3438583E2EB394590010922A /* Sources */ = {
+		0FC8B85A0A094F56A4639D93 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0FC8B85A0A094F56A4639D93 /* Sources */ = {
+		3438583E2EB394590010922A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -252,6 +252,24 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		103D93DE64E3450B9176FAA8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.MactrixIntegrationTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mactrix.app/Contents/MacOS/Mactrix";
+			};
+			name = Release;
+		};
 		343858612EB3945B0010922A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -384,6 +402,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -437,6 +456,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -489,7 +509,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.davlin.matrixclient.MactrixIntegrationTests";
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.MactrixIntegrationTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -497,24 +517,6 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mactrix.app/Contents/MacOS/Mactrix";
 			};
 			name = Debug;
-		};
-		103D93DE64E3450B9176FAA8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.davlin.matrixclient.MactrixIntegrationTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mactrix.app/Contents/MacOS/Mactrix";
-			};
-			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
