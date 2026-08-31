@@ -48,9 +48,9 @@ struct RecoveryPromptTests {
     func setupIsReachableOnlyFromASyncedDisabledState() {
         let statuses: [RecoveryStatus] = [.unknown, .enabled, .disabled, .incomplete]
         for status in statuses {
-            for synced in [true, false] where
-                RecoveryPrompt.decide(status: status, hasCompletedInitialSync: synced) == .offerSetup
-            {
+            for synced in [true, false] {
+                let prompt = RecoveryPrompt.decide(status: status, hasCompletedInitialSync: synced)
+                guard prompt == .offerSetup else { continue }
                 #expect(status == .disabled)
                 #expect(synced)
             }
