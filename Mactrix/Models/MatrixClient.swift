@@ -183,6 +183,13 @@ class MatrixClient {
     var sessionVerificationData: SessionVerificationData?
     var verificationState: VerificationState?
 
+    /// Whether secret storage exists on the server, and whether this device
+    /// can read it. Drives the recovery UI — see `RecoveryProgress`.
+    ///
+    /// Reads `.unknown` until the first sync settles, so a view must treat
+    /// `.unknown` as "not yet known" rather than "nothing to do".
+    var recoveryState: RecoveryState = .unknown
+
     var notificationClient: NotificationClient?
 
     func startSync() async throws {

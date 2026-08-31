@@ -3,7 +3,38 @@ import MatrixRustSDK
 import OSLog
 
 extension MatrixClient {
+    /// A compact, greppable summary of a room-list batch.
+    ///
+    /// Separate from `updateRoomEntries` to keep that function under the
+    /// cyclomatic complexity limit, and because the batch contents are the
+    /// thing worth reading when the sidebar is empty: a lone `reset(0)` means
+    /// the SDK's list is genuinely empty, not that the app mishandled an
+    /// update.
+    static func describe(_ updates: [RoomListEntriesUpdate]) -> String {
+        updates.map { update in
+            switch update {
+            case let .append(values): "append(\(values.count))"
+            case .clear: "clear"
+            case .pushFront: "pushFront"
+            case .pushBack: "pushBack"
+            case .popFront: "popFront"
+            case .popBack: "popBack"
+            case let .insert(index, _): "insert(@\(index))"
+            case let .set(index, _): "set(@\(index))"
+            case let .remove(index): "remove(@\(index))"
+            case let .truncate(length): "truncate(\(length))"
+            case let .reset(values): "reset(\(values.count))"
+            }
+        }.joined(separator: ", ")
+    }
+
     func updateRoomEntries(roomEntriesUpdate: [RoomListEntriesUpdate]) {
+        Logger.matrixClient.info(
+            """
+            room entries update: [\(Self.describe(roomEntriesUpdate), privacy: .public)] \
+            rooms before=\(self.rooms.count, privacy: .public)
+            """
+        )
         for update in roomEntriesUpdate {
             switch update {
             case let .append(values):
@@ -73,6 +104,9 @@ extension MatrixClient: VerificationStateListener {
 
 extension MatrixClient: RecoveryStateListener {
     nonisolated func onUpdate(status: MatrixRustSDK.RecoveryState) {
+        Task { @MainActor in
+            recoveryState = status
+        }
         let name = switch status {
         case .unknown: "unknown"
         case .enabled: "enabled"
@@ -86,6 +120,18 @@ extension MatrixClient: RecoveryStateListener {
 extension MatrixClient: RoomListServiceStateListener {
     nonisolated func onUpdate(state: MatrixRustSDK.RoomListServiceState) {
         Task { @MainActor in
+            // Logged because this state gates the recovery UI (see
+            // `RecoveryPrompt`) and because an empty sidebar is otherwise
+            // indistinguishable from a room list that never started.
+            let name = switch state {
+            case .initial: "initial"
+            case .settingUp: "settingUp"
+            case .recovering: "recovering"
+            case .running: "running"
+            case .error: "error"
+            case .terminated: "terminated"
+            }
+            Logger.matrixClient.info("room list state: \(name, privacy: .public) rooms=\(self.rooms.count, privacy: .public)")
             roomListServiceState = state
         }
     }
@@ -100,8 +146,13 @@ extension MatrixClient: RoomListServiceSyncIndicatorListener {
 }
 
 extension MatrixClient: MatrixRustSDK.ClientDelegate {
-    nonisolated func onBackgroundTaskErrorReport(taskName: String, error _: MatrixRustSDK.BackgroundTaskFailureReason) {
-        Logger.matrixClient.error("onBackgroundTaskErrorReport taskName: \(taskName)")
+    nonisolated func onBackgroundTaskErrorReport(taskName: String, error: MatrixRustSDK.BackgroundTaskFailureReason) {
+        // Both fields public: a task name and a failure reason are diagnostics,
+        // not secrets, and the redacted version of this line was useless while
+        // chasing an empty room list.
+        Logger.matrixClient.error(
+            "background task failed: \(taskName, privacy: .public) reason=\(String(describing: error), privacy: .public)"
+        )
     }
 
     nonisolated func didReceiveAuthError(isSoftLogout: Bool) {

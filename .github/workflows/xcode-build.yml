@@ -22,18 +22,26 @@ jobs:
           xcode-version: latest-stable
       - name: Checkout
         uses: actions/checkout@v4
+      # Sign ad-hoc on CI. The project sets DEVELOPMENT_TEAM so that local
+      # builds get a stable designated requirement -- without it the keychain
+      # ACL matches a code hash that changes every rebuild, and every build
+      # costs a dozen manual approvals. Runners have no certificate for that
+      # team, so they must override back to ad-hoc, which is what CI signed
+      # with before the team was introduced.
       - name: Build
         run: |
           xcodebuild clean build analyze \
             -scheme "$scheme" \
             -project Mactrix.xcodeproj \
-            -destination 'platform=macOS' | xcpretty && exit ${PIPESTATUS[0]}
+            -destination 'platform=macOS' \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" | xcpretty && exit ${PIPESTATUS[0]}
       - name: Test
         run: |
           xcodebuild test \
             -scheme "$scheme" \
             -project Mactrix.xcodeproj \
-            -destination 'platform=macOS' | xcpretty && exit ${PIPESTATUS[0]}
+            -destination 'platform=macOS' \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" | xcpretty && exit ${PIPESTATUS[0]}
       - name: Test MactrixLibrary (SPM)
         run: swift test --package-path MactrixLibrary
       - name: Test spike/TimelineSpike (SPM)

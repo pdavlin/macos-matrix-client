@@ -89,7 +89,13 @@ struct SessionVerificationStatusView: View {
             .foregroundStyle(Color.green.mix(with: colorScheme == .light ? .black : .white, by: 0.5))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         } else {
-            selfVerificationView
+            VStack(spacing: 8) {
+                selfVerificationView
+                // Separate from verification on purpose: a session can be
+                // verified and still have no route back to its own history.
+                // S-07 conflated the two and lost the account's keys.
+                RecoveryStatusView(compact: true)
+            }
         }
     }
 
