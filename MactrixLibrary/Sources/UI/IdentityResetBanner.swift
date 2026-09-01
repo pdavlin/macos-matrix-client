@@ -10,11 +10,14 @@ import SwiftUI
 /// Two recovery actions:
 ///   1. Re-verify against another device — wires to the existing session
 ///      verification flow.
-///   2. Sign out and back in — wires to `AppState.reset()`.
+///   2. Sign out and back in — wires to `AppState.reset()`. Destructive
+///      (the local store and keychain session are deleted), so it asks
+///      for confirmation first, per the S-25 post-incident rule.
 public struct IdentityResetBanner: View {
     let onVerify: () -> Void
     let onSignOut: () -> Void
 
+    @State private var confirmingSignOut = false
     @Environment(\.colorScheme) private var colorScheme
 
     public init(onVerify: @escaping () -> Void, onSignOut: @escaping () -> Void) {
@@ -42,13 +45,26 @@ public struct IdentityResetBanner: View {
 
             HStack {
                 Button("Re-verify…", action: onVerify)
-                Button("Sign out") { onSignOut() }
                     .buttonStyle(.borderedProminent)
+                Button("Sign out", role: .destructive) {
+                    confirmingSignOut = true
+                }
             }
         }
         .padding(10)
         .background(Color.red.opacity(0.2))
         .foregroundStyle(Color.red.mix(with: colorScheme == .light ? .black : .white, by: 0.5))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        // Signing out is irreversible from this session's point of view —
+        // `AppState.reset()` logs out and deletes the local store — so the
+        // user gets the last word, mirroring the recovery-setup confirmation.
+        .alert("Sign out?", isPresented: $confirmingSignOut) {
+            Button("Sign out", role: .destructive) {
+                onSignOut()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes this session's data from this Mac. You will need to sign in again.")
+        }
     }
 }

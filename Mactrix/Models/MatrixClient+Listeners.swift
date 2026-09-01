@@ -113,6 +113,10 @@ extension MatrixClient: VerificationStateListener {
     /// identity was previously verified but no longer is — the exact signal
     /// for an own-identity reset (e.g. from Element Web).
     private func checkOwnIdentityViolation() async {
+        // Capture the client reference before any await: `reset()` can nil it
+        // out while a verification-state callback is still queued, and this is
+        // the one listener task that dereferences `client`.
+        guard let client = client else { return }
         do {
             guard let userId = try? client.userId() else {
                 Logger.matrixClient.warning("cannot check identity violation: userId unavailable")
