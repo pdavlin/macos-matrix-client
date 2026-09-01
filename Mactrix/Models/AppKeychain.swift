@@ -16,7 +16,12 @@ struct AppKeychain {
         [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
-            /// change to true for Data Protection keychain mode
+            /// S-27 decision: stay legacy. Data-protection mode is technically viable now
+            /// (team-signed, entitlements present), but the keychain ACL's designated
+            /// requirement anchors on `certificate leaf[subject.CN]`, not team ID,
+            /// so grants don't survive the ~7-day cert renewal on a free personal team.
+            /// Switching would add a login→data-protection migration for no net benefit.
+            /// Revisit with a paid-team cert or notarized distribution. See §11 2026-09-01.
             kSecUseDataProtectionKeychain: false,
         ]
     }
