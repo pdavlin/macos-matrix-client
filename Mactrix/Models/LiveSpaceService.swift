@@ -11,6 +11,14 @@ public final class LiveSpaceService {
 
     @ObservationIgnored private var spaceHandle: TaskHandle?
 
+    /// Cancels the Rust-side joined-spaces subscription. Called from
+    /// `MatrixClient.reset()` so the old client's FFI handle map can release
+    /// everything when the session is signed out (S-30).
+    func cancelSubscriptions() {
+        spaceHandle?.cancel()
+        spaceHandle = nil
+    }
+
     public init(spaceService: SpaceService) {
         self.spaceService = spaceService
 

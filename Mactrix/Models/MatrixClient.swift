@@ -156,7 +156,44 @@ class MatrixClient {
 
     func reset() async throws {
         Logger.matrixClient.debug("matrix client sign out")
+
+        // Tear down the sync machinery BEFORE logout. Every handle below keeps
+        // Rust objects alive in the FFI handle maps: an unstopped sync service
+        // keeps long-polling with the token that `logout` revokes, observed
+        // server-side as a ~5 req/s storm of 401s (S-30).
+        roomEntriesTask?.cancel()
+        roomEntriesTask = nil
+        roomListEntriesHandle?.entriesStream().cancel()
+        roomListEntriesHandle = nil
+
+        roomListServiceStateHandle?.cancel()
+        roomListServiceStateHandle = nil
+        syncIndicatorHandle?.cancel()
+        syncIndicatorHandle = nil
+        syncStateHandle?.cancel()
+        syncStateHandle = nil
+        verificationStateHandle?.cancel()
+        verificationStateHandle = nil
+        recoveryStateHandle?.cancel()
+        recoveryStateHandle = nil
+        ignoredUsersHandle?.cancel()
+        ignoredUsersHandle = nil
+        clientDelegateHandle?.cancel()
+        clientDelegateHandle = nil
+
+        spaceService?.cancelSubscriptions()
+        spaceService = nil
+
+        await syncService?.stop()
+        syncService = nil
+        roomListService = nil
+        roomListServiceState = nil
+        showRoomSyncIndicator = nil
+        notificationClient = nil
+
         try? await client.logout()
+        client = nil
+
         try? FileManager.default.removeItem(at: .sessionData(for: storeID))
         try? FileManager.default.removeItem(at: .sessionCaches(for: storeID))
         try AppKeychain().removeAll()
@@ -170,6 +207,7 @@ class MatrixClient {
     var showRoomSyncIndicator: RoomListServiceSyncIndicator?
     var ignoredUserIds: [String] = []
 
+    @ObservationIgnored private var roomEntriesTask: Task<Void, Never>?
     @ObservationIgnored fileprivate var roomListEntriesHandle: RoomListEntriesWithDynamicAdaptersResult?
     @ObservationIgnored fileprivate var roomListServiceStateHandle: TaskHandle?
     @ObservationIgnored fileprivate var syncIndicatorHandle: TaskHandle?
@@ -208,7 +246,7 @@ class MatrixClient {
         _ = _roomListEntriesHandle.controller().setFilter(kind: .all(filters: []))
         roomListEntriesHandle = _roomListEntriesHandle
 
-        Task { [weak self] in
+        roomEntriesTask = Task { [weak self] in
             for await roomEntries in roomEntriesListener {
                 guard let self else { break }
                 self.updateRoomEntries(roomEntriesUpdate: roomEntries)
