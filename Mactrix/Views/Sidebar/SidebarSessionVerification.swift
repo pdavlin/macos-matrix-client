@@ -1,6 +1,8 @@
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
+import UI
 
 struct SessionVerificationStatusView: View {
     @Environment(AppState.self) var appState
@@ -90,12 +92,43 @@ struct SessionVerificationStatusView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         } else {
             VStack(spacing: 8) {
+                // S-24: identity-reset banner takes priority over the
+                // ordinary unverified prompt. The SDK's
+                // `hasVerificationViolation()` is the signal.
+                identityResetBanner
                 selfVerificationView
                 // Separate from verification on purpose: a session can be
                 // verified and still have no route back to its own history.
                 // S-07 conflated the two and lost the account's keys.
                 RecoveryStatusView(compact: true)
             }
+        }
+    }
+
+    /// S-24: shows when the account's own identity was reset externally.
+    @ViewBuilder
+    private var identityResetBanner: some View {
+        let prompt = IdentityResetPrompt.decide(
+            hasVerificationViolation: appState.matrixClient?.hasIdentityViolation ?? false,
+            wasPreviouslyVerified: appState.matrixClient?.wasPreviouslyVerified ?? false,
+            hasCompletedInitialSync: appState.matrixClient?.roomListServiceState == .running
+        )
+        switch prompt {
+        case .none:
+            EmptyView()
+        case .identityReset:
+            IdentityResetBanner(
+                onVerify: {
+                    Task {
+                        await startVerificationRequest()
+                    }
+                },
+                onSignOut: {
+                    Task {
+                        try? await appState.reset()
+                    }
+                }
+            )
         }
     }
 

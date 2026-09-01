@@ -221,6 +221,11 @@ class MatrixClient {
     var sessionVerificationData: SessionVerificationData?
     var verificationState: VerificationState?
 
+    /// S-24: `UserIdentity.hasVerificationViolation()` for the account's own user.
+    var hasIdentityViolation: Bool = false
+    /// S-24: `UserIdentity.wasPreviouslyVerified()` for the account's own user.
+    var wasPreviouslyVerified: Bool = false
+
     /// Whether secret storage exists on the server, and whether this device
     /// can read it. Drives the recovery UI — see `RecoveryProgress`.
     ///

@@ -57,3 +57,84 @@ struct RecoveryPromptTests {
         }
     }
 }
+
+/// Covers the rule that decides when the identity-reset banner appears.
+///
+/// The SDK's `UserIdentity.hasVerificationViolation()` is the detection
+/// signal. The sync gate prevents acting on stale identity data from an
+/// empty store, matching the same guard that protects `RecoveryPrompt`.
+struct IdentityResetPromptTests {
+    @Test
+    func violationWithPreviousVerificationShowsReset() {
+        #expect(
+            IdentityResetPrompt.decide(
+                hasVerificationViolation: true,
+                wasPreviouslyVerified: true,
+                hasCompletedInitialSync: true
+            ) == .identityReset
+        )
+    }
+
+    @Test
+    func violationWithoutSyncShowsNothing() {
+        #expect(
+            IdentityResetPrompt.decide(
+                hasVerificationViolation: true,
+                wasPreviouslyVerified: true,
+                hasCompletedInitialSync: false
+            ) == .none
+        )
+    }
+
+    @Test
+    func violationWithoutPreviousVerificationShowsNothing() {
+        // A session that was never verified shows the ordinary unverified
+        // prompt, not the identity-reset prompt.
+        #expect(
+            IdentityResetPrompt.decide(
+                hasVerificationViolation: true,
+                wasPreviouslyVerified: false,
+                hasCompletedInitialSync: true
+            ) == .none
+        )
+    }
+
+    @Test
+    func noViolationShowsNothing() {
+        #expect(
+            IdentityResetPrompt.decide(
+                hasVerificationViolation: false,
+                wasPreviouslyVerified: true,
+                hasCompletedInitialSync: true
+            ) == .none
+        )
+        #expect(
+            IdentityResetPrompt.decide(
+                hasVerificationViolation: false,
+                wasPreviouslyVerified: false,
+                hasCompletedInitialSync: true
+            ) == .none
+        )
+    }
+
+    /// The identity-reset prompt is reachable only when all three conditions
+    /// hold: violation, previously verified, and synced.
+    @Test
+    func resetIsReachableOnlyFromSyncedViolationWithPreviousVerification() {
+        for violation in [true, false] {
+            for previouslyVerified in [true, false] {
+                for synced in [true, false] {
+                    let prompt = IdentityResetPrompt.decide(
+                        hasVerificationViolation: violation,
+                        wasPreviouslyVerified: previouslyVerified,
+                        hasCompletedInitialSync: synced
+                    )
+                    guard prompt == .identityReset else { continue }
+                    #expect(violation)
+                    #expect(previouslyVerified)
+                    #expect(synced)
+                }
+            }
+        }
+    }
+}
