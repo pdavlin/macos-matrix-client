@@ -67,4 +67,14 @@ struct RecoverySheetSnapshotTests {
             as: .scaledImage
         )
     }
+
+    // MARK: - Identity Reset Banner (S-24)
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func identityResetBanner() {
+        assertSnapshot(
+            of: host(IdentityResetBanner(onVerify: {}, onSignOut: {})),
+            as: .scaledImage
+        )
+    }
 }

@@ -98,6 +98,41 @@ extension MatrixClient: VerificationStateListener {
             }
             Logger.matrixClient.info("verification state: \(name, privacy: .public)")
             verificationState = status
+
+            // S-24: check whether the account's own identity was reset
+            // externally. `hasVerificationViolation()` is the SDK's signal
+            // that a previously-verified identity no longer matches.
+            await checkOwnIdentityViolation()
+        }
+    }
+
+    /// Queries the SDK for the account's own identity violation state.
+    ///
+    /// Called when `verificationState` changes. The SDK's
+    /// `UserIdentity.hasVerificationViolation()` reports `true` when the
+    /// identity was previously verified but no longer is — the exact signal
+    /// for an own-identity reset (e.g. from Element Web).
+    private func checkOwnIdentityViolation() async {
+        do {
+            guard let userId = try? client.userId() else {
+                Logger.matrixClient.warning("cannot check identity violation: userId unavailable")
+                return
+            }
+            if let identity = try await client.encryption().userIdentity(userId: userId, fallbackToServer: true) {
+                let violation = identity.hasVerificationViolation()
+                let previouslyVerified = identity.wasPreviouslyVerified()
+                Logger.matrixClient.info(
+                    "own identity: violation=\(violation, privacy: .public) previouslyVerified=\(previouslyVerified, privacy: .public)"
+                )
+                hasIdentityViolation = violation
+                wasPreviouslyVerified = previouslyVerified
+            } else {
+                Logger.matrixClient.info("own identity: userIdentity returned nil")
+                hasIdentityViolation = false
+                wasPreviouslyVerified = false
+            }
+        } catch {
+            Logger.matrixClient.error("failed to check own identity violation: \(error)")
         }
     }
 }

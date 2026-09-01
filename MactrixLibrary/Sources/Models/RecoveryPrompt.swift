@@ -53,3 +53,39 @@ public enum RecoveryPrompt: Equatable, Sendable {
         }
     }
 }
+
+/// Whether the account's own cross-signing identity was reset externally.
+///
+/// The SDK's `UserIdentity.hasVerificationViolation()` reports `true` when
+/// the identity was previously verified but no longer is — the exact signal
+/// for an own-identity reset (e.g. from Element Web while this session had
+/// the old identity pinned). `wasPreviouslyVerified()` gates the banner:
+/// a session that was never verified shows the ordinary unverified prompt,
+/// not the identity-reset prompt.
+public enum IdentityResetPrompt: Equatable, Sendable {
+    case none
+    /// The account's identity was reset. The session needs re-verification
+    /// or a fresh sign-in.
+    case identityReset
+
+    /// Decides the prompt.
+    ///
+    /// - Parameters:
+    ///   - hasVerificationViolation: `UserIdentity.hasVerificationViolation()`
+    ///     for the account's own user.
+    ///   - wasPreviouslyVerified: `UserIdentity.wasPreviouslyVerified()` for
+    ///     the account's own user.
+    ///   - hasCompletedInitialSync: whether the room list reports `.running`.
+    ///
+    /// The sync gate prevents acting on stale identity data from an empty
+    /// store, matching the same guard that protects `RecoveryPrompt`.
+    public static func decide(
+        hasVerificationViolation: Bool,
+        wasPreviouslyVerified: Bool,
+        hasCompletedInitialSync: Bool
+    ) -> IdentityResetPrompt {
+        guard hasCompletedInitialSync else { return .none }
+        guard hasVerificationViolation, wasPreviouslyVerified else { return .none }
+        return .identityReset
+    }
+}
