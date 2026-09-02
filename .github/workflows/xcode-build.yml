@@ -90,7 +90,8 @@ jobs:
             -scheme "$scheme" \
             -configuration Release \
             -destination 'platform=macOS' \
-            -archivePath ./Mactrix.xcarchive 2>&1 | tee archive.log | xcbeautify --renderer github-actions || status=$?
+            -archivePath ./Mactrix.xcarchive \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" 2>&1 | tee archive.log | xcbeautify --renderer github-actions || status=$?
           if [ "${status:-0}" -ne 0 ]; then
             echo "::group::Raw xcodebuild output (tail of archive.log)"
             tail -n 200 archive.log
