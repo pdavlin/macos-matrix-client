@@ -3,6 +3,7 @@ import Models
 import OSLog
 import QuickLook
 import SwiftUI
+import Tokens
 import UniformTypeIdentifiers
 
 struct MessageImageView: View {
@@ -48,7 +49,7 @@ struct MessageImageView: View {
                 image
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: BubbleToken.mediaCornerRadius))
                     .onDrag {
                         let itemProvider = NSItemProvider()
                         itemProvider.suggestedName = content.filename

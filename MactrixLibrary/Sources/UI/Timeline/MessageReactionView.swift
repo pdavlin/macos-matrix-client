@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 struct MessageReactionToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -15,7 +16,7 @@ struct MessageReactionToggleStyle: ToggleStyle {
         )
         .buttonStyle(.plain)
         .overlay {
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
                 .stroke(configuration.isOn ? Color.blue : Color.gray)
         }
     }
@@ -45,9 +46,9 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
             HStack(spacing: 0) {
                 Text(reaction.key)
                 Text("\(reaction.senders.count)")
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, DensityToken.reactionCountPadding)
             }
-            .padding(4)
+            .padding(DensityToken.reactionPadding)
         })
         .toggleStyle(MessageReactionToggleStyle())
         .help(helpText)

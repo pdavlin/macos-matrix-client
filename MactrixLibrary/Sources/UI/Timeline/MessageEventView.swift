@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 struct HoverButton<Icon: View>: View {
     @State private var hovering = false
@@ -9,7 +10,7 @@ struct HoverButton<Icon: View>: View {
     let tooltip: LocalizedStringKey
     let action: () -> Void
 
-    let size: CGFloat = 24.0
+    let size: CGFloat = DensityToken.hoverActionButtonSize
 
     var body: some View {
         Button(action: action) {
@@ -19,13 +20,13 @@ struct HoverButton<Icon: View>: View {
         .help(tooltip)
         .foregroundStyle(hovering ? Color.accentColor : .primary)
         .background(
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
                 .fill(Color.accentColor.quaternary)
                 .frame(width: size, height: size)
                 .opacity(hovering ? 1 : 0)
         )
         .frame(width: size, height: size)
-        .padding(2)
+        .padding(DensityToken.hoverActionButtonPadding)
         .onHover { hover in
             hovering = hover
         }
@@ -45,6 +46,8 @@ struct MessageTimestampView: View {
     let date: Date
     let hover: Bool
 
+    @Environment(\.timelineTypography) private var typography
+
     var timeFormat: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -55,11 +58,11 @@ struct MessageTimestampView: View {
         HStack {
             Text(timeFormat.string(from: date))
                 .foregroundStyle(.gray)
-                .font(.system(.footnote))
-                .padding(.trailing, 5)
-                .padding(.top, 3)
+                .font(.system(size: typography.footnote))
+                .padding(.trailing, DensityToken.timestampTrailingPadding)
+                .padding(.top, DensityToken.timestampTopPadding)
         }
-        .frame(width: 64 - 10)
+        .frame(width: DensityToken.timestampColumnWidth)
         // .opacity(hover ? 1 : 0)
     }
 }
@@ -77,13 +80,17 @@ struct MessageMainBody<MessageView: View, EventTimelineItem: Models.EventTimelin
             message
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 4.0)
+        .padding(.vertical, DensityToken.rowVerticalPadding)
         .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(focused ? Color.accentColor.opacity(0.1) : Color.gray.opacity(0.1))
-                .opacity(hover || focused ? 1 : 0.001)
+            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                .fill(
+                    focused
+                        ? Color.accentColor.opacity(AccentToken.focusBackgroundOpacity)
+                        : Color.gray.opacity(AccentToken.hoverBackgroundOpacity)
+                )
+                .opacity(hover || focused ? AccentToken.activeBackgroundOpacity : AccentToken.inactiveBackgroundOpacity)
         )
-        .padding(.horizontal, 10)
+        .padding(.horizontal, DensityToken.rowHorizontalPadding)
     }
 }
 
@@ -111,9 +118,9 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
             HStack(spacing: 0) {
                 HStack(spacing: 0) {
                     AvatarImage(userProfile: event, imageLoader: imageLoader)
-                        .frame(width: 32, height: 32)
+                        .frame(width: DensityToken.profileAvatarSize, height: DensityToken.profileAvatarSize)
                         .clipShape(Circle())
-                }.frame(width: 64)
+                }.frame(width: DensityToken.leadingColumnWidth)
 
                 Username(userProfile: event)
                     .fontWeight(.bold)
@@ -180,7 +187,7 @@ public struct MessageEventBodyView<
             HoverButton(icon: { Text("❤️") }, tooltip: "React") {
                 actions.toggleReaction(key: "❤️")
             }
-            Divider().frame(height: 18)
+            Divider().frame(height: DensityToken.hoverActionsDividerHeight)
             HoverButton(icon: { Image(systemName: "face.smiling") }, tooltip: "React") {}
 
             if event.canBeRepliedTo {
@@ -197,15 +204,15 @@ public struct MessageEventBodyView<
                 actions.pin()
             }
         }
-        .padding(2)
+        .padding(DensityToken.hoverActionsPadding)
         .background(
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
                 .fill(Color(NSColor.controlBackgroundColor))
-                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                .shadow(color: .black.opacity(0.1), radius: 4)
+                .stroke(Color(NSColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
+                .shadow(color: .black.opacity(BubbleToken.hoverShadowOpacity), radius: BubbleToken.hoverShadowRadius)
         )
-        .padding(.trailing, 20)
-        .padding(.top, -30)
+        .padding(.trailing, DensityToken.hoverActionsTrailingPadding)
+        .padding(.top, DensityToken.hoverActionsTopOffset)
         .opacity(hoverText ? 1 : 0)
     }
 
@@ -225,7 +232,7 @@ public struct MessageEventBodyView<
 
                 // Always present to keep view tree stable (avoids NSHostingView layout loop)
                 HStack {
-                    Spacer().frame(width: 64)
+                    Spacer().frame(width: DensityToken.leadingColumnWidth)
                     ForEach(reactions) { reaction in
                         MessageReactionView(
                             reaction: reaction,
@@ -238,10 +245,10 @@ public struct MessageEventBodyView<
                     Spacer()
                     if !event.userReadReceipts.isEmpty {
                         ReadReciptsView(receipts: event.userReadReceipts, imageLoader: imageLoader, roomMembers: roomMembers)
-                            .padding(.horizontal, 10)
+                            .padding(.horizontal, DensityToken.rowHorizontalPadding)
                     }
                 }
-                .padding(.top, hasBottomContent ? 10 : 0)
+                .padding(.top, hasBottomContent ? DensityToken.reactionRowSpacing : 0)
             }
 
             hoverActions
@@ -249,7 +256,7 @@ public struct MessageEventBodyView<
         .onHover { hover in
             hoverText = hover
         }
-        .padding(.bottom, reactions.isEmpty ? 0 : 10)
+        .padding(.bottom, reactions.isEmpty ? 0 : DensityToken.reactionRowSpacing)
     }
 
     private var hasBottomContent: Bool {

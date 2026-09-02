@@ -1,11 +1,12 @@
 import AppKit
 import OSLog
 import SwiftUI
+import Tokens
 
 struct ChatTextView: NSViewRepresentable {
     typealias NSViewRepresentableType = NSTextView
 
-    @AppStorage("fontSize") var fontSize: Int = 13
+    @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     let text: Binding<String>
     let placeholder: String

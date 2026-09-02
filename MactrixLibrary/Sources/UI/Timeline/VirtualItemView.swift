@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 public struct VirtualItemView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -26,32 +27,32 @@ public struct VirtualItemView: View {
             Divider()
                 .overlay {
                     Text(formatDate(date))
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, DensityToken.dividerHorizontalPadding)
                         .background(Color(NSColor.controlBackgroundColor))
                 }
-                .frame(height: 40)
-                .padding(.horizontal, 10)
+                .frame(height: DensityToken.dividerHeight)
+                .padding(.horizontal, DensityToken.dividerHorizontalPadding)
         case .readMarker:
             Divider()
                 .overlay {
                     Text("Read Marker")
                         .fontWeight(.medium)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, DensityToken.dividerHorizontalPadding)
                         .background(Color(NSColor.controlBackgroundColor))
                 }
-                .frame(height: 40)
-                .padding(.horizontal, 10)
+                .frame(height: DensityToken.dividerHeight)
+                .padding(.horizontal, DensityToken.dividerHorizontalPadding)
                 .foregroundStyle(.red.mix(with: colorScheme == .light ? .black : .white, by: 0.1))
         case .timelineStart:
             Divider()
                 .overlay {
                     Text("Start of conversation")
                         .fontWeight(.medium)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, DensityToken.dividerHorizontalPadding)
                         .background(Color(NSColor.controlBackgroundColor))
                 }
-                .frame(height: 40)
-                .padding(.horizontal, 10)
+                .frame(height: DensityToken.dividerHeight)
+                .padding(.horizontal, DensityToken.dividerHorizontalPadding)
         }
     }
 }

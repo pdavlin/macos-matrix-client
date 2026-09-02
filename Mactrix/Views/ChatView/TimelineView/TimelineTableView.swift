@@ -3,6 +3,7 @@ import MatrixRustSDK
 import Models
 import OSLog
 import SwiftUI
+import Tokens
 import UI
 
 struct TimelineItemRowView: View {
@@ -11,6 +12,8 @@ struct TimelineItemRowView: View {
 
     let appState: AppState
     let windowState: WindowState
+
+    @AppStorage(TypographyToken.fontSizeStorageKey) private var fontSize = TypographyToken.defaultBaseFontSize
 
     init(row: TimelineRow, timeline: LiveTimeline?, coordinator: TimelineViewRepresentable.Coordinator) {
         self.row = row
@@ -52,6 +55,7 @@ struct TimelineItemRowView: View {
                     .environment(windowState)
             }
         }
+        .environment(\.timelineTypography, TimelineTypography(base: CGFloat(fontSize)))
     }
 }
 

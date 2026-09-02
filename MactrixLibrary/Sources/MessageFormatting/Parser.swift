@@ -1,12 +1,14 @@
 import AppKit
 import Foundation
+import Tokens
 import ZMarkupParser
 
 @MainActor
-public func parseFormattedBody(_ body: String, baseFontSize: CGFloat = 13) -> NSAttributedString {
+public func parseFormattedBody(_ body: String, baseFontSize: CGFloat? = nil) -> NSAttributedString {
+    let baseFontSize = baseFontSize ?? CGFloat(TypographyToken.defaultBaseFontSize)
     let headingParagraphSpacing = MarkupStyleParagraphStyle(
         // paragraphSpacing: 5,
-        paragraphSpacingBefore: baseFontSize * 0.8
+        paragraphSpacingBefore: baseFontSize * TypographyToken.paragraphSpacingBeforeScale
     )
 
     let parser = ZHTMLParserBuilder
@@ -15,42 +17,42 @@ public func parseFormattedBody(_ body: String, baseFontSize: CGFloat = 13) -> NS
         .add(
             H1_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize * 1.8),
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.heading1Scale),
                 paragraphStyle: headingParagraphSpacing
             )
         )
         .add(
             H2_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize * 1.4),
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.heading2Scale),
                 paragraphStyle: headingParagraphSpacing
             )
         )
         .add(
             H3_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize * 1.2),
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.heading3Scale),
                 paragraphStyle: headingParagraphSpacing
             )
         )
         .add(
             H4_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize * 1.1, weight: .style(.medium)),
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.heading4Scale, weight: .style(.medium)),
                 paragraphStyle: headingParagraphSpacing
             )
         )
         .add(
             H5_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize, weight: .style(.semibold)),
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.bodyScale, weight: .style(.semibold)),
                 paragraphStyle: headingParagraphSpacing
             )
         )
         .add(
             H6_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize, weight: .style(.semibold)),
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.bodyScale, weight: .style(.semibold)),
                 paragraphStyle: headingParagraphSpacing
             )
         )
@@ -58,15 +60,15 @@ public func parseFormattedBody(_ body: String, baseFontSize: CGFloat = 13) -> NS
             P_HTMLTagName(),
             withCustomStyle: MarkupStyle(
                 paragraphStyle: MarkupStyleParagraphStyle(
-                    paragraphSpacing: baseFontSize * 0.4,
-                    paragraphSpacingBefore: baseFontSize * 0.4
+                    paragraphSpacing: baseFontSize * TypographyToken.paragraphSpacingScale,
+                    paragraphSpacingBefore: baseFontSize * TypographyToken.paragraphSpacingScale
                 )
             )
         )
         .add(
             CODE_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize, familyName: .familyNames(["Menlo"]))
+                font: MarkupStyleFont(size: baseFontSize * TypographyToken.bodyScale, familyName: .familyNames(["Menlo"]))
                 // backgroundColor: .init(color: NSColor(red: 0.8, green: 0.8, blue: 1, alpha: 0.5))
             )
         )

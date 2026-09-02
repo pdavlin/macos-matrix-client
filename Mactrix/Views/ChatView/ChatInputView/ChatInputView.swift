@@ -1,6 +1,7 @@
 import MatrixRustSDK
 import OSLog
 import SwiftUI
+import Tokens
 
 struct ChatInputView: View {
     @Environment(\.accessibilityReduceTransparency) var reduceTransparency
@@ -8,7 +9,7 @@ struct ChatInputView: View {
     let room: Room
     let timeline: LiveTimeline
     @Binding var replyTo: MatrixRustSDK.EventTimelineItem?
-    @AppStorage("fontSize") var fontSize: Int = 13
+    @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     @State private var isDraftLoaded: Bool = false
     @State private var chatInput: String = ""

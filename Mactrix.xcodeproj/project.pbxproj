@@ -13,6 +13,7 @@
 		34913F6E2EC0F532003034CB /* MatrixRustSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 34913F6D2EC0F532003034CB /* MatrixRustSDK */; };
 		34913F702EC0F59F003034CB /* Models in Frameworks */ = {isa = PBXBuildFile; productRef = 34913F6F2EC0F59F003034CB /* Models */; };
 		349B041C2F5D77E80023FBF4 /* MessageFormatting in Frameworks */ = {isa = PBXBuildFile; productRef = 349B041B2F5D77E80023FBF4 /* MessageFormatting */; };
+		34B041D12F5D77E80023FBF5 /* Tokens in Frameworks */ = {isa = PBXBuildFile; productRef = 34B041D02F5D77E80023FBF4 /* Tokens */; };
 		B9393FA0B4454B31B9584BE2 /* MatrixRustSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 9E8341FF3A5B47DB86B6CAB7 /* MatrixRustSDK */; };
 		CF40CA025F8D4BF4811A122F /* Models in Frameworks */ = {isa = PBXBuildFile; productRef = F05B489D466A471E87D79152 /* Models */; };
 /* End PBXBuildFile section */
@@ -79,6 +80,7 @@
 				345E77E82ED9F309002E5B9A /* Utils in Frameworks */,
 				34913F702EC0F59F003034CB /* Models in Frameworks */,
 				348E99882F40ABC3009F57A9 /* AsyncAlgorithms in Frameworks */,
+				34B041D12F5D77E80023FBF5 /* Tokens in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +140,7 @@
 				345E77E72ED9F309002E5B9A /* Utils */,
 				348E99872F40ABC3009F57A9 /* AsyncAlgorithms */,
 				349B041B2F5D77E80023FBF4 /* MessageFormatting */,
+				34B041D02F5D77E80023FBF4 /* Tokens */,
 			);
 			productName = Mactrix;
 			productReference = 343858422EB394590010922A /* Mactrix.app */;
@@ -611,6 +614,10 @@
 		349B041B2F5D77E80023FBF4 /* MessageFormatting */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MessageFormatting;
+		};
+		34B041D02F5D77E80023FBF4 /* Tokens */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Tokens;
 		};
 		9E8341FF3A5B47DB86B6CAB7 /* MatrixRustSDK */ = {
 			isa = XCSwiftPackageProductDependency;

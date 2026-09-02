@@ -1,4 +1,5 @@
 import SwiftUI
+import Tokens
 
 public struct MessageReplyView: View {
     let username: String
@@ -21,17 +22,19 @@ public struct MessageReplyView: View {
                     .textSelection(.enabled)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.horizontal, DensityToken.rowHorizontalPadding)
+        .padding(.vertical, DensityToken.rowVerticalPadding)
         .background(
             ZStack {
                 HStack(spacing: 0) {
-                    RoundedRectangle(cornerRadius: 4).opacity(0.5).frame(width: 3)
+                    RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                        .opacity(BubbleToken.replyBarOpacity)
+                        .frame(width: BubbleToken.replyBarWidth)
                     Spacer()
                 }
-                RoundedRectangle(cornerRadius: 4)
-                    .padding(.leading, 2)
-                    .opacity(0.05)
+                RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                    .padding(.leading, BubbleToken.replyBackgroundInset)
+                    .opacity(BubbleToken.replyBackgroundOpacity)
             }
         )
         .italic()

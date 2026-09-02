@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 public struct MessageThreadSummary: View {
     let summary: ThreadSummary
@@ -22,10 +23,10 @@ public struct MessageThreadSummary: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(8)
+            .padding(DensityToken.threadSummaryPadding)
             .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .opacity(0.05)
+                RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                    .opacity(BubbleToken.threadSummaryBackgroundOpacity)
             )
         }
         .buttonStyle(.plain)
