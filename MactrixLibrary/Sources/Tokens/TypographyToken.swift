@@ -51,7 +51,7 @@ public enum TypographyToken {
 ///
 /// Settings write the base size; row content views read the derived scale
 /// through `EnvironmentValues.timelineTypography`.
-public struct TimelineTypography: Equatable, Sendable {
+public struct TimelineTypography: Equatable, Hashable, Sendable {
     /// The user-tunable base size in points, clamped to the token bounds.
     public let base: CGFloat
 
