@@ -190,9 +190,12 @@ class TimelineViewController: NSViewController {
         }
 
         guard let focusedTimelineEventId,
-              let rowIndex = timelineItems.firstIndex(where: {
+              let focusedItem = timelineItems.first(where: {
                   $0.asEvent()?.eventOrTransactionId == focusedTimelineEventId
-              }) else { return }
+              }),
+              let focusedRowId = focusedItem.row?.uniqueId,
+              let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == focusedRowId })
+        else { return }
 
         tableView.animateRowToVisible(rowIndex)
     }
