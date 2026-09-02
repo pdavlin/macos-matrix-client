@@ -131,9 +131,16 @@ class TimelineViewController: NSViewController {
             } else {
                 hostView = NSHostingView<TimelineItemRowView>(rootView: view)
                 hostView.identifier = NSUserInterfaceItemIdentifier(model.reuseId)
+                // Heights are manual (S-32: heightOfRow + cache), so the in-table
+                // hosting view must fill the frame the table assigns and must not
+                // install intrinsic-size constraints. Self-sizing here fought the
+                // manual frame and recursed through
+                // _informContainerThatSubviewsNeedUpdateConstraints until AppKit
+                // threw during layout on a content change (MATRIX-50). Only the
+                // offscreen measurementHostingView self-sizes.
+                hostView.translatesAutoresizingMaskIntoConstraints = true
                 hostView.autoresizingMask = [.width, .height]
-                hostView.sizingOptions = [.preferredContentSize]
-                hostView.setContentHuggingPriority(.required, for: .vertical)
+                hostView.sizingOptions = []
             }
 
             return hostView
