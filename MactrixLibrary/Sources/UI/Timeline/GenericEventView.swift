@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 public struct GenericEventView<Event: EventTimelineItem>: View {
     let event: Event
@@ -20,7 +21,7 @@ public struct GenericEventView<Event: EventTimelineItem>: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, DensityToken.rowHorizontalPadding)
         .onHover { hover in
             self.hover = hover
         }

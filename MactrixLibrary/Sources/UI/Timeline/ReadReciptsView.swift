@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 struct ReadReciptsView<RoomMember: Models.RoomMember>: View {
     let receipts: [String: Receipt]
@@ -90,7 +91,7 @@ struct ReadReciptsView<RoomMember: Models.RoomMember>: View {
                     ForEach(popoverUsers, id: \.self) { userId in
                         HStack(spacing: 10) {
                             avatarImage(forUserId: userId)
-                                .frame(width: 28, height: 28)
+                                .frame(width: DensityToken.receiptPopoverAvatarSize, height: DensityToken.receiptPopoverAvatarSize)
                                 .clipShape(Circle())
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -128,10 +129,10 @@ struct ReadReciptsView<RoomMember: Models.RoomMember>: View {
                 }
                 ForEach(visibleUsers, id: \.self) { userId in
                     avatarImage(forUserId: userId)
-                        .frame(width: 14, height: 14)
+                        .frame(width: DensityToken.receiptAvatarSize, height: DensityToken.receiptAvatarSize)
                         .clipShape(Circle())
                         .background(
-                            Circle().stroke(Color(NSColor.controlBackgroundColor), lineWidth: 3)
+                            Circle().stroke(Color(NSColor.controlBackgroundColor), lineWidth: DensityToken.receiptAvatarStrokeWidth)
                         )
                 }
             }

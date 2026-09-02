@@ -1,8 +1,9 @@
 import SwiftUI
+import Tokens
 
 struct AppCommands: Commands {
     @FocusedValue(WindowState.self) private var windowState: WindowState?
-    @AppStorage("fontSize") var fontSize: Int = 13
+    @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     var body: some Commands {
         SidebarCommands()
@@ -61,15 +62,15 @@ struct AppCommands: Commands {
                 Text("Make Text Bigger")
             }
             .keyboardShortcut("+", modifiers: [.command])
-            .disabled(fontSize >= 24)
+            .disabled(fontSize >= TypographyToken.maxBaseFontSize)
 
             Button {
-                fontSize = 13
+                fontSize = TypographyToken.defaultBaseFontSize
             } label: {
                 Text("Make Text Normal Size")
             }
             .keyboardShortcut("0", modifiers: [.command])
-            .disabled(fontSize == 13)
+            .disabled(fontSize == TypographyToken.defaultBaseFontSize)
 
             Button {
                 fontSize -= 1
@@ -78,7 +79,7 @@ struct AppCommands: Commands {
                 Text("Make Text Smaller")
             }
             .keyboardShortcut("-", modifiers: [.command])
-            .disabled(fontSize <= 8)
+            .disabled(fontSize <= TypographyToken.minBaseFontSize)
         }
     }
 }

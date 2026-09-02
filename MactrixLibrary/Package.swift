@@ -18,6 +18,7 @@ let package = Package(
         ),
         .library(name: "Utils", targets: ["Utils"]),
         .library(name: "MessageFormatting", targets: ["MessageFormatting"]),
+        .library(name: "Tokens", targets: ["Tokens"]),
     ],
     dependencies: [
         .package(url: "https://github.com/ZhgChgLi/ZMarkupParser.git", from: "1.12.0"),
@@ -29,7 +30,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "UI",
-            dependencies: ["Models"]
+            dependencies: ["Models", "Tokens"]
         ),
         .target(name: "Utils"),
         .testTarget(name: "UtilsTests", dependencies: ["Utils"]),
@@ -53,7 +54,10 @@ let package = Package(
             name: "MessageFormatting",
             dependencies: [
                 "ZMarkupParser",
+                "Tokens",
             ]
         ),
+        .target(name: "Tokens"),
+        .testTarget(name: "TokensTests", dependencies: ["Tokens"]),
     ]
 )

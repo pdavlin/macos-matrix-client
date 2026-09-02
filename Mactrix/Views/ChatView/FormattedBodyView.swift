@@ -1,9 +1,10 @@
 import MatrixRustSDK
 import MessageFormatting
 import SwiftUI
+import Tokens
 
 struct FormattedBodyView: View {
-    @AppStorage("fontSize") private var fontSize = 13
+    @Environment(\.timelineTypography) private var typography
 
     let rawBody: String
     let htmlBody: String?
@@ -20,7 +21,7 @@ struct FormattedBodyView: View {
 
     var body: some View {
         if let htmlBody {
-            AttributedTextView(attributedString: parseFormattedBody(htmlBody, baseFontSize: CGFloat(fontSize)))
+            AttributedTextView(attributedString: parseFormattedBody(htmlBody, baseFontSize: typography.base))
                 .fixedSize(horizontal: false, vertical: true)
         } else {
             Text(rawBody)

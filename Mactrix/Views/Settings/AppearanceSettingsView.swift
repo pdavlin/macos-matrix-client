@@ -1,12 +1,13 @@
 import SwiftUI
+import Tokens
 
 struct AppearanceSettingsView: View {
-    @AppStorage("fontSize") var fontSize: Int = 13
+    @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     var body: some View {
         Form {
             Picker("Font size", selection: $fontSize) {
-                ForEach(8 ..< 25) {
+                ForEach(TypographyToken.minBaseFontSize ..< TypographyToken.maxBaseFontSize + 1) {
                     Text("\($0)")
                         .tag($0)
                 }
