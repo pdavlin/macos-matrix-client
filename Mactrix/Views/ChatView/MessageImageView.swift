@@ -4,6 +4,7 @@ import OSLog
 import QuickLook
 import SwiftUI
 import Tokens
+import UI
 import UniformTypeIdentifiers
 
 struct MessageImageView: View {
@@ -14,6 +15,8 @@ struct MessageImageView: View {
     @State private var imageData: Data?
     @State private var image: Image?
     @State private var errorMessage: String?
+    @State private var media = MediaFileController()
+    @State private var quickLookUrl: URL?
 
     init(content: ImageMessageContent) {
         self.content = content
@@ -23,16 +26,11 @@ struct MessageImageView: View {
     }
 
     var aspectRatio: CGFloat? {
-        guard let info = content.info,
-              let height = info.height, height > 0,
-              let width = info.width, width > 0 else { return nil }
-
-        return CGFloat(width) / CGFloat(height)
+        MediaRowLayout.aspectRatio(width: content.info?.width, height: content.info?.height)
     }
 
     var maxHeight: CGFloat {
-        guard let height = content.info?.height, height > 0 else { return 300 }
-        return min(CGFloat(height), 300)
+        MediaRowLayout.maxHeight(height: content.info?.height)
     }
 
     var contentType: UTType? {
@@ -43,7 +41,7 @@ struct MessageImageView: View {
     func imageView(image: Image) -> some View {
         Button(
             action: {
-                Task { await previewImage() }
+                Task { await presentQuickLook() }
             },
             label: {
                 image
@@ -63,6 +61,14 @@ struct MessageImageView: View {
             }
         )
         .buttonStyle(.plain)
+        .contextMenu {
+            Button("Quick Look") {
+                Task { await presentQuickLook() }
+            }
+            Button("Save to Downloads") {
+                Task { await saveToDownloads() }
+            }
+        }
     }
 
     var body: some View {
@@ -82,6 +88,9 @@ struct MessageImageView: View {
                 if let caption = content.caption {
                     Text(caption.formatAsMarkdown)
                         .textSelection(.enabled)
+                }
+                if let mediaError = media.errorMessage {
+                    MediaErrorLabel(message: mediaError)
                 }
             }
         }
@@ -120,37 +129,22 @@ struct MessageImageView: View {
         }
     }
 
-    @State private var fileHandle: MediaFileHandle?
-    @State private var fileUrl: URL?
-    @State private var quickLookUrl: URL?
+    func presentQuickLook() async {
+        guard let url = await media.localFile(
+            client: appState.matrixClient?.client,
+            source: content.source,
+            filename: content.filename,
+            mimeType: content.info?.mimetype
+        ) else { return }
+        quickLookUrl = url
+    }
 
-    func previewImage() async {
-        if let fileUrl {
-            quickLookUrl = fileUrl
-            return
-        }
-
-        guard let matrixClient = appState.matrixClient?.client else { return }
-
-        do {
-            let handle = try await matrixClient.getMediaFile(
-                mediaSource: content.source,
-                filename: content.filename,
-                mimeType: content.info?.mimetype ?? "",
-                useCache: true,
-                tempDir: NSTemporaryDirectory()
-            )
-            fileHandle = handle
-
-            let path = try handle.path()
-
-            let fileUrl = URL(filePath: path, directoryHint: .notDirectory)
-            self.fileUrl = fileUrl
-            quickLookUrl = fileUrl
-
-            Logger.viewCycle.debug("downloaded image file \(fileUrl.absoluteString)")
-        } catch {
-            Logger.viewCycle.error("failed to download image file: \(error)")
-        }
+    func saveToDownloads() async {
+        await media.saveToDownloads(
+            client: appState.matrixClient?.client,
+            source: content.source,
+            filename: content.filename,
+            mimeType: content.info?.mimetype
+        )
     }
 }

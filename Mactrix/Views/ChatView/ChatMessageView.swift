@@ -70,7 +70,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
             case let .image(content: content):
                 MessageImageView(content: content)
             case let .audio(content: content):
-                Text("Audio: \(content.caption ?? "no caption") \(content.filename)").textSelection(.enabled)
+                MessageAudioView(content: content)
             case let .video(content: content):
                 MessageVideoView(content: content)
             case let .file(content: content):
