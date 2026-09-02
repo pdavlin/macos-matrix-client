@@ -27,12 +27,17 @@ struct ChatInputView: View {
                 _ = try await innerTimeline.send(msg: msg)
             }
         } catch {
-            Logger.viewCycle.error("failed to send message: \(error)")
+            // The message never reached the send queue, so no local echo will
+            // carry a retry affordance. Keep the input so nothing is lost.
+            Logger.viewCycle.error("failed to enqueue message: \(error)")
+            return
         }
 
+        // Enqueued: the send queue owns it from here. A failure surfaces on
+        // the local echo (EventSendState.sendingFailed) with retry/discard.
         chatInput = ""
         replyTo = nil
-        timeline.scrollPosition.scrollTo(edge: .bottom)
+        timeline.requestScrollToBottom()
     }
 
     private func saveDraft() async {

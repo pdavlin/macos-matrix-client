@@ -183,7 +183,44 @@ extension MatrixRustSDK.ProfileDetails {
     }
 }
 
+extension MatrixRustSDK.QueueWedgeError {
+    /// User-readable cause for a failed send. Mapped exhaustively so a new
+    /// SDK case breaks the build rather than shipping an unlabeled failure.
+    var userMessage: String {
+        switch self {
+        case .insecureDevices:
+            return "the room has unverified devices your encryption settings do not allow"
+        case .identityViolations:
+            return "a previously verified user's identity changed"
+        case .crossVerificationRequired:
+            return "verify this session before sending"
+        case .missingMediaContent:
+            return "the media to send is no longer cached"
+        case let .invalidMimeType(mimeType: mimeType):
+            return "unsupported media type \(mimeType)"
+        case let .genericApiError(msg: msg):
+            return msg
+        }
+    }
+}
+
 extension MatrixRustSDK.EventTimelineItem: Models.EventTimelineItem {
+    /// Named `sendState`, not `localSendState`: the SDK struct already
+    /// declares `localSendState: EventSendState?`, and the model protocol
+    /// cannot reuse the name with a different type (the S-31 lesson).
+    public var sendState: Models.LocalSendState? {
+        switch localSendState {
+        case nil:
+            return nil
+        case .notSentYet:
+            return .sending
+        case let .sendingFailed(error: error, isRecoverable: isRecoverable):
+            return .sendingFailed(message: error.userMessage, isRecoverable: isRecoverable)
+        case .sent:
+            return .sent
+        }
+    }
+
     public var userReadReceipts: [String: Models.Receipt] {
         readReceipts.mapValues { Models.Receipt(timestamp: $0.timestamp?.date) }
     }

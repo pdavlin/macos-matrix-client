@@ -70,4 +70,19 @@ public enum DensityToken {
 
     /// Stroke width separating overlapping read-receipt avatars.
     public static let receiptAvatarStrokeWidth: CGFloat = 3
+
+    /// Inner padding of the scroll-to-bottom chip.
+    public static let scrollChipPadding: CGFloat = 8
+
+    /// Spacing between the unread count and the chevron inside the chip.
+    public static let scrollChipSpacing: CGFloat = 4
+
+    /// Margin between the scroll-to-bottom chip and the timeline edge.
+    public static let scrollChipMargin: CGFloat = 12
+
+    /// Spacing between the icon, text, and actions of the send-failure row.
+    public static let sendFailureSpacing: CGFloat = 6
+
+    /// Padding above the send-failure row, separating it from the message body.
+    public static let sendFailureTopPadding: CGFloat = 4
 }

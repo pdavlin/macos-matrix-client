@@ -1,4 +1,5 @@
 import AppKit
+import Models
 import OSLog
 import SwiftUI
 import Tokens
@@ -149,11 +150,26 @@ class DynamicTextView: NSTextView {
         invalidateIntrinsicContentSize()
     }
 
+    /// Maps a key event onto the composer's Return-key policy (decision D-1:
+    /// Enter sends, Shift-Enter inserts a newline, Cmd-Enter also sends).
+    /// The rule itself lives in `Models.ComposerKeyDecision` so it is
+    /// unit-tested; this only translates the AppKit event.
+    private func sendAction(for event: NSEvent) -> ComposerKeyDecision.Action {
+        let isReturnKey = event.specialKey == .enter || event.specialKey == .carriageReturn
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return ComposerKeyDecision.action(
+            isReturnKey: isReturnKey,
+            hasMarkedText: hasMarkedText(),
+            shift: modifiers.contains(.shift),
+            command: modifiers.contains(.command),
+            otherModifiers: !modifiers.subtracting([.shift, .command]).isEmpty
+        )
+    }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // Always submit on cmd+enter
-        if event.specialKey == .enter || event.specialKey == .carriageReturn,
-           event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command]
-        {
+        // Cmd-enter arrives as a key equivalent, not through keyDown.
+        let hasCommand = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command)
+        if hasCommand, sendAction(for: event) == .send {
             onSubmit?()
             return true
         }
@@ -162,14 +178,13 @@ class DynamicTextView: NSTextView {
     }
 
     override func keyDown(with event: NSEvent) {
-        // Handle enter as submit instead of newline
-        if event.specialKey == .enter || event.specialKey == .carriageReturn,
-           event.modifierFlags.intersection(.deviceIndependentFlagsMask) == []
-        {
+        if sendAction(for: event) == .send {
             onSubmit?()
             return
         }
 
+        // Passthrough: newline on Shift-Enter, IME composition commit, and
+        // every non-Return key.
         super.keyDown(with: event)
     }
 }

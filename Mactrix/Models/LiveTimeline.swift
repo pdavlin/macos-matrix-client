@@ -29,6 +29,19 @@ public final class LiveTimeline {
     public private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false
 
+    /// Whether the timeline view is scrolled to (or near) the newest message.
+    /// Written by the timeline container on scroll; read by the
+    /// scroll-to-bottom affordance.
+    public private(set) var isAtBottom: Bool = true
+
+    /// Messages from other senders that arrived while the view was scrolled
+    /// away from the bottom. Cleared when the view returns to the bottom.
+    public private(set) var unseenArrivals: Int = 0
+
+    /// Monotonic counter the timeline container observes; each increment is
+    /// one scroll-to-bottom request.
+    public private(set) var scrollToBottomRequests: Int = 0
+
     public init(room: LiveRoom) {
         self.focusedThreadId = nil
         self.room = room
@@ -146,6 +159,22 @@ public final class LiveTimeline {
         Logger.liveTimeline.info("focus event: \(eventId.id)")
         focusedTimelineEventId = eventId
     }
+
+    /// Called by the timeline container as the scroll position crosses the
+    /// bottom threshold. Reaching the bottom clears the unseen counter.
+    public func setAtBottom(_ atBottom: Bool) {
+        guard isAtBottom != atBottom else { return }
+        isAtBottom = atBottom
+        if atBottom {
+            unseenArrivals = 0
+        }
+    }
+
+    /// Asks the timeline container to scroll to the newest message.
+    public func requestScrollToBottom() {
+        scrollToBottomRequests += 1
+        setAtBottom(true)
+    }
 }
 
 extension LiveTimeline {
@@ -154,12 +183,15 @@ extension LiveTimeline {
             switch update {
             case let .append(values):
                 timelineItems.append(contentsOf: values)
+                noteArrivals(values)
             case .clear:
                 timelineItems.removeAll()
+                unseenArrivals = 0
             case let .pushFront(room):
                 timelineItems.insert(room, at: 0)
             case let .pushBack(room):
                 timelineItems.append(room)
+                noteArrivals([room])
             case .popFront:
                 timelineItems.removeFirst()
             case .popBack:
@@ -174,10 +206,25 @@ extension LiveTimeline {
                 timelineItems.removeSubrange(Int(length) ..< timelineItems.count)
             case let .reset(values: values):
                 timelineItems = values
+                unseenArrivals = 0
             }
         }
 
         loadPendingReplyDetails()
+    }
+
+    /// Counts message events from other senders that arrive at the newest end
+    /// while the view is scrolled away from the bottom, feeding the unread
+    /// chip. Own messages are excluded: sending already scrolls to bottom.
+    private func noteArrivals(_ items: [TimelineItem]) {
+        guard !isAtBottom else { return }
+        let newMessages = items.count(where: { item in
+            guard let event = item.asEvent(), case .msgLike = event.content else { return false }
+            return !event.isOwn
+        })
+        if newMessages > 0 {
+            unseenArrivals += newMessages
+        }
     }
 
     private func loadPendingReplyDetails() {
