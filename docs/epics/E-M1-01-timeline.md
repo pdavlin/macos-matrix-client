@@ -6,7 +6,7 @@
 | **Roadmap bullets** | M1: timeline v1 (per M0 decision), compose v1, media, design tokens (2026-09-01 constraint) |
 | **Risks retired** | R-1 residual (production re-verification via S-12 harness) |
 | **Open questions closed** | Q-6 is decided at this PRD (D-4); M1 PRD questions from the seed → D-1…D-6 below |
-| **Status** | PRD draft for Patrick's review — 2026-09-01 |
+| **Status** | Approved 2026-09-01 — Patrick adopted all recommendations (D-1…D-6); stories S-31…S-39 seeded in Plane |
 
 ## 1. Goal
 
@@ -68,28 +68,30 @@ What the fork already carries, verified 2026-09-01:
 | Chrome: `NavigationSplitView`, glass toolbar/sidebar, opaque content | Largely in place from M0+S-16…S-30 | Audit tail item (D-6) |
 | Exit: full day of bridged DM traffic, no p95 hitches | Not yet | Harness baselines (S-39) + Patrick's day (§8) |
 
-## 5. Decisions needed from Patrick
+## 5. Decisions — resolved 2026-09-01
 
-These gate story details. Recommendations are mine; the pick is yours.
+Patrick reviewed the draft and adopted every recommendation. Recorded in
+Contract §11 (2026-09-01 row). Each "Decided" below is what the stories
+build to.
 
-- **D-1 Send UX** — Recommend: Enter sends, Shift-Enter newlines (Beeper
+- **D-1 Send UX** — Decided: Enter sends, Shift-Enter newlines (Beeper
   parity; M2 makes it configurable per contract). Affects S-37.
-- **D-2 Pagination UX** — Recommend: keep infinite scroll with a visible
+- **D-2 Pagination UX** — Decided: keep infinite scroll with a visible
   activity state at the oldest end (Beeper parity; inherited 200px threshold
   retained). Alternative: explicit "load older" button. Affects S-34.
-- **D-3 Receipts / typing / edits surface** — Recommend: typing indicator on
+- **D-3 Receipts / typing / edits surface** — Decided: typing indicator on
   (section already sketched), read receipts in **DMs only** for M1 (group
   receipts are noise), edits display inline with the edit marker (the send/edit
   UI stays M2). Affects S-34/S-35.
 - **D-4 Q-6 — bridge-network grouping in the sidebar** (contract reserves this
-  for M1 PRD time) — Recommend: **defer past M1**. The network set itself is
+  for M1 PRD time) — Decided: **defer past M1**. The network set itself is
   in flux until the E-HS-03 re-homing cutover; grouping semantics designed
   today would be designed against a dying bridge topology. Revisit after
   cutover. Recording the decision closes Q-6.
-- **D-5 Token layer placement** — Recommend: a `Tokens` module under
+- **D-5 Token layer placement** — Decided: a `Tokens` module under
   `MactrixLibrary/Sources/UI/`, sibling to (not inside) `MessageFormatting`;
   formatting code consumes tokens rather than owning them. Affects S-36.
-- **D-6 Epic split** — Recommend: **this epic covers the timeline surface
+- **D-6 Epic split** — Decided: **this epic covers the timeline surface
   only** (row layer, container, tokens, composer, media, harness — S-31…S-39).
   Room-list refinement, notifications pass, and chrome audit become a short
   **E-M1-02** epic after this lands. Keeps the PRD's exit criteria crisp.
