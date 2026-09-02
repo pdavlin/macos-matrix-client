@@ -2,6 +2,7 @@ import MatrixRustSDK
 import Models
 import OSLog
 import SwiftUI
+import Tokens
 import UI
 
 struct TimelineGroupView: View {
@@ -45,6 +46,16 @@ struct ChatJoinedRoom: View {
     var body: some View {
         TimelineViewRepresentable(timeline: timeline, items: timeline.timelineItems)
             .ignoresSafeArea(edges: .top)
+            .overlay(alignment: .bottomTrailing) {
+                if !timeline.isAtBottom {
+                    UI.ScrollToBottomChip(unseenCount: timeline.unseenArrivals) {
+                        timeline.requestScrollToBottom()
+                    }
+                    .padding(.trailing, DensityToken.scrollChipMargin)
+                    .padding(.bottom, DensityToken.scrollChipMargin)
+                    .transition(.opacity)
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 8) {
                 ChatInputView(room: room.room, timeline: timeline, replyTo: $timeline.sendReplyTo)
             }

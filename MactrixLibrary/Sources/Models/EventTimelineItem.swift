@@ -31,7 +31,8 @@ public protocol EventTimelineItem: UserProfile {
     var isEditable: Bool { get }
     // var content: TimelineItemContent { get }
     var date: Date { get }
-    // var localSendState: EventSendState? { get }
+    /// Send state of a local echo; `nil` for remote events.
+    var sendState: LocalSendState? { get }
     var localCreatedAt: UInt64? { get }
     var userReadReceipts: [String: Receipt] { get }
     // var origin: EventItemOrigin? { get }
@@ -64,6 +65,10 @@ public struct MockEventTimelineItem: EventTimelineItem {
 
     public var date: Date {
         .now
+    }
+
+    public var sendState: LocalSendState? {
+        nil
     }
 
     public var localCreatedAt: UInt64? {

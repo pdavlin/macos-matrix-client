@@ -143,6 +143,7 @@ class TimelineViewController: NSViewController {
         )
 
         listenForFocusTimelineItem()
+        listenForScrollToBottomRequests()
     }
 
     @objc func handleTableResize(_: Notification) {
@@ -162,10 +163,17 @@ class TimelineViewController: NSViewController {
 
     var timelineFetchTask: Task<Void, Never>?
 
+    /// Distance (in points) from the newest end within which the timeline
+    /// still counts as scrolled to the bottom.
+    static let bottomThreshold: CGFloat = 40.0
+
     @objc func viewDidScroll(_: Notification) {
         let currentOffset = scrollView.contentView.bounds.origin.y
         let timelineHeight = scrollView.contentView.documentRect.height
         let viewHeight = scrollView.contentView.documentVisibleRect.height
+
+        // The table is not flipped, so y = 0 is the newest (bottom) end.
+        timeline.setAtBottom(currentOffset <= Self.bottomThreshold)
 
         let distanceFromTop = timelineHeight - viewHeight - currentOffset
         let threshold: CGFloat = 200.0 // Pixels from the top to trigger load
@@ -202,6 +210,26 @@ class TimelineViewController: NSViewController {
         else { return }
 
         tableView.animateRowToVisible(rowIndex)
+    }
+
+    /// The last scroll-to-bottom request this controller acted on. Requests
+    /// are a monotonic counter on `LiveTimeline`; observing the counter
+    /// instead of a flag keeps repeated taps working.
+    private var handledScrollToBottomRequests: Int = 0
+
+    func listenForScrollToBottomRequests() {
+        let requests = withObservationTracking {
+            timeline.scrollToBottomRequests
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.listenForScrollToBottomRequests() }
+        }
+
+        guard requests > handledScrollToBottomRequests else { return }
+        handledScrollToBottomRequests = requests
+
+        // Row 0 is the newest message: rows are display-ordered newest-first
+        // and the table is not flipped, so row 0 sits at the bottom.
+        tableView.animateRowToVisible(0)
     }
 
     @available(*, unavailable)

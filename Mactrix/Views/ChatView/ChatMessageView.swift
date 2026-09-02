@@ -60,6 +60,46 @@ struct ChatMessageView: View, UI.MessageEventActions {
         windowState.focusUser(userId: event.sender)
     }
 
+    /// Retries a failed local echo. The SDK owns retry semantics: a
+    /// recoverable failure disabled the room's send queue, so retry re-enables
+    /// it and the queue resends on its own; an unrecoverable failure wedged
+    /// this event, so retry unwedges it through its send handle.
+    func retrySend(isRecoverable: Bool) {
+        Task {
+            if isRecoverable {
+                timeline?.room.room.enableSendQueue(enable: true)
+                Logger.viewCycle.info("re-enabled send queue to retry \(event.eventOrTransactionId.id)")
+                return
+            }
+            guard let handle = event.lazyProvider.getSendHandle() else {
+                Logger.viewCycle.error("retrySend: no send handle for \(event.eventOrTransactionId.id)")
+                return
+            }
+            do {
+                try await handle.tryResend()
+                Logger.viewCycle.info("resend requested for \(event.eventOrTransactionId.id)")
+            } catch {
+                Logger.viewCycle.error("failed to resend \(event.eventOrTransactionId.id): \(error)")
+            }
+        }
+    }
+
+    /// Discards a failed local echo by aborting it in the send queue.
+    func discardFailedSend() {
+        Task {
+            guard let handle = event.lazyProvider.getSendHandle() else {
+                Logger.viewCycle.error("discardFailedSend: no send handle for \(event.eventOrTransactionId.id)")
+                return
+            }
+            do {
+                let aborted = try await handle.abort()
+                Logger.viewCycle.info("abort of \(event.eventOrTransactionId.id) returned \(aborted)")
+            } catch {
+                Logger.viewCycle.error("failed to abort \(event.eventOrTransactionId.id): \(error)")
+            }
+        }
+    }
+
     @ViewBuilder
     var message: some View {
         switch msg.kind {
@@ -147,6 +187,14 @@ struct ChatMessageView: View, UI.MessageEventActions {
                 }
 
                 message
+
+                if case let .sendingFailed(message: failureMessage, isRecoverable: isRecoverable) = event.sendState {
+                    UI.MessageSendFailureView(
+                        message: failureMessage,
+                        retry: { retrySend(isRecoverable: isRecoverable) },
+                        discard: { discardFailedSend() }
+                    )
+                }
 
                 if let threadSummary = msg.threadSummary {
                     MessageThreadSummary(summary: threadSummary) {
