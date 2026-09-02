@@ -11,6 +11,7 @@ extension Logger {
     static let liveSpaceRoomList = Logger(subsystem: subsystem, category: "live-space-room-list")
     static let liveTimeline = Logger(subsystem: subsystem, category: "live-timeline")
     static let timelineTableView = Logger(subsystem: subsystem, category: "timeline-table-view")
+    static let timelineRowMapping = Logger(subsystem: subsystem, category: "timeline-row-mapping")
     static let SidebarRoom = Logger(subsystem: subsystem, category: "sidebar-room")
     static let chatTextView = Logger(subsystem: subsystem, category: "chat-text-view")
 

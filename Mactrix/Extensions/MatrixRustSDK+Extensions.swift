@@ -1,6 +1,7 @@
 import Foundation
 import MatrixRustSDK
 import Models
+import OSLog
 
 extension MatrixRustSDK.RoomMember: Models.UserProfile {}
 
@@ -219,6 +220,32 @@ extension MatrixRustSDK.EventTimelineItem: Models.EventTimelineItem {
 extension MatrixRustSDK.EventTimelineItem: @retroactive Identifiable {
     public var id: MatrixRustSDK.EventOrTransactionId {
         eventOrTransactionId
+    }
+}
+
+extension MatrixRustSDK.TimelineItem {
+    /// Maps this SDK timeline item to a platform-neutral row model.
+    ///
+    /// The mapping is total: items that are neither event nor virtual (the
+    /// previously `fatalError` path) are skipped with a logged warning.
+    var row: Models.TimelineRow? {
+        if let virtual = asVirtual() {
+            return .virtual(uniqueId: uniqueId().id, item: virtual.asModel)
+        }
+
+        guard let event = asEvent() else {
+            Logger.timelineRowMapping.warning(
+                "Skipping timeline item with neither event nor virtual content (uniqueId: \(self.uniqueId().id))"
+            )
+            return nil
+        }
+
+        switch event.content {
+        case .msgLike:
+            return .message(uniqueId: uniqueId().id, event: event)
+        default:
+            return .state(uniqueId: uniqueId().id, event: event, name: event.content.description)
+        }
     }
 }
 
