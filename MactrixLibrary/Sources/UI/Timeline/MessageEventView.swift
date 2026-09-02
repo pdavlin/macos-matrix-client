@@ -83,7 +83,11 @@ struct MessageMainBody<MessageView: View, EventTimelineItem: Models.EventTimelin
         .padding(.vertical, DensityToken.rowVerticalPadding)
         .background(
             RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
-                .fill(focused ? Color.accentColor.opacity(AccentToken.focusBackgroundOpacity) : Color.gray.opacity(AccentToken.hoverBackgroundOpacity))
+                .fill(
+                    focused
+                        ? Color.accentColor.opacity(AccentToken.focusBackgroundOpacity)
+                        : Color.gray.opacity(AccentToken.hoverBackgroundOpacity)
+                )
                 .opacity(hover || focused ? AccentToken.activeBackgroundOpacity : AccentToken.inactiveBackgroundOpacity)
         )
         .padding(.horizontal, DensityToken.rowHorizontalPadding)
@@ -228,7 +232,7 @@ public struct MessageEventBodyView<
 
                 // Always present to keep view tree stable (avoids NSHostingView layout loop)
                 HStack {
-                    Spacer().frame(width: 64)
+                    Spacer().frame(width: DensityToken.leadingColumnWidth)
                     ForEach(reactions) { reaction in
                         MessageReactionView(
                             reaction: reaction,

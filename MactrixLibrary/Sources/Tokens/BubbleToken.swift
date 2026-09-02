@@ -15,6 +15,9 @@ public enum BubbleToken {
     /// Border width of the hover action bar.
     public static let hoverBorderWidth: CGFloat = 1
 
+    /// Corner radius for media thumbnails embedded in messages.
+    public static let mediaCornerRadius: CGFloat = 6
+
     /// Width of the left accent bar in embedded replies.
     public static let replyBarWidth: CGFloat = 3
 

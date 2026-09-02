@@ -27,7 +27,9 @@ public struct MessageReplyView: View {
         .background(
             ZStack {
                 HStack(spacing: 0) {
-                    RoundedRectangle(cornerRadius: BubbleToken.cornerRadius).opacity(BubbleToken.replyBarOpacity).frame(width: BubbleToken.replyBarWidth)
+                    RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                        .opacity(BubbleToken.replyBarOpacity)
+                        .frame(width: BubbleToken.replyBarWidth)
                     Spacer()
                 }
                 RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)

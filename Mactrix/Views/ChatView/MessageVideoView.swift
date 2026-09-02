@@ -3,6 +3,7 @@ import MatrixRustSDK
 import Models
 import OSLog
 import SwiftUI
+import Tokens
 
 struct MessageVideoView: View {
     @Environment(AppState.self) private var appState
@@ -51,7 +52,7 @@ struct MessageVideoView: View {
         VStack {
             if let video {
                 TimelineVideoPlayer(videoPlayer: video)
-                    .cornerRadius(6)
+                    .cornerRadius(BubbleToken.mediaCornerRadius)
             } else {
                 Button(action: { Task { await loadVideo() } }) {
                     MatrixImageView(mediaSource: content.info?.thumbnailSource, mimeType: content.info?.thumbnailInfo?.mimetype)

@@ -77,14 +77,7 @@ public struct TimelineTypography: Equatable, Sendable {
 
 /// Provides `EnvironmentValues.timelineTypography` so settings can write the
 /// scale once and every row in the subtree reads the same values.
-public struct TimelineTypographyKey: EnvironmentKey {
-    public static let defaultValue = TimelineTypography.default
-}
-
 public extension EnvironmentValues {
     /// The typography scale active for the timeline subtree.
-    var timelineTypography: TimelineTypography {
-        get { self[TimelineTypographyKey.self] }
-        set { self[TimelineTypographyKey.self] = newValue }
-    }
+    @Entry var timelineTypography = TimelineTypography.default
 }
