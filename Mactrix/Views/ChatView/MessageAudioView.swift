@@ -6,11 +6,12 @@ import SwiftUI
 import UI
 import UniformTypeIdentifiers
 
-struct MessageFileView: View {
+/// An audio message (bridged voice notes included) rendered as an attachment
+/// row: click for Quick Look playback, save-to-Downloads in the context menu.
+struct MessageAudioView: View {
     @Environment(AppState.self) private var appState
-    let content: FileMessageContent
+    let content: AudioMessageContent
 
-    @State private var icon: Image?
     @State private var media = MediaFileController()
     @State private var quickLookUrl: URL?
 
@@ -18,8 +19,15 @@ struct MessageFileView: View {
         return content.info?.mimetype.flatMap { UTType(mimeType: $0) }
     }
 
-    var sizeText: String? {
-        content.info?.size.map { $0.formatted(.byteCount(style: .file)) }
+    var subtitle: String? {
+        var parts: [String] = []
+        if let duration = content.info?.duration {
+            parts.append(Duration.seconds(duration).formatted(.time(pattern: .minuteSecond)))
+        }
+        if let size = content.info?.size {
+            parts.append(size.formatted(.byteCount(style: .file)))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     func presentQuickLook() async {
@@ -29,10 +37,6 @@ struct MessageFileView: View {
             filename: content.filename,
             mimeType: content.info?.mimetype
         ) else { return }
-
-        // The downloaded file yields a richer icon (previews, correct type
-        // even when the event carried no usable mimetype).
-        icon = Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
         quickLookUrl = url
     }
 
@@ -51,9 +55,9 @@ struct MessageFileView: View {
                 Task { await presentQuickLook() }
             } label: {
                 AttachmentRowView(
-                    icon: icon ?? Image(nsImage: NSWorkspace.shared.icon(for: contentType ?? .data)),
+                    icon: Image(nsImage: NSWorkspace.shared.icon(for: contentType ?? .audio)),
                     title: content.filename,
-                    subtitle: sizeText
+                    subtitle: subtitle
                 )
             }
             .buttonStyle(.plain)
@@ -76,9 +80,5 @@ struct MessageFileView: View {
             }
         }
         .quickLookPreview($quickLookUrl)
-        .onChange(of: content.info?.mimetype, initial: true) { _, _ in
-            let nsImage = NSWorkspace.shared.icon(for: contentType ?? .item)
-            icon = Image(nsImage: nsImage)
-        }
     }
 }

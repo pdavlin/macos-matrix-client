@@ -18,6 +18,9 @@ public enum BubbleToken {
     /// Corner radius for media thumbnails embedded in messages.
     public static let mediaCornerRadius: CGFloat = 6
 
+    /// The tallest an inline media row (image or video) will render, in points.
+    public static let mediaMaxHeight: CGFloat = 300
+
     /// Width of the left accent bar in embedded replies.
     public static let replyBarWidth: CGFloat = 3
 

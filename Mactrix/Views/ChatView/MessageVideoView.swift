@@ -2,49 +2,61 @@ import AVKit
 import MatrixRustSDK
 import Models
 import OSLog
+import QuickLook
 import SwiftUI
 import Tokens
+import UI
 
 struct MessageVideoView: View {
     @Environment(AppState.self) private var appState
     let content: VideoMessageContent
 
-    @State private var fileHandle: MediaFileHandle?
+    @State private var media = MediaFileController()
+    @State private var quickLookUrl: URL?
     @State private var video: AVPlayer?
 
     var aspectRatio: CGFloat? {
-        guard let info = content.info,
-              let height = info.height, height > 0,
-              let width = info.width, width > 0 else { return nil }
-
-        return CGFloat(width) / CGFloat(height)
+        MediaRowLayout.aspectRatio(width: content.info?.width, height: content.info?.height)
     }
 
     var maxHeight: CGFloat {
-        guard let height = content.info?.height, height > 0 else { return 300 }
-        return min(CGFloat(height), 300)
+        MediaRowLayout.maxHeight(height: content.info?.height)
     }
 
-    func loadVideo() async {
-        guard let client = appState.matrixClient?.client else { return }
+    func presentQuickLook() async {
+        guard let url = await localFile() else { return }
+        quickLookUrl = url
+    }
 
-        do {
-            let handle = try await client.getMediaFile(
-                mediaSource: content.source,
-                filename: content.filename,
-                mimeType: content.info?.mimetype ?? "",
-                useCache: true,
-                tempDir: NSTemporaryDirectory()
-            )
+    func playInline() async {
+        guard let url = await localFile() else { return }
+        let player = AVPlayer(url: url)
+        video = player
+        player.play()
+    }
 
-            fileHandle = handle
-            let path = try handle.path()
-            let url = URL(filePath: path, directoryHint: .notDirectory)
+    func localFile() async -> URL? {
+        await media.localFile(
+            client: appState.matrixClient?.client,
+            source: content.source,
+            filename: content.filename,
+            mimeType: content.info?.mimetype
+        )
+    }
 
-            video = AVPlayer(url: url)
-            video?.play()
-        } catch {
-            Logger.viewCycle.error("Failed to load video: \(error)")
+    func saveToDownloads() async {
+        await media.saveToDownloads(
+            client: appState.matrixClient?.client,
+            source: content.source,
+            filename: content.filename,
+            mimeType: content.info?.mimetype
+        )
+    }
+
+    @ViewBuilder
+    var saveButton: some View {
+        Button("Save to Downloads") {
+            Task { await saveToDownloads() }
         }
     }
 
@@ -53,25 +65,47 @@ struct MessageVideoView: View {
             if let video {
                 TimelineVideoPlayer(videoPlayer: video)
                     .cornerRadius(BubbleToken.mediaCornerRadius)
+                    .contextMenu {
+                        Button("Quick Look") {
+                            Task { await presentQuickLook() }
+                        }
+                        saveButton
+                    }
             } else {
-                Button(action: { Task { await loadVideo() } }) {
+                Button {
+                    Task { await presentQuickLook() }
+                } label: {
                     MatrixImageView(mediaSource: content.info?.thumbnailSource, mimeType: content.info?.thumbnailInfo?.mimetype)
                         .overlay {
-                            Image(systemName: "play.fill")
-                                .resizable()
-                                .foregroundStyle(.white)
-                                .shadow(radius: 4)
-                                .frame(width: 48, height: 48)
-                                .opacity(0.9)
+                            if media.isDownloading {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "play.fill")
+                                    .resizable()
+                                    .foregroundStyle(.white)
+                                    .shadow(radius: 4)
+                                    .frame(width: 48, height: 48)
+                                    .opacity(0.9)
+                            }
                         }
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Play Inline") {
+                        Task { await playInline() }
+                    }
+                    saveButton
+                }
             }
             if let caption = content.caption, !caption.isEmpty {
                 Text(caption.formatAsMarkdown)
                     .textSelection(.enabled)
             }
+            if let mediaError = media.errorMessage {
+                MediaErrorLabel(message: mediaError)
+            }
         }
+        .quickLookPreview($quickLookUrl)
         .aspectRatio(aspectRatio, contentMode: .fit)
         .frame(maxHeight: maxHeight)
         .frame(minHeight: content.info?.thumbnailSource == nil ? maxHeight : nil)
