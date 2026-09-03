@@ -33,7 +33,7 @@ struct SidebarView: View {
     }
 
     var spaces: [SidebarSpaceRoom] {
-        appState.matrixClient?.spaceService.spaceRooms ?? []
+        appState.matrixClient?.spaceService?.spaceRooms ?? []
     }
 
     var body: some View {
