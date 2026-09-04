@@ -1,6 +1,16 @@
 import AppKit
 import SwiftUI
 
+extension EnvironmentValues {
+    /// When true, busy-state views in this file show a determinate substitute
+    /// instead of an indeterminate spinner.
+    ///
+    /// An indeterminate `ProgressView` animates on its own timer, so a snapshot
+    /// capture lands on a random animation phase. Production code never sets
+    /// this key; only snapshot tests do, to get one stable frame.
+    @Entry var usesStaticProgressIndicators: Bool = false
+}
+
 /// Shows a freshly created recovery key, once.
 ///
 /// The SDK returns the key exactly once from `enableRecovery`. Nothing stores
@@ -75,6 +85,7 @@ public struct RecoveryKeyEntrySheet: View {
     let onCancel: () -> Void
 
     @State private var enteredKey = ""
+    @Environment(\.usesStaticProgressIndicators) private var usesStaticProgressIndicators
 
     public init(
         isBusy: Bool,
@@ -117,8 +128,16 @@ public struct RecoveryKeyEntrySheet: View {
 
             HStack {
                 if isBusy {
-                    ProgressView()
-                        .controlSize(.small)
+                    if usesStaticProgressIndicators {
+                        // Snapshot-only: a determinate ring renders one fixed
+                        // frame, unlike the indeterminate spinner below.
+                        ProgressView(value: 0.5, total: 1.0)
+                            .progressViewStyle(.circular)
+                            .controlSize(.small)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
                     Text("Unlocking…")
                         .foregroundStyle(.secondary)
                 }
