@@ -131,9 +131,16 @@ class TimelineViewController: NSViewController {
             } else {
                 hostView = NSHostingView<TimelineItemRowView>(rootView: view)
                 hostView.identifier = NSUserInterfaceItemIdentifier(model.reuseId)
+                // Heights are manual (S-32: heightOfRow + cache), so the in-table
+                // hosting view must fill the frame the table assigns and must not
+                // install intrinsic-size constraints. Self-sizing here fought the
+                // manual frame and recursed through
+                // _informContainerThatSubviewsNeedUpdateConstraints until AppKit
+                // threw during layout on a content change (MATRIX-50). Only the
+                // offscreen measurementHostingView self-sizes.
+                hostView.translatesAutoresizingMaskIntoConstraints = true
                 hostView.autoresizingMask = [.width, .height]
-                hostView.sizingOptions = [.preferredContentSize]
-                hostView.setContentHuggingPriority(.required, for: .vertical)
+                hostView.sizingOptions = []
             }
 
             return hostView
@@ -186,16 +193,35 @@ class TimelineViewController: NSViewController {
         listenForScrollToBottomRequests()
     }
 
+    private var heightRenoteScheduled = false
+
     @objc func handleTableResize(_: Notification) {
         guard oldWidth != tableView.frame.width else { return }
         oldWidth = tableView.frame.width
+        scheduleHeightRenote()
+    }
 
-        if tableView.inLiveResize {
-            // During a live resize, re-measure only the visible rows for
-            // responsiveness; `onLiveResizeEnd` settles the rest once.
-            noteVisibleRowHeightsChanged()
-        } else {
-            noteAllRowHeightsChanged()
+    /// Coalesces a width-change height re-note onto the next runloop cycle.
+    /// This notification fires synchronously while the frame is being set, so
+    /// re-noting here runs inside the current layout pass. A SwiftUI-driven
+    /// frame animation (the inspector transition) queries the representable's
+    /// size mid-pass, and invalidating row heights during that resolution
+    /// dirties constraints while they are being resolved — AppKit turns that
+    /// into a crash (the MATRIX-50 constraint-loop class). Deferring runs the
+    /// re-note after the pass completes, breaking the re-entrancy.
+    private func scheduleHeightRenote() {
+        guard !heightRenoteScheduled else { return }
+        heightRenoteScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            heightRenoteScheduled = false
+            if tableView.inLiveResize {
+                // During a live resize, re-measure only the visible rows for
+                // responsiveness; `onLiveResizeEnd` settles the rest once.
+                noteVisibleRowHeightsChanged()
+            } else {
+                noteAllRowHeightsChanged()
+            }
         }
     }
 

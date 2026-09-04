@@ -16,7 +16,7 @@ class MatrixClient {
 
     var rooms: [SidebarRoom] = []
 
-    var spaceService: LiveSpaceService!
+    var spaceService: LiveSpaceService? // optional, not IUO: reset() nils it before AppState detaches the client (MATRIX-51)
 
     private var clientDelegateHandle: TaskHandle?
     var authenticationFailed: Bool = false
