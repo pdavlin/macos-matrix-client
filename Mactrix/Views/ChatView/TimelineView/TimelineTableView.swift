@@ -354,10 +354,21 @@ class TimelineViewController: NSViewController {
         // If the IDs haven't changed, reload all rows in place (content-only update: reactions, read receipts, etc.)
         // Reloads all rows rather than just visible ones to avoid stale content in NSTableView's prepared/cached views.
         // The reload does not re-ask heights; only rows whose content mutated get re-measured.
+        //
+        // The reload redraws a mutated row's SwiftUI content immediately, but noteHeightOfRows
+        // grows the row frame under NSTableView's default implicit animation (MATRIX-49) — for
+        // the animation's duration the taller content is clipped to the still-short frame. Zero
+        // out the animation, as the width/typography re-note paths below already do, so content
+        // and frame land in the same layout pass.
         if oldIds == newIds {
-            tableView.reloadData(forRowIndexes: IndexSet(integersIn: 0 ..< timelineRows.count),
-                                 columnIndexes: IndexSet(integer: 0))
-            noteHeightChanges(forMutatedIds: mutatedIds, context: "content-only update")
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
+
+                tableView.reloadData(forRowIndexes: IndexSet(integersIn: 0 ..< timelineRows.count),
+                                     columnIndexes: IndexSet(integer: 0))
+                noteHeightChanges(forMutatedIds: mutatedIds, context: "content-only update")
+            }
             return
         }
 
