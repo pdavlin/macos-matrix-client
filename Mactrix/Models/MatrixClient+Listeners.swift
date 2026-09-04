@@ -196,10 +196,20 @@ extension MatrixClient: MatrixRustSDK.ClientDelegate {
 
     nonisolated func didReceiveAuthError(isSoftLogout: Bool) {
         Task { @MainActor in
-            Logger.matrixClient.debug("did receive auth error: soft logout \(isSoftLogout, privacy: .public)")
-            if !isSoftLogout {
-                authenticationFailed = true
+            if isSoftLogout {
+                Logger.matrixClient.debug("did receive auth error: soft logout true")
+                return
             }
+            // The sync machinery keeps retrying the rejected token, so this
+            // callback re-fires several times per second until sync stops
+            // (observed ~7/s, MATRIX-48). Only the first callback may act,
+            // and it must stop sync itself: the observer that tears down the
+            // session runs later on the main queue, and every retry until
+            // then hammers the homeserver.
+            guard !authenticationFailed else { return }
+            authenticationFailed = true
+            Logger.matrixClient.error("auth error: token rejected (not soft logout); stopping sync")
+            await syncService?.stop()
         }
     }
 }

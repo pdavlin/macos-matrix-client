@@ -115,8 +115,12 @@ struct MainView: View {
         }
         .onChange(of: appState.matrixClient?.authenticationFailed) { _, authFailed in
             if authFailed == true {
-                Logger.viewCycle.info("Logging out since auth failed")
-                appState.matrixClient = nil
+                Logger.viewCycle.info("Auth failed: tearing down the session and presenting sign-in")
+                // Full reset, not just dropping the reference: the FFI handle
+                // maps keep the sync machinery alive otherwise, and the stale
+                // keychain session would reproduce the auth error on the next
+                // launch (MATRIX-48).
+                Task { try? await appState.reset() }
             }
         }
         .onOpenURL { url in
