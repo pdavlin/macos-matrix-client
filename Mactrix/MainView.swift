@@ -104,6 +104,10 @@ struct MainView: View {
             if matrixClientIsNil {
                 Logger.viewCycle.info("Matrix client is nil, present welcome sheet")
                 showWelcomeSheet = true
+                // The client and its room handles are torn down; drop the selection so the
+                // detail pane doesn't stay bound to a dead room.
+                windowState.selectedRoomId = nil
+                windowState.selectedScreen = .none
             }
         }
         .task(id: windowState.selectedRoomId) {
