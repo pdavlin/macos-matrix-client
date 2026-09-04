@@ -60,10 +60,15 @@ struct RecoverySheetSnapshotTests {
         )
     }
 
+    /// The busy state shows an indeterminate spinner that animates on its own
+    /// timer, so it never renders the same frame twice. `usesStaticProgressIndicators`
+    /// swaps in a determinate ring for this capture only; production never
+    /// sets it.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func keyEntryBusy() {
         assertSnapshot(
-            of: host(RecoveryKeyEntrySheet(isBusy: true, errorMessage: nil, onSubmit: { _ in }, onCancel: {})),
+            of: host(RecoveryKeyEntrySheet(isBusy: true, errorMessage: nil, onSubmit: { _ in }, onCancel: {})
+                .environment(\.usesStaticProgressIndicators, true)),
             as: .scaledImage
         )
     }
