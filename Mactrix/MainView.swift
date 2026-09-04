@@ -135,6 +135,14 @@ struct MainView: View {
                 Logger.viewCycle.error("Failed to parse Matrix Uri: \(error)")
             }
         }
+        .onChange(of: appState.matrixClient?.rooms.count) { _, _ in
+            // The room list can hydrate after a room was already selected (for
+            // example a restored selection right after launch, before sync has
+            // populated the room store). Re-resolve so the timeline opens once
+            // the room becomes available instead of staying stuck on preview.
+            guard windowState.selectedRoomId != nil, case .previewRoom = windowState.selectedScreen else { return }
+            Task { await onRoomSelected() }
+        }
         .modifier(ToolbarViewModifier())
         .modifier(SearchViewModifier())
         .environment(windowState)
@@ -194,7 +202,13 @@ struct MainView: View {
             Logger.viewCycle.debug("Selected room: \(windowState.selectedRoomId.debugDescription)")
 
             if let roomId = windowState.selectedRoomId {
-                if let selectedRoom = try matrixClient.client.getRoom(roomId: roomId) {
+                // Prefer the Room already delivered by the room list service: the
+                // client's room store (getRoom) may not have hydrated a joined
+                // room yet, especially right after launch, even though the room
+                // is already known to the sidebar.
+                if let sidebarRoom = matrixClient.rooms.first(where: { $0.id == roomId }) {
+                    windowState.selectedScreen = .joinedRoom(timeline: LiveTimeline(room: LiveRoom(matrixRoom: sidebarRoom.room)))
+                } else if let selectedRoom = try matrixClient.client.getRoom(roomId: roomId) {
                     windowState.selectedScreen = .joinedRoom(timeline: LiveTimeline(room: LiveRoom(matrixRoom: selectedRoom)))
                 } else {
                     let roomPreview = try await matrixClient.client.getRoomPreviewFromRoomId(roomId: roomId, viaServers: ["matrix.org"])
