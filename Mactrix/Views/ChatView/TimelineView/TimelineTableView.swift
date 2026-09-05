@@ -5,6 +5,7 @@ import OSLog
 import SwiftUI
 import Tokens
 import UI
+import Utils
 
 struct TimelineItemRowView: View {
     let row: TimelineRow
@@ -193,7 +194,7 @@ class TimelineViewController: NSViewController {
         listenForScrollToBottomRequests()
     }
 
-    private var heightRenoteScheduled = false
+    var heightRenoteScheduled = false
 
     @objc func handleTableResize(_: Notification) {
         guard oldWidth != tableView.frame.width else { return }
@@ -258,30 +259,12 @@ class TimelineViewController: NSViewController {
     /// still counts as scrolled to the bottom.
     static let bottomThreshold: CGFloat = 40.0
 
-    @objc func viewDidScroll(_: Notification) {
-        let currentOffset = scrollView.contentView.bounds.origin.y
-        let timelineHeight = scrollView.contentView.documentRect.height
-        let viewHeight = scrollView.contentView.documentVisibleRect.height
-
-        // The table is not flipped, so y = 0 is the newest (bottom) end.
-        timeline.setAtBottom(currentOffset <= Self.bottomThreshold)
-
-        let distanceFromTop = timelineHeight - viewHeight - currentOffset
-        let threshold: CGFloat = 200.0 // Pixels from the top to trigger load
-
-        if distanceFromTop <= threshold, timelineFetchTask == nil {
-            Logger.timelineTableView.info("Fetching older messages (scroll near top)")
-            timelineFetchTask = Task {
-                do {
-                    try await timeline.fetchOlderMessages()
-                } catch {
-                    Logger.timelineTableView.error("Failed to fetch older messages: \(error)")
-                }
-
-                timelineFetchTask = nil
-            }
-        }
-    }
+    /// Scroll-anchor state. The behaviour lives in `TimelineScrollAnchor`;
+    /// the storage stays here because an extension cannot hold it.
+    ///
+    /// True while a compensation is writing the bounds origin.
+    var isAdjustingScrollAnchor = false
+    var scrollReportScheduled = false
 
     func listenForFocusTimelineItem() {
         Logger.timelineTableView.debug("Listen for focus timeline item")
@@ -337,6 +320,9 @@ class TimelineViewController: NSViewController {
         Logger.timelineTableView.info("update timeline items")
 
         let oldIds = timelineRows.map(\.uniqueId)
+        // Captured against the old rows and the old geometry, before either is
+        // replaced. Only the structural path below consumes it.
+        let anchor = currentScrollAnchor()
         self.timelineItems = timelineItems.reversed()
 
         var rows: [TimelineRow] = []
@@ -379,11 +365,24 @@ class TimelineViewController: NSViewController {
             snapshot.appendItems([.init(id: item.uniqueId)], toSection: .main)
         }
 
-        dataSource?.apply(snapshot, animatingDifferences: false)
+        // The apply, the height re-note and the compensating scroll are one
+        // visual step, so the intermediate geometry must not be presented. A
+        // zero duration also keeps the clamp in `restoreScrollAnchor` reading
+        // the settled document height rather than an animating one.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
 
-        // New rows are measured on demand by `heightOfRow`; rows that
-        // survived the diff with mutated content still need new heights.
-        noteHeightChanges(forMutatedIds: mutatedIds, context: "structural update")
+            dataSource?.apply(snapshot, animatingDifferences: false)
+
+            // New rows are measured on demand by `heightOfRow`; rows that
+            // survived the diff with mutated content still need new heights.
+            noteHeightChanges(forMutatedIds: mutatedIds, context: "structural update")
+
+            guard let anchor else { return }
+            tableView.tile()
+            restoreScrollAnchor(anchor)
+        }
     }
 
     /// Bumps the content revision of every row whose backing SDK item
