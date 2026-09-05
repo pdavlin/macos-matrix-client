@@ -146,6 +146,10 @@ public struct MessageEventBodyView<
     let ownUserId: String
     let roomMembers: [RoomMember]
 
+    /// D-3: receipts render in direct rooms only. The timeline container sets
+    /// this from the room's direct flag.
+    @Environment(\.timelineShowsReadReceipts) private var showsReadReceipts
+
     public init(
         event: EventTimelineItem,
         focused: Bool,
@@ -243,7 +247,7 @@ public struct MessageEventBodyView<
                         )
                     }
                     Spacer()
-                    if !event.userReadReceipts.isEmpty {
+                    if showsReadReceipts, !event.userReadReceipts.isEmpty {
                         ReadReciptsView(receipts: event.userReadReceipts, imageLoader: imageLoader, roomMembers: roomMembers)
                             .padding(.horizontal, DensityToken.rowHorizontalPadding)
                     }

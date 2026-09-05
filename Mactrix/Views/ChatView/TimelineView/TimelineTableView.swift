@@ -23,10 +23,16 @@ struct TimelineItemRowView: View {
         self.windowState = coordinator.windowState
     }
 
+    /// D-3: read receipts render in direct rooms only. A group room's receipt
+    /// pile churns on every member's read and tells the reader nothing.
+    private var showsReadReceipts: Bool {
+        timeline?.room.roomInfo?.isDirect == true
+    }
+
     @ViewBuilder
     var contentView: some View {
         switch row {
-        case let .message(_, event):
+        case let .message(_, event, _, _):
             if let event = event as? MatrixRustSDK.EventTimelineItem, case let .msgLike(content: content) = event.content {
                 ChatMessageView(timeline: timeline, event: event, msg: content, includeProfileHeader: true)
             } else {
@@ -40,6 +46,14 @@ struct TimelineItemRowView: View {
             }
         case let .virtual(_, item):
             UI.VirtualItemView(item: item)
+        case let .typingIndicator(_, names):
+            UI.TypingIndicatorRow(names: names)
+        case .paginationActivity:
+            UI.PaginationActivityRow()
+        case .unsupported:
+            // Height is clamped to 1pt by the measurement layer, so an
+            // unrenderable item occupies a row without showing anything.
+            EmptyView()
         }
     }
 
@@ -57,40 +71,77 @@ struct TimelineItemRowView: View {
             }
         }
         .environment(\.timelineTypography, TimelineTypography(base: CGFloat(fontSize)))
+        .environment(\.timelineShowsReadReceipts, showsReadReceipts)
     }
 }
 
 class TimelineViewController: NSViewController {
     let coordinator: TimelineViewRepresentable.Coordinator
 
-    private var dataSource: NSTableViewDiffableDataSource<TimelineSection, TimelineUniqueId>?
+    // Internal, not private: the diff-driven update path lives in
+    // TimelineTableUpdates.swift and private is file-scoped.
+    var dataSource: NSTableViewDiffableDataSource<TimelineSection, TimelineUniqueId>?
+    /// The snapshot the table is showing, mutated in place per change.
+    ///
+    /// Kept as state rather than rebuilt per update: rebuilding meant
+    /// appending every row again on every keystroke in a busy room, which is
+    /// the O(timeline) cost S-34 removes.
+    var snapshot = TimelineViewController.emptySnapshot()
+
+    /// An empty snapshot with the sections already present, so an append
+    /// never has to create one. Section order fixes row order: the typing
+    /// section renders first and the table is unflipped, so it sits at the
+    /// newest (bottom) end; pagination renders last, at the oldest end.
+    static func emptySnapshot() -> NSDiffableDataSourceSnapshot<TimelineSection, TimelineUniqueId> {
+        var snapshot = NSDiffableDataSourceSnapshot<TimelineSection, TimelineUniqueId>()
+        snapshot.appendSections([.typingIndicator, .main, .paginationActivity])
+        return snapshot
+    }
 
     let scrollView = NSScrollView()
     let tableView = BottomStickyTableView()
 
     let timeline: LiveTimeline
-    var timelineItems: [TimelineItem]
+
+    /// Every row the table shows, newest first: the typing indicator (when
+    /// someone is typing), then the SDK item rows, then the pagination
+    /// activity row (while a back-pagination is in flight).
+    ///
+    /// One array, one index space. Heights, the height cache, and the scroll
+    /// anchor all address rows through it.
     var timelineRows: [TimelineRow] = []
+
+    /// Number of decoration rows at the newest end. Item index `i` lives at
+    /// table index `i + leadingDecorationCount`.
+    var leadingDecorationCount = 0
+    /// Number of decoration rows at the oldest end.
+    var trailingDecorationCount = 0
+
+    var itemRowCount: Int {
+        timelineRows.count - leadingDecorationCount - trailingDecorationCount
+    }
 
     /// Row heights keyed by (row id, width, token set), invalidated by
     /// content revision (S-32). `heightOfRow` consults this; misses measure
     /// offscreen via `measurementHostingView`.
     var heightCache = TimelineRowHeightCache<TimelineTypography>()
-    /// Per-row content revision; bumped when the SDK hands a new item
-    /// instance for the same unique ID.
-    private var rowRevisions: [String: Int] = [:]
-    /// Identity of the SDK item instance behind each row, the mutation signal
-    /// that drives revision bumps.
-    private var rowItemIdentities: [String: ObjectIdentifier] = [:]
+    /// Per-row content revision; bumped when the SDK replaces a row's content
+    /// (a `.set` diff, arriving as `.update`).
+    var rowRevisions: [String: Int] = [:]
     /// The token set heights are currently measured against.
     private var activeTypography: TimelineTypography
 
-    init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline, timelineItems: [TimelineItem]) {
+    init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline) {
         self.coordinator = coordinator
         self.timeline = timeline
-        self.timelineItems = timelineItems
         self.activeTypography = Self.storedTypography()
         super.init(nibName: nil, bundle: nil)
+
+        // Start from the current display order and take ownership of the
+        // change queue, so the first update applies only what happens next.
+        timelineRows = timeline.displayItems.map(\.row)
+        _ = timeline.drainDisplayChanges()
+        refreshDecorationRows(applyingSnapshot: false)
     }
 
     /// The typography token set as persisted by the appearance settings.
@@ -118,7 +169,7 @@ class TimelineViewController: NSViewController {
         oldWidth = tableView.frame.width
 
         dataSource = .init(tableView: tableView) { [weak self] tableView, _, row, _ in
-            guard let self else { return NSView() }
+            guard let self, timelineRows.indices.contains(row) else { return NSView() }
 
             let model = timelineRows[row]
             let view = TimelineItemRowView(row: model, timeline: timeline, coordinator: coordinator)
@@ -190,8 +241,12 @@ class TimelineViewController: NSViewController {
             object: UserDefaults.standard
         )
 
+        rebuildSnapshot()
+
         listenForFocusTimelineItem()
         listenForScrollToBottomRequests()
+        listenForTypingUsers()
+        listenForPaginationActivity()
     }
 
     var heightRenoteScheduled = false
@@ -276,11 +331,10 @@ class TimelineViewController: NSViewController {
         }
 
         guard let focusedTimelineEventId,
-              let focusedItem = timelineItems.first(where: {
+              let focusedItem = timeline.displayItems.first(where: {
                   $0.asEvent()?.eventOrTransactionId == focusedTimelineEventId
               }),
-              let focusedRowId = focusedItem.row?.uniqueId,
-              let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == focusedRowId })
+              let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == focusedItem.uniqueId().id })
         else { return }
 
         tableView.animateRowToVisible(rowIndex)
@@ -312,115 +366,11 @@ class TimelineViewController: NSViewController {
     }
 
     enum TimelineSection {
-        case main
+        /// Rendered first, so it lands at the newest (bottom) end.
         case typingIndicator
-    }
-
-    func updateTimelineItems(_ timelineItems: [TimelineItem]) {
-        Logger.timelineTableView.info("update timeline items")
-
-        let oldIds = timelineRows.map(\.uniqueId)
-        // Captured against the old rows and the old geometry, before either is
-        // replaced. Only the structural path below consumes it.
-        let anchor = currentScrollAnchor()
-        self.timelineItems = timelineItems.reversed()
-
-        var rows: [TimelineRow] = []
-        var identities: [String: ObjectIdentifier] = [:]
-        for item in self.timelineItems {
-            guard let row = item.row else { continue }
-            rows.append(row)
-            identities[row.uniqueId] = ObjectIdentifier(item)
-        }
-        timelineRows = rows
-        let newIds = timelineRows.map(\.uniqueId)
-
-        let mutatedIds = applyRowIdentities(identities)
-
-        // If the IDs haven't changed, reload all rows in place (content-only update: reactions, read receipts, etc.)
-        // Reloads all rows rather than just visible ones to avoid stale content in NSTableView's prepared/cached views.
-        // The reload does not re-ask heights; only rows whose content mutated get re-measured.
-        //
-        // The reload redraws a mutated row's SwiftUI content immediately, but noteHeightOfRows
-        // grows the row frame under NSTableView's default implicit animation (MATRIX-49) — for
-        // the animation's duration the taller content is clipped to the still-short frame. Zero
-        // out the animation, as the width/typography re-note paths below already do, so content
-        // and frame land in the same layout pass.
-        if oldIds == newIds {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0
-                context.allowsImplicitAnimation = false
-
-                tableView.reloadData(forRowIndexes: IndexSet(integersIn: 0 ..< timelineRows.count),
-                                     columnIndexes: IndexSet(integer: 0))
-                noteHeightChanges(forMutatedIds: mutatedIds, context: "content-only update")
-            }
-            return
-        }
-
-        var snapshot = NSDiffableDataSourceSnapshot<TimelineSection, TimelineUniqueId>()
-        snapshot.appendSections([.main])
-
-        for item in timelineRows {
-            snapshot.appendItems([.init(id: item.uniqueId)], toSection: .main)
-        }
-
-        // The apply, the height re-note and the compensating scroll are one
-        // visual step, so the intermediate geometry must not be presented. A
-        // zero duration also keeps the clamp in `restoreScrollAnchor` reading
-        // the settled document height rather than an animating one.
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            context.allowsImplicitAnimation = false
-
-            dataSource?.apply(snapshot, animatingDifferences: false)
-
-            // New rows are measured on demand by `heightOfRow`; rows that
-            // survived the diff with mutated content still need new heights.
-            noteHeightChanges(forMutatedIds: mutatedIds, context: "structural update")
-
-            guard let anchor else { return }
-            tableView.tile()
-            restoreScrollAnchor(anchor)
-        }
-    }
-
-    /// Bumps the content revision of every row whose backing SDK item
-    /// instance changed, and prunes cache state for rows that left the
-    /// timeline.
-    ///
-    /// The data layer replaces a `TimelineItem` instance whenever the SDK
-    /// hands new content for it (a `.set` diff), so instance identity is an
-    /// O(1) mutation signal — the fingerprint idea from the S-14 spike,
-    /// without duplicating content fields.
-    private func applyRowIdentities(_ identities: [String: ObjectIdentifier]) -> Set<String> {
-        var mutatedIds: Set<String> = []
-        for (id, identity) in identities {
-            if let previous = rowItemIdentities[id], previous != identity {
-                mutatedIds.insert(id)
-                rowRevisions[id, default: 0] += 1
-            }
-        }
-        let currentIds = Set(identities.keys)
-        rowItemIdentities = identities
-        rowRevisions = rowRevisions.filter { currentIds.contains($0.key) }
-        heightCache.retain(rowIds: currentIds)
-        return mutatedIds
-    }
-
-    /// Asks the table to re-measure exactly the rows whose content mutated.
-    private func noteHeightChanges(forMutatedIds mutatedIds: Set<String>, context: String) {
-        guard !mutatedIds.isEmpty else {
-            Logger.timelineTableView.debug("\(context, privacy: .public): no row content mutations, heights kept")
-            return
-        }
-        let indexes = IndexSet(timelineRows.enumerated()
-            .filter { mutatedIds.contains($0.element.uniqueId) }
-            .map(\.offset))
-        Logger.timelineTableView.debug(
-            "\(context, privacy: .public): re-measuring \(indexes.count) mutated row(s) of \(self.timelineRows.count)"
-        )
-        tableView.noteHeightOfRows(withIndexesChanged: indexes)
+        case main
+        /// Rendered last, so it lands at the oldest (top) end.
+        case paginationActivity
     }
 
     // values used to track width changes
