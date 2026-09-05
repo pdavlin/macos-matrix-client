@@ -246,6 +246,14 @@ class MatrixClient {
         roomListServiceStateHandle = _roomListService.state(listener: self)
         syncIndicatorHandle = _roomListService.syncIndicator(delayBeforeShowingInMs: 200, delayBeforeHidingInMs: 200, listener: self)
 
+        // UniFFI's handle map owns the delegate once it is lowered, so the
+        // reporter needs no strong reference here. The SDK errors if a delegate
+        // is already set, which is why this is in the once-per-client start
+        // path and not somewhere a view can re-enter. This must run before the
+        // room list starts delivering rooms below: timelines configured with
+        // reportUtds: true fail to build if no UTD hook is set yet (MATRIX-56).
+        try await client.setUtdDelegate(utdDelegate: UtdReporter())
+
         let roomEntriesListener = AsyncSDKListener<[RoomListEntriesUpdate]>()
         let _roomListEntriesHandle = try await _roomListService.allRooms().entriesWithDynamicAdapters(pageSize: 100, listener: roomEntriesListener)
         _ = _roomListEntriesHandle.controller().setFilter(kind: .all(filters: []))
@@ -262,12 +270,6 @@ class MatrixClient {
         await client.registerNotificationHandler(listener: notifications)
 
         try await client.getSessionVerificationController().setDelegate(delegate: self)
-
-        // UniFFI's handle map owns the delegate once it is lowered, so the
-        // reporter needs no strong reference here. The SDK errors if a delegate
-        // is already set, which is why this is in the once-per-client start
-        // path and not somewhere a view can re-enter.
-        try await client.setUtdDelegate(utdDelegate: UtdReporter())
 
         verificationStateHandle = client.encryption().verificationStateListener(listener: self)
 
