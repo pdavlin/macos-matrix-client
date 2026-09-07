@@ -47,6 +47,9 @@ final class LiveTimeline {
     /// Held at idle so the oldest-end decoration row never appears; see
     /// `HarnessRoom.typingUserIds` for why decoration rows stay out.
     private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
+    /// Held at nil for the same reason: the synthetic store cannot fail a
+    /// fetch, so the S-35 failure row never appears in a measured run.
+    private(set) var paginationFailure: String?
     let room = HarnessRoom()
 
     @ObservationIgnored private var pendingDisplayChanges: [TimelineDisplayUpdate] = []
@@ -80,9 +83,12 @@ final class LiveTimeline {
     /// harness keeps the pagination pacing — batch size, minimum interval, the
     /// automatic/manual split — identical to the one the candidates ran under,
     /// while the decision of *when* to ask stays the production geometry's.
-    func fetchOlderMessages() async throws {
+    func fetchOlderMessages() async {
         harness.viewportDidScroll(distanceFromTop: 0)
     }
+
+    /// Unreachable in a measured run — `paginationFailure` never latches here.
+    func retryPagination() {}
 
     // MARK: - Synthetic → display order
 
