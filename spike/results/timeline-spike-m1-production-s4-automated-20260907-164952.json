@@ -1,0 +1,228 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 3456,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 0,
+    "loadedEventCount" : 11000,
+    "manualPrependCount" : 20,
+    "newestIndex" : 9999,
+    "oldestIndex" : -1000,
+    "prependedEventCount" : 1000
+  },
+  "frame" : {
+    "hitchCount" : 23,
+    "hitchRate" : 0.012770682953914493,
+    "meanMilliseconds" : 12.270810637612213,
+    "nominalMilliseconds" : 8.333333332626244,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 8.5,
+    "p99Milliseconds" : 637.9567916737869,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 1801,
+    "worstMilliseconds" : 637.9567916737869
+  },
+  "generatedAt" : "2026-09-07T21:49:52Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A5421a)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "prependDrift" : {
+    "count" : 20,
+    "recent" : [
+      {
+        "afterOffset" : 367.9551495015621,
+        "beforeOffset" : 368,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.8222591362428,
+        "beforeOffset" : 367.9551495015621,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.9771553238388,
+        "beforeOffset" : 367.8222591362428,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 368.11326516396366,
+        "beforeOffset" : 367.9771553238388,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.9682495472953,
+        "beforeOffset" : 368.11326516396366,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.95847176085226,
+        "beforeOffset" : 367.9682495472953,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.7155688623898,
+        "beforeOffset" : 367.95847176085226,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.5307226078585,
+        "beforeOffset" : 367.7155688623898,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.5532788243145,
+        "beforeOffset" : 367.5307226078585,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.3621262458619,
+        "beforeOffset" : 367.5532788243145,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.1676646708511,
+        "beforeOffset" : 367.3621262458619,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.18438538210467,
+        "beforeOffset" : 367.1676646708511,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.2049356435891,
+        "beforeOffset" : 367.18438538210467,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.13538040197454,
+        "beforeOffset" : 367.2049356435891,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.35691407881677,
+        "beforeOffset" : 367.13538040197454,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.552191298455,
+        "beforeOffset" : 367.35691407881677,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.66291006002575,
+        "beforeOffset" : 367.552191298455,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.4293207603041,
+        "beforeOffset" : 367.66291006002575,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.19539989810437,
+        "beforeOffset" : 367.4293207603041,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 367.07205190951936,
+        "beforeOffset" : 367.19539989810437,
+        "eventID" : {
+          "rawValue" : 768
+        },
+        "kind" : "prepend"
+      }
+    ],
+    "stableCount" : 20,
+    "totalMagnitude" : 2.68467384041287,
+    "worstMagnitude" : 0.24290289846248925
+  },
+  "rendererID" : "m1-production",
+  "rendererName" : "M1 Production Container",
+  "scenario" : "s4-automated",
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}
