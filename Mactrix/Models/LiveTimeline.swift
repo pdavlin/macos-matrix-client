@@ -49,7 +49,7 @@ public final class LiveTimeline {
             do {
                 try await configureTimeline()
             } catch {
-                Logger.liveTimeline.error("failed to configure timeline: \(error)")
+                Logger.liveTimeline.error("failed to configure timeline: \(String(describing: error), privacy: .public)")
                 self.errorMessage = error.localizedDescription
             }
         }
@@ -62,7 +62,7 @@ public final class LiveTimeline {
             do {
                 try await configureTimeline(threadId: threadId)
             } catch {
-                Logger.liveTimeline.error("failed to configure timeline: \(error)")
+                Logger.liveTimeline.error("failed to configure timeline: \(String(describing: error), privacy: .public)")
                 self.errorMessage = error.localizedDescription
             }
         }
