@@ -1,3 +1,4 @@
+import ProductionTimeline
 import TimelineSpikeCore
 
 /// Every renderer the harness can show.
@@ -8,6 +9,10 @@ enum RendererCatalog {
     static let all: [RendererDescriptor] = [
         RendererDescriptor(PlaceholderRenderer.self),
         RendererDescriptor(AppKitTableRenderer.self),
+        // S-39: not a candidate. This is the shipping container, mounted here so
+        // the thresholds the candidates set can be checked against the code that
+        // actually ships.
+        RendererDescriptor(ProductionTimelineRenderer.self),
     ]
 
     static var `default`: RendererDescriptor {
@@ -15,5 +20,11 @@ enum RendererCatalog {
             preconditionFailure("RendererCatalog must contain at least one renderer")
         }
         return first
+    }
+
+    /// The descriptor with the given id, or `nil`. Used by the automated runner
+    /// to select a renderer without a click.
+    static func renderer(withID id: String) -> RendererDescriptor? {
+        all.first { $0.id == id }
     }
 }
