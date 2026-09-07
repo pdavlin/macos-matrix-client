@@ -263,25 +263,59 @@ extension MatrixRustSDK.EventTimelineItem: @retroactive Identifiable {
 extension MatrixRustSDK.TimelineItem {
     /// Maps this SDK timeline item to a platform-neutral row model.
     ///
-    /// The mapping is total: items that are neither event nor virtual (the
-    /// previously `fatalError` path) are skipped with a logged warning.
-    var row: Models.TimelineRow? {
+    /// The mapping is total and returns a row for every item. An item that is
+    /// neither event nor virtual becomes `.unsupported` rather than being
+    /// dropped: the container mirrors the SDK diff by index, so a dropped item
+    /// would shift every later row out from under the indices the diff
+    /// carries (S-34).
+    var row: Models.TimelineRow {
         if let virtual = asVirtual() {
             return .virtual(uniqueId: uniqueId().id, item: virtual.asModel)
         }
 
         guard let event = asEvent() else {
             Logger.timelineRowMapping.warning(
-                "Skipping timeline item with neither event nor virtual content (uniqueId: \(self.uniqueId().id))"
+                "Timeline item has neither event nor virtual content (uniqueId: \(self.uniqueId().id))"
             )
-            return nil
+            return .unsupported(uniqueId: uniqueId().id)
         }
 
         switch event.content {
-        case .msgLike:
-            return .message(uniqueId: uniqueId().id, event: event)
+        case let .msgLike(content: content):
+            return .message(
+                uniqueId: uniqueId().id,
+                event: event,
+                kind: content.rowKind,
+                hasReactions: !content.reactions.isEmpty
+            )
         default:
             return .state(uniqueId: uniqueId().id, event: event, name: event.content.description)
+        }
+    }
+}
+
+extension MatrixRustSDK.MsgLikeContent {
+    /// Coarse render shape of this message, used for view recycling (S-34).
+    ///
+    /// Cheap by construction: it reads the content enum the item already
+    /// carries and never touches the network or the store.
+    var rowKind: Models.MessageRowKind {
+        switch kind {
+        case let .message(content: content):
+            switch content.msgType {
+            case .text, .notice, .emote:
+                return .text
+            case .image, .video, .gallery:
+                return .media
+            case .audio, .file:
+                return .attachment
+            case .location, .other:
+                return .other
+            }
+        case .sticker:
+            return .media
+        case .poll, .redacted, .unableToDecrypt, .other, .liveLocation:
+            return .other
         }
     }
 }

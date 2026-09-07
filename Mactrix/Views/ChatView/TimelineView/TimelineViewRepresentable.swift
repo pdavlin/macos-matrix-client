@@ -28,10 +28,13 @@ struct TimelineViewRepresentable: NSViewControllerRepresentable {
     }
 
     func makeNSViewController(context: Context) -> TimelineViewController {
-        return TimelineViewController(coordinator: context.coordinator, timeline: timeline, timelineItems: items)
+        return TimelineViewController(coordinator: context.coordinator, timeline: timeline)
     }
 
+    /// `items` is the observation dependency that brings SwiftUI here; the
+    /// controller reads the display order and the change queue from the
+    /// timeline itself, so it never rebuilds from the array (S-34).
     func updateNSViewController(_ timelineViewController: TimelineViewController, context _: Context) {
-        timelineViewController.updateTimelineItems(items)
+        timelineViewController.applyPendingTimelineChanges()
     }
 }

@@ -19,18 +19,19 @@ final class TimelineRowMappingTests: XCTestCase {
             uniqueId: "msg-1"
         )
 
-        guard let row = item.row else {
-            XCTFail("expected a row for msgLike content")
-            return
-        }
+        let row = item.row
 
-        guard case let .message(uniqueId, event) = row else {
+        guard case let .message(uniqueId, event, kind, hasReactions) = row else {
             XCTFail("expected message row, got \(String(describing: row))")
             return
         }
 
         XCTAssertEqual(uniqueId, "msg-1")
-        XCTAssertEqual(row.reuseId, "message")
+        // A redacted body is neither text nor media, and the fake carries no
+        // reactions, so the row lands in the plain "other" recycling pool.
+        XCTAssertEqual(kind, .other)
+        XCTAssertFalse(hasReactions)
+        XCTAssertEqual(row.reuseId, "message.other")
         XCTAssertNotNil(event as? MatrixRustSDK.EventTimelineItem)
     }
 
@@ -48,7 +49,7 @@ final class TimelineRowMappingTests: XCTestCase {
         for content in contents {
             let row = makeMock(event: makeEvent(content: content), virtual: nil, uniqueId: "state-1").row
 
-            guard case let .state(uniqueId, _, name)? = row else {
+            guard case let .state(uniqueId, _, name) = row else {
                 XCTFail("expected state row for \(content), got \(String(describing: row))")
                 return
             }
@@ -62,7 +63,7 @@ final class TimelineRowMappingTests: XCTestCase {
         let content: MatrixRustSDK.TimelineItemContent = .callInvite
         let row = makeMock(event: makeEvent(content: content), virtual: nil, uniqueId: "state-2").row
 
-        guard case let .state(_, event, _)? = row else {
+        guard case let .state(_, event, _) = row else {
             XCTFail("expected state row, got \(String(describing: row))")
             return
         }
@@ -77,29 +78,39 @@ final class TimelineRowMappingTests: XCTestCase {
         let readMarker = makeMock(event: nil, virtual: .readMarker, uniqueId: "r1")
         let timelineStart = makeMock(event: nil, virtual: .timelineStart, uniqueId: "s1")
 
-        guard case let .virtual(uniqueId, .dateDivider(date))? = dateDivider.row else {
+        guard case let .virtual(uniqueId, .dateDivider(date)) = dateDivider.row else {
             XCTFail("expected dateDivider virtual row")
             return
         }
         XCTAssertEqual(uniqueId, "d1")
         XCTAssertEqual(date.timeIntervalSince1970, 1_700_000_000, accuracy: 0.001)
 
-        guard case .virtual(_, .readMarker)? = readMarker.row else {
+        guard case .virtual(_, .readMarker) = readMarker.row else {
             XCTFail("expected readMarker virtual row")
             return
         }
+        XCTAssertEqual(readMarker.row.reuseId, "virtual.readMarker")
 
-        guard case .virtual(_, .timelineStart)? = timelineStart.row else {
+        guard case .virtual(_, .timelineStart) = timelineStart.row else {
             XCTFail("expected timelineStart virtual row")
             return
         }
     }
 
-    func testItemThatIsNeitherEventNorVirtualIsSkipped() {
+    /// S-34: an item that is neither event nor virtual maps to `.unsupported`
+    /// rather than being dropped. The container mirrors the SDK diff by index,
+    /// so a dropped item would shift every later row out from under the
+    /// indices the diff carries.
+    func testItemThatIsNeitherEventNorVirtualMapsToUnsupported() {
         // Previously hit `fatalError("unreachable state: item must be either virtual or event")`.
         let item = makeMock(event: nil, virtual: nil, uniqueId: "neither")
 
-        XCTAssertNil(item.row)
+        guard case let .unsupported(uniqueId) = item.row else {
+            XCTFail("expected unsupported row, got \(item.row)")
+            return
+        }
+        XCTAssertEqual(uniqueId, "neither")
+        XCTAssertEqual(item.row.reuseId, "unsupported")
     }
 
     func testUniqueIdFlowsThroughEveryKind() {
@@ -109,9 +120,9 @@ final class TimelineRowMappingTests: XCTestCase {
         let state = makeMock(event: makeEvent(content: .callInvite), virtual: nil, uniqueId: "u-state")
         let virtual = makeMock(event: nil, virtual: .readMarker, uniqueId: "u-virtual")
 
-        XCTAssertEqual(message.row?.uniqueId, "u-message")
-        XCTAssertEqual(state.row?.uniqueId, "u-state")
-        XCTAssertEqual(virtual.row?.uniqueId, "u-virtual")
+        XCTAssertEqual(message.row.uniqueId, "u-message")
+        XCTAssertEqual(state.row.uniqueId, "u-state")
+        XCTAssertEqual(virtual.row.uniqueId, "u-virtual")
     }
 
     // MARK: - Helpers

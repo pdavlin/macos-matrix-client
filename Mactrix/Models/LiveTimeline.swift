@@ -1,6 +1,7 @@
 import AsyncAlgorithms
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 
@@ -17,12 +18,29 @@ public final class LiveTimeline {
     public var scrollPosition = ScrollPosition(idType: TimelineGroup.ID.self, edge: .bottom)
     public var errorMessage: String?
 
-    public private(set) var focusedTimelineEventId: EventOrTransactionId?
+    public private(set) var focusedTimelineEventId: MatrixRustSDK.EventOrTransactionId?
     // public private(set) var focusedTimelineGroupId: String?
 
     public var sendReplyTo: MatrixRustSDK.EventTimelineItem?
 
     public private(set) var timelineItems: [TimelineItem] = []
+
+    /// The same items in display order, newest first — the order the timeline
+    /// container renders and the order the SDK does not provide.
+    ///
+    /// Maintained by mirroring every diff onto both arrays (S-34). The
+    /// container used to reverse `timelineItems` on each update, which cost a
+    /// full copy per update no matter how small the change.
+    public private(set) var displayItems: [TimelineItem] = []
+
+    /// Display-ordered changes the container has not consumed yet.
+    ///
+    /// Deliberately not observable. The container drains this from inside
+    /// SwiftUI's view update pass, and an observable write there is the
+    /// re-entrancy the S-54 fix exists to avoid. Publication is driven by
+    /// `timelineItems`/`displayItems` instead.
+    @ObservationIgnored private var pendingDisplayChanges: [TimelineDisplayUpdate] = []
+
     public private(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
     // public private(set) var timelineGroups: TimelineGroups = .init()
 
@@ -155,7 +173,7 @@ public final class LiveTimeline {
         _ = try await timeline?.paginateBackwards(numEvents: 100)
     }
 
-    public func focusEvent(id eventId: EventOrTransactionId) {
+    public func focusEvent(id eventId: MatrixRustSDK.EventOrTransactionId) {
         Logger.liveTimeline.info("focus event: \(eventId.id)")
         focusedTimelineEventId = eventId
     }
@@ -177,40 +195,149 @@ public final class LiveTimeline {
     }
 }
 
+/// A display-ordered change together with the items it introduced.
+///
+/// The change alone is not enough to replay a batch: several diffs can land
+/// between two view updates, and by then the array indices in an earlier
+/// change no longer address the items that change inserted. Carrying the
+/// payload keeps every entry self-contained.
+struct TimelineDisplayUpdate {
+    let change: TimelineDisplayChange
+    /// Inserted or replacement items, in display order. Empty for removals
+    /// and resets.
+    let items: [TimelineItem]
+}
+
 extension LiveTimeline {
+    /// Hands the container every display-ordered change since its last call,
+    /// and clears the queue.
+    ///
+    /// Several diffs can land between two SwiftUI view updates, so the
+    /// container consumes a batch rather than one change. A caller that has
+    /// never drained gets the whole history, which is why a fresh container
+    /// rebuilds from `displayItems` and drains before its first update.
+    func drainDisplayChanges() -> [TimelineDisplayUpdate] {
+        defer { pendingDisplayChanges.removeAll(keepingCapacity: true) }
+        return pendingDisplayChanges
+    }
+
+    /// Drops queued changes and forces the next consumer to rebuild.
+    func invalidateDisplayChanges() {
+        pendingDisplayChanges = [TimelineDisplayUpdate(change: .reset, items: [])]
+    }
+
     private func updateTimeline(diff: [TimelineDiff]) {
         for update in diff {
-            switch update {
-            case let .append(values):
-                timelineItems.append(contentsOf: values)
-                noteArrivals(values)
-            case .clear:
-                timelineItems.removeAll()
-                unseenArrivals = 0
-            case let .pushFront(room):
-                timelineItems.insert(room, at: 0)
-            case let .pushBack(room):
-                timelineItems.append(room)
-                noteArrivals([room])
-            case .popFront:
-                timelineItems.removeFirst()
-            case .popBack:
-                timelineItems.removeLast()
-            case let .insert(index, room):
-                timelineItems.insert(room, at: Int(index))
-            case let .set(index, room):
-                timelineItems[Int(index)] = room
-            case let .remove(index):
-                timelineItems.remove(at: Int(index))
-            case let .truncate(length):
-                timelineItems.removeSubrange(Int(length) ..< timelineItems.count)
-            case let .reset(values: values):
-                timelineItems = values
-                unseenArrivals = 0
-            }
+            apply(update)
+        }
+
+        // One O(1) guard against the two arrays drifting apart. Index math is
+        // easy to get wrong in one direction only, and a silent drift would
+        // render the wrong row for every later index; a resync costs one
+        // rebuild and is always correct.
+        if displayItems.count != timelineItems.count {
+            Logger.liveTimeline.error(
+                "display order desynchronized (\(self.displayItems.count) vs \(self.timelineItems.count)): resyncing"
+            )
+            resyncDisplayItems()
         }
 
         loadPendingReplyDetails()
+    }
+
+    /// Applies one SDK diff to the SDK-ordered array and mirrors it onto the
+    /// display-ordered array, recording the display-index change the
+    /// container replays.
+    private func apply(_ update: TimelineDiff) {
+        switch update {
+        case let .append(values):
+            timelineItems.append(contentsOf: values)
+            // Appending at the newest end is a prepend in display order.
+            displayItems.insert(contentsOf: values.reversed(), at: 0)
+            record(.insert(index: 0, count: values.count), items: values.reversed())
+            noteArrivals(values)
+        case .clear:
+            timelineItems.removeAll()
+            displayItems.removeAll()
+            record(.reset)
+            unseenArrivals = 0
+        case let .pushFront(room):
+            timelineItems.insert(room, at: 0)
+            displayItems.append(room)
+            record(.insert(index: displayItems.count - 1, count: 1), items: [room])
+        case let .pushBack(room):
+            timelineItems.append(room)
+            displayItems.insert(room, at: 0)
+            record(.insert(index: 0, count: 1), items: [room])
+            noteArrivals([room])
+        case .popFront:
+            guard !timelineItems.isEmpty, !displayItems.isEmpty else { return resyncDisplayItems() }
+            timelineItems.removeFirst()
+            displayItems.removeLast()
+            record(.remove(index: displayItems.count, count: 1))
+        case .popBack:
+            guard !timelineItems.isEmpty, !displayItems.isEmpty else { return resyncDisplayItems() }
+            timelineItems.removeLast()
+            displayItems.removeFirst()
+            record(.remove(index: 0, count: 1))
+        case let .insert(index, room):
+            let displayIndex = TimelineDisplayOrder.displayInsertIndex(
+                ofSdkIndex: Int(index),
+                countBeforeInsert: displayItems.count
+            )
+            guard TimelineDisplayOrder.isValidInsertIndex(Int(index), count: timelineItems.count),
+                  TimelineDisplayOrder.isValidInsertIndex(displayIndex, count: displayItems.count)
+            else { return resyncDisplayItems() }
+            timelineItems.insert(room, at: Int(index))
+            displayItems.insert(room, at: displayIndex)
+            record(.insert(index: displayIndex, count: 1), items: [room])
+        case let .set(index, room):
+            let displayIndex = TimelineDisplayOrder.displayIndex(ofSdkIndex: Int(index), count: displayItems.count)
+            guard TimelineDisplayOrder.isValidIndex(Int(index), count: timelineItems.count),
+                  TimelineDisplayOrder.isValidIndex(displayIndex, count: displayItems.count)
+            else { return resyncDisplayItems() }
+            timelineItems[Int(index)] = room
+            displayItems[displayIndex] = room
+            record(.update(index: displayIndex), items: [room])
+        case let .remove(index):
+            let displayIndex = TimelineDisplayOrder.displayIndex(ofSdkIndex: Int(index), count: displayItems.count)
+            guard TimelineDisplayOrder.isValidIndex(Int(index), count: timelineItems.count),
+                  TimelineDisplayOrder.isValidIndex(displayIndex, count: displayItems.count)
+            else { return resyncDisplayItems() }
+            timelineItems.remove(at: Int(index))
+            displayItems.remove(at: displayIndex)
+            record(.remove(index: displayIndex, count: 1))
+        case let .truncate(length):
+            // The SDK keeps the oldest `length` items, so the removal lands at
+            // the newest end — the front of the display order.
+            let removed = timelineItems.count - Int(length)
+            guard removed > 0, Int(length) >= 0, removed <= displayItems.count else { return resyncDisplayItems() }
+            timelineItems.removeSubrange(Int(length) ..< timelineItems.count)
+            displayItems.removeFirst(removed)
+            record(.remove(index: 0, count: removed))
+        case let .reset(values: values):
+            timelineItems = values
+            displayItems = values.reversed()
+            record(.reset)
+            unseenArrivals = 0
+        }
+    }
+
+    private func record(_ change: TimelineDisplayChange, items: [TimelineItem] = []) {
+        let update = TimelineDisplayUpdate(change: change, items: items)
+        if case .reset = change {
+            // A reset supersedes everything queued before it.
+            pendingDisplayChanges = [update]
+        } else {
+            pendingDisplayChanges.append(update)
+        }
+    }
+
+    /// Rebuilds the display order from the SDK order and tells the container
+    /// to start over. Used when a diff index does not match local state.
+    private func resyncDisplayItems() {
+        displayItems = timelineItems.reversed()
+        record(.reset)
     }
 
     /// Counts message events from other senders that arrive at the newest end
