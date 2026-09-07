@@ -15,5 +15,9 @@ build/
 # Swift Package Manager build products (spike/)
 .build/
 
-# Timeline spike measurement dumps
+# Timeline spike measurement dumps. The "Dump stats" button writes to the
+# process working directory, which is usually the repo root; those are scratch.
 timeline-spike-*.json
+# Dumps under spike/results are the recorded baseline the gate scores against
+# (S-39), so they are tracked.
+!spike/results/timeline-spike-*.json

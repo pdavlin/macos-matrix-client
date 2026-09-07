@@ -1,0 +1,24 @@
+{
+  "originHash" : "4d2d7ea85b06a9b890219225d8ea7728de79dc7c050be389df24451d03d11e8b",
+  "pins" : [
+    {
+      "identity" : "zmarkupparser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ZhgChgLi/ZMarkupParser.git",
+      "state" : {
+        "revision" : "f25c9838e9e77ae49cc3f434ee26e669cb4043c7",
+        "version" : "1.12.0"
+      }
+    },
+    {
+      "identity" : "znstextattachment",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ZhgChgLi/ZNSTextAttachment",
+      "state" : {
+        "revision" : "91f718caf50649d817f189eb17ad028f03fd632b",
+        "version" : "1.2.0"
+      }
+    }
+  ],
+  "version" : 3
+}

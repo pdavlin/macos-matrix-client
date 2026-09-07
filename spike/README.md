@@ -16,6 +16,10 @@ risk R-1).
 Read `SCENARIOS.md` before running anything. It is the measurement protocol S-13 and S-14
 must both follow.
 
+Since S-39 the harness also mounts the **shipping** timeline container as the renderer
+`m1-production`, and `spike/run-gate.sh` drives the scenarios and scores the thresholds
+without a human at the window. `GATE.md` is the run procedure and the recorded baseline.
+
 ### Build and run
 
 ```
@@ -54,6 +58,10 @@ TimelineSpike/
     Candidates/                       the measured renderers
   Tests/TimelineSpikeCoreTests/       generator determinism, driver invariants, instruments
 ```
+
+S-39 adds two more directories under `Sources/`: `MatrixRustSDKShim` (the SDK shapes the
+production container names) and `ProductionTimeline` (symlinks to the app's container files,
+the app-environment shims, and the synthetic bridge). See `GATE.md`.
 
 ### Adding a candidate (S-13, S-14)
 

@@ -1,0 +1,228 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 3666,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 0,
+    "loadedEventCount" : 11000,
+    "manualPrependCount" : 20,
+    "newestIndex" : 9999,
+    "oldestIndex" : -1000,
+    "prependedEventCount" : 1000
+  },
+  "frame" : {
+    "hitchCount" : 55,
+    "hitchRate" : 0.023881893182805036,
+    "meanMilliseconds" : 10.033900130303966,
+    "nominalMilliseconds" : 8.333333334156064,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 8.5,
+    "p99Milliseconds" : 41,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 2303,
+    "worstMilliseconds" : 646.4380000252277
+  },
+  "generatedAt" : "2026-09-07T03:36:40Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A5421a)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "prependDrift" : {
+    "count" : 20,
+    "recent" : [
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 316.50000000046566,
+        "beforeOffset" : 316.50000000046566,
+        "eventID" : {
+          "rawValue" : 9207
+        },
+        "kind" : "prepend"
+      }
+    ],
+    "stableCount" : 20,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "rendererID" : "appkit-table",
+  "rendererName" : "AppKit NSTableView",
+  "scenario" : "s4-automated",
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}
