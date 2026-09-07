@@ -30,9 +30,10 @@ public enum MsgLikeKind {
      */
     case redacted
     /**
-     * An `m.room.encrypted` event that could not be decrypted.
+     * An `m.room.encrypted` event that could not be decrypted, with the cause
+     * the crypto layer assigned it.
      */
-    case unableToDecrypt(msg: Void /* EncryptedMessage */ )
+    case unableToDecrypt(cause: UnableToDecryptCause)
     /**
      * A custom message like event.
      */

@@ -47,6 +47,15 @@ public final class LiveTimeline {
     public private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false
 
+    /// The message of the last failed back-pagination, or nil when the oldest
+    /// end is healthy.
+    ///
+    /// The failure latches: scroll and the short-timeline kickoff both reach
+    /// the oldest end repeatedly, so an unlatched failure would re-ask a
+    /// failing homeserver on every scroll event. `retryPagination` is the only
+    /// way past it.
+    public private(set) var paginationFailure: String?
+
     /// Whether the timeline view is scrolled to (or near) the newest message.
     /// Written by the timeline container on scroll; read by the
     /// scroll-to-bottom affordance.
@@ -156,13 +165,22 @@ public final class LiveTimeline {
 
                 if paginating == .idle(hitTimelineStart: false), timelineItems.count < 20 {
                     try await Task.sleep(for: .milliseconds(500))
-                    try await fetchOlderMessages()
+                    await fetchOlderMessages()
                 }
             }
         }
     }
 
-    public func fetchOlderMessages() async throws {
+    /// Fetches the next batch of older events.
+    ///
+    /// Does not throw: a failure at the oldest end is a display state the
+    /// timeline owns, not an error for each caller to re-handle. Callers are
+    /// scroll-driven and would only log it.
+    public func fetchOlderMessages() async {
+        guard paginationFailure == nil else {
+            Logger.liveTimeline.debug("fetchOlderMessages skipped, awaiting retry of a failed pagination")
+            return
+        }
         guard paginating == .idle(hitTimelineStart: false) else {
             let p = paginating.debugDescription
             Logger.liveTimeline.debug("fetchOlderMessages cancelled, paginating was \(p)")
@@ -170,7 +188,20 @@ public final class LiveTimeline {
         }
 
         Logger.liveTimeline.info("fetch more messages")
-        _ = try await timeline?.paginateBackwards(numEvents: 100)
+        do {
+            _ = try await timeline?.paginateBackwards(numEvents: 100)
+        } catch {
+            Logger.liveTimeline.error("failed to fetch older messages: \(String(describing: error), privacy: .public)")
+            paginationFailure = error.localizedDescription
+        }
+    }
+
+    /// Clears a latched pagination failure and asks for the batch again.
+    public func retryPagination() {
+        guard paginationFailure != nil else { return }
+        Logger.liveTimeline.info("retrying back-pagination after a failure")
+        paginationFailure = nil
+        Task { await fetchOlderMessages() }
     }
 
     public func focusEvent(id eventId: MatrixRustSDK.EventOrTransactionId) {

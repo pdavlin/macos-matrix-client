@@ -30,12 +30,7 @@ extension TimelineViewController {
         if distanceFromTop <= threshold, timelineFetchTask == nil {
             Logger.timelineTableView.info("Fetching older messages (scroll near top)")
             timelineFetchTask = Task {
-                do {
-                    try await timeline.fetchOlderMessages()
-                } catch {
-                    Logger.timelineTableView.error("Failed to fetch older messages: \(error)")
-                }
-
+                await timeline.fetchOlderMessages()
                 timelineFetchTask = nil
             }
         }

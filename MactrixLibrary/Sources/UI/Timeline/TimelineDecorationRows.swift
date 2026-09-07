@@ -59,6 +59,42 @@ public struct PaginationActivityRow: View {
     }
 }
 
+/// The back-pagination failure row, rendered at the oldest end in place of
+/// `PaginationActivityRow`.
+///
+/// Scroll-driven pagination stops after a failure, so this row is the only way
+/// back: without an explicit retry a failing homeserver would be re-asked on
+/// every scroll event.
+public struct PaginationFailureRow: View {
+    let message: String
+    let retry: () -> Void
+
+    public init(message: String, retry: @escaping () -> Void) {
+        self.message = message
+        self.retry = retry
+    }
+
+    public var body: some View {
+        VStack(spacing: DensityToken.reactionPadding) {
+            Text("Could not load earlier messages")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button("Retry", action: retry)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, DensityToken.rowHorizontalPadding)
+        .padding(.vertical, DensityToken.rowVerticalPadding * 2)
+        .frame(maxWidth: .infinity)
+    }
+}
+
 public extension EnvironmentValues {
     /// Whether message rows show read receipts.
     ///
@@ -72,6 +108,7 @@ public extension EnvironmentValues {
 #Preview {
     VStack(alignment: .leading, spacing: 0) {
         PaginationActivityRow()
+        PaginationFailureRow(message: "The network connection was lost.") {}
         TypingIndicatorRow(names: ["John Doe"])
         TypingIndicatorRow(names: ["John Doe", "Person"])
     }

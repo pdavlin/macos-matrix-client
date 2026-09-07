@@ -89,6 +89,13 @@ extension TimelineViewController {
             tableView.tile()
             restoreScrollAnchor(anchor)
         }
+
+        // A focus request usually lands before its event does, so the row it
+        // names may have arrived in this batch. Deferred, not called here:
+        // this method runs inside SwiftUI's view update pass and scrolling
+        // reports a new position, which writes observable timeline state —
+        // the S-54 re-entrancy.
+        scheduleFocusScroll()
     }
 
     private func applyReset() {
@@ -243,6 +250,8 @@ extension TimelineViewController {
 extension TimelineViewController {
     /// Identity of the pagination row. Stable: its content never changes.
     private static let paginationRowId = "mactrix.timeline.paginationActivity"
+    /// Identity prefix of the pagination failure row; the message completes it.
+    private static let paginationFailureRowId = "mactrix.timeline.paginationFailure"
 
     /// Watches who is typing and keeps the newest-end decoration in step (D-3).
     func listenForTypingUsers() {
@@ -259,15 +268,18 @@ extension TimelineViewController {
     /// Watches back-pagination and keeps the oldest-end decoration in step (D-2).
     ///
     /// Infinite scroll stays, so this row is the only signal that a fetch is
-    /// running at the oldest end.
+    /// running — or that one failed — at the oldest end. Both properties are
+    /// read inside the tracking closure so either change re-arms the watch.
     func listenForPaginationActivity() {
-        let status = withObservationTracking {
-            timeline.paginating
+        let (status, failure) = withObservationTracking {
+            (timeline.paginating, timeline.paginationFailure)
         } onChange: { [weak self] in
             Task { @MainActor in self?.listenForPaginationActivity() }
         }
 
-        Logger.timelineTableView.debug("pagination status: \(status.debugDescription, privacy: .public)")
+        Logger.timelineTableView.debug(
+            "pagination status: \(status.debugDescription, privacy: .public) failure: \(failure ?? "none", privacy: .public)"
+        )
         refreshDecorationRows(applyingSnapshot: true)
     }
 
@@ -284,9 +296,20 @@ extension TimelineViewController {
         !timeline.room.typingUserIds.isEmpty
     }
 
-    private var wantsPaginationRow: Bool {
-        if case .paginating = timeline.paginating { return true }
-        return false
+    /// The oldest-end decoration for the current state, or nil for neither.
+    ///
+    /// A failure outranks activity: after a failed fetch nothing is in flight,
+    /// so showing the spinner would promise a batch that is not coming. Row
+    /// identity carries the message, so a different failure replaces the row
+    /// rather than reusing a height measured for the previous text.
+    private var wantsPaginationRow: TimelineRow? {
+        if let failure = timeline.paginationFailure {
+            return .paginationFailure(uniqueId: "\(Self.paginationFailureRowId):\(failure)", message: failure)
+        }
+        if case .paginating = timeline.paginating {
+            return .paginationActivity(uniqueId: Self.paginationRowId)
+        }
+        return nil
     }
 
     /// Adds, removes, or re-labels the decoration rows to match current state.
@@ -299,15 +322,13 @@ extension TimelineViewController {
         let typingRow: TimelineRow? = wantsTypingRow
             ? .typingIndicator(uniqueId: "mactrix.timeline.typing:\(typingNames.joined(separator: "|"))", names: typingNames)
             : nil
-        let paginationRow: TimelineRow? = wantsPaginationRow
-            ? .paginationActivity(uniqueId: Self.paginationRowId)
-            : nil
+        let paginationRow = wantsPaginationRow
 
         let currentTyping = leadingDecorationCount > 0 ? timelineRows.first : nil
         let currentPagination = trailingDecorationCount > 0 ? timelineRows.last : nil
 
         let typingChanged = currentTyping?.uniqueId != typingRow?.uniqueId
-        let paginationChanged = (currentPagination == nil) != (paginationRow == nil)
+        let paginationChanged = currentPagination?.uniqueId != paginationRow?.uniqueId
         guard typingChanged || paginationChanged else { return }
 
         if typingChanged {
@@ -328,6 +349,7 @@ extension TimelineViewController {
             if let currentPagination {
                 timelineRows.removeLast()
                 trailingDecorationCount = 0
+                heightCache.invalidate(rowId: currentPagination.uniqueId)
                 deleteSnapshotItems(withIds: [currentPagination.uniqueId])
             }
             if let paginationRow {

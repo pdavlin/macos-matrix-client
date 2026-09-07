@@ -104,31 +104,13 @@ struct ChatMessageView: View, UI.MessageEventActions {
     var message: some View {
         switch msg.kind {
         case let .message(content: content):
-            switch content.msgType {
-            case let .emote(content: content):
-                Text("Emote: \(content.body)").textSelection(.enabled)
-            case let .image(content: content):
-                MessageImageView(content: content)
-            case let .audio(content: content):
-                MessageAudioView(content: content)
-            case let .video(content: content):
-                MessageVideoView(content: content)
-            case let .file(content: content):
-                MessageFileView(content: content)
-            case let .gallery(content: content):
-                Text("Gallery: \(content.body)").textSelection(.enabled)
-            case let .notice(content: content):
-                Text(content.body.formatAsMarkdown)
-                    .textSelection(.enabled)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            case let .text(content: content):
-                FormattedBodyView(messageContent: content)
-            // Text(content.body.formatAsMarkdown)
-            case let .location(content: content):
-                Text("Location: \(content.body) \(content.geoUri)").textSelection(.enabled)
-            case let .other(msgtype: msgtype, body: body):
-                Text("Other: \(msgtype) \(body)").textSelection(.enabled)
+            VStack(alignment: .leading, spacing: 2) {
+                messageBody(content)
+                // Display only: the SDK reports the edit, the app never
+                // authors one.
+                if content.isEdited {
+                    UI.EditedMarker()
+                }
             }
         case .sticker(body: let body, info: _, source: _):
             Text("Sticker: \(body)").textSelection(.enabled)
@@ -139,17 +121,43 @@ struct ChatMessageView: View, UI.MessageEventActions {
                 .italic()
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-        case .unableToDecrypt:
-            Text("Unable to decrypt")
-                .italic()
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
+        case let .unableToDecrypt(msg: encrypted):
+            UI.UnableToDecryptView(cause: Models.UnableToDecryptCause(encrypted: encrypted))
         case let .other(eventType: eventType):
             let eventText = eventType.description
 
             Text("Custom event: \(eventText)").textSelection(.enabled)
         case .liveLocation(content: let content):
             Text("Live location: \(content.description ?? "no description")")
+        }
+    }
+
+    @ViewBuilder
+    private func messageBody(_ content: MatrixRustSDK.MessageContent) -> some View {
+        switch content.msgType {
+        case let .emote(content: content):
+            Text("Emote: \(content.body)").textSelection(.enabled)
+        case let .image(content: content):
+            MessageImageView(content: content)
+        case let .audio(content: content):
+            MessageAudioView(content: content)
+        case let .video(content: content):
+            MessageVideoView(content: content)
+        case let .file(content: content):
+            MessageFileView(content: content)
+        case let .gallery(content: content):
+            Text("Gallery: \(content.body)").textSelection(.enabled)
+        case let .notice(content: content):
+            Text(content.body.formatAsMarkdown)
+                .textSelection(.enabled)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        case let .text(content: content):
+            FormattedBodyView(messageContent: content)
+        case let .location(content: content):
+            Text("Location: \(content.body) \(content.geoUri)").textSelection(.enabled)
+        case let .other(msgtype: msgtype, body: body):
+            Text("Other: \(msgtype) \(body)").textSelection(.enabled)
         }
     }
 

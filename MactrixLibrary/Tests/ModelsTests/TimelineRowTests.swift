@@ -101,4 +101,23 @@ struct TimelineRowTests {
         #expect(unsupported.reuseId == "unsupported")
         #expect(typing.uniqueId == "t")
     }
+
+    /// S-35: the oldest end shows either activity or a retryable failure, so
+    /// the two must not share a recycling pool or an identity.
+    @Test
+    func paginationFailureRowIsADistinctDecoration() {
+        let failure = TimelineRow.paginationFailure(uniqueId: "f", message: "offline")
+
+        #expect(failure.isDecoration)
+        #expect(failure.uniqueId == "f")
+        #expect(failure.reuseId == "paginationFailure")
+        #expect(failure.reuseId != TimelineRow.paginationActivity(uniqueId: "p").reuseId)
+
+        guard case let .paginationFailure(uniqueId, message) = failure else {
+            Issue.record("expected pagination failure row, got \(failure)")
+            return
+        }
+        #expect(uniqueId == "f")
+        #expect(message == "offline")
+    }
 }

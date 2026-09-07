@@ -54,6 +54,16 @@ struct TimelineDecorationSnapshotTests {
         )
     }
 
+    /// S-35: the failure that replaces the activity row at the oldest end. It
+    /// is static, so no progress-indicator substitution is needed.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func paginationFailureRow() {
+        assertSnapshot(
+            of: snapshot(of: PaginationFailureRow(message: "The Internet connection appears to be offline.") {}),
+            as: .scaledImage
+        )
+    }
+
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func readMarkerRow() {
         assertSnapshot(of: snapshot(of: VirtualItemView(item: .readMarker)), as: .scaledImage)

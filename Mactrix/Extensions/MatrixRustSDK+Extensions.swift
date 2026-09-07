@@ -320,6 +320,49 @@ extension MatrixRustSDK.MsgLikeContent {
     }
 }
 
+extension Models.UnableToDecryptCause {
+    /// Maps the SDK's UTD attribution onto the row layer's cause.
+    ///
+    /// One case per SDK case, so a new `UtdCause` fails this build instead of
+    /// showing the reader a wrong reason.
+    init(_ cause: MatrixRustSDK.UtdCause) {
+        switch cause {
+        case .unknown:
+            self = .unknown
+        case .sentBeforeWeJoined:
+            self = .sentBeforeWeJoined
+        case .verificationViolation:
+            self = .verificationViolation
+        case .unsignedDevice:
+            self = .unsignedDevice
+        case .unknownDevice:
+            self = .unknownDevice
+        case .historicalMessageAndBackupIsDisabled:
+            self = .historicalMessageAndBackupIsDisabled
+        case .withheldForUnverifiedOrInsecureDevice:
+            self = .withheldForUnverifiedOrInsecureDevice
+        case .withheldBySender:
+            self = .withheldBySender
+        case .historicalMessageAndDeviceIsUnverified:
+            self = .historicalMessageAndDeviceIsUnverified
+        }
+    }
+
+    /// The cause carried by an undecryptable timeline item.
+    ///
+    /// Only megolm events carry attribution. An Olm message or an algorithm
+    /// the SDK does not recognise reports `.unknown` — the SDK's own value for
+    /// "no cause assigned" — rather than a guess made here.
+    init(encrypted message: MatrixRustSDK.EncryptedMessage) {
+        switch message {
+        case let .megolmV1AesSha2(sessionId: _, cause: cause):
+            self.init(cause)
+        case .olmV1Curve25519AesSha2, .unknown:
+            self = .unknown
+        }
+    }
+}
+
 extension MatrixRustSDK.TimelineItemContent: @retroactive CustomStringConvertible {
     public var description: String {
         switch self {

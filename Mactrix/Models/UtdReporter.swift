@@ -1,5 +1,6 @@
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 
 /// Records every "unable to decrypt" event the SDK reports.
@@ -28,7 +29,7 @@ final class UtdReporter: UnableToDecryptDelegate {
         Logger.utd.error(
             """
             UTD event=\(info.eventId, privacy: .public) \
-            cause=\(Self.describe(info.cause), privacy: .public) \
+            cause=\(Models.UnableToDecryptCause(info.cause).logLabel, privacy: .public) \
             lateDecryptMs=\(info.timeToDecryptMs.map(String.init) ?? "none", privacy: .public) \
             eventLocalAgeMs=\(info.eventLocalAgeMillis, privacy: .public) \
             userTrustsOwnIdentity=\(info.userTrustsOwnIdentity, privacy: .public) \
@@ -36,34 +37,5 @@ final class UtdReporter: UnableToDecryptDelegate {
             ownHomeserver=\(info.ownHomeserver ?? "none", privacy: .public)
             """
         )
-    }
-
-    /// A stable, greppable name for each cause.
-    ///
-    /// `UtdCause` has no `description` in the generated bindings, and the app
-    /// must not invent its own attribution, so this maps one to one onto the
-    /// SDK's cases. A new SDK case fails the build here rather than logging a
-    /// wrong label.
-    private static func describe(_ cause: UtdCause) -> String {
-        switch cause {
-        case .unknown:
-            "unknown"
-        case .sentBeforeWeJoined:
-            "sent-before-we-joined"
-        case .verificationViolation:
-            "verification-violation"
-        case .unsignedDevice:
-            "unsigned-device"
-        case .unknownDevice:
-            "unknown-device"
-        case .historicalMessageAndBackupIsDisabled:
-            "historical-message-and-backup-is-disabled"
-        case .withheldForUnverifiedOrInsecureDevice:
-            "withheld-for-unverified-or-insecure-device"
-        case .withheldBySender:
-            "withheld-by-sender"
-        case .historicalMessageAndDeviceIsUnverified:
-            "historical-message-and-device-is-unverified"
-        }
     }
 }
