@@ -368,12 +368,14 @@ class TimelineViewController: NSViewController {
     /// update.
     func scrollToPendingFocusIfPossible() {
         guard let pendingFocusEventId else { return }
-        let focusedItem = timeline.displayItems.first { item in
+        // One pass, not two: the item index is the table index shifted by the
+        // newest-end decorations, the same mapping the diff path applies. The
+        // second scan this replaces re-found the row by identifier (MATRIX-58).
+        guard let itemIndex = timeline.displayItems.firstIndex(where: { item in
             item.asEvent()?.eventOrTransactionId == pendingFocusEventId
-        }
-        guard let focusedItem,
-              let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == focusedItem.uniqueId().id })
-        else { return }
+        }) else { return }
+        let rowIndex = itemIndex + leadingDecorationCount
+        guard timelineRows.indices.contains(rowIndex) else { return }
 
         self.pendingFocusEventId = nil
         Logger.timelineTableView.info("focus event resolved to row \(rowIndex): scrolling")
