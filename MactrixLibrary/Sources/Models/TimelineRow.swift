@@ -42,6 +42,9 @@ public enum TimelineRow {
     case typingIndicator(uniqueId: String, names: [String])
     /// Back-pagination is in flight, rendered at the oldest end (D-2).
     case paginationActivity(uniqueId: String)
+    /// The last back-pagination failed and can be retried, rendered at the
+    /// oldest end in place of the activity row.
+    case paginationFailure(uniqueId: String, message: String)
     /// An SDK item that is neither event nor virtual.
     ///
     /// The mapping stays total on purpose. Dropping such an item would
@@ -62,6 +65,8 @@ public enum TimelineRow {
         case let .typingIndicator(uniqueId, _):
             return uniqueId
         case let .paginationActivity(uniqueId):
+            return uniqueId
+        case let .paginationFailure(uniqueId, _):
             return uniqueId
         case let .unsupported(uniqueId):
             return uniqueId
@@ -87,6 +92,8 @@ public enum TimelineRow {
             return "typingIndicator"
         case .paginationActivity:
             return "paginationActivity"
+        case .paginationFailure:
+            return "paginationFailure"
         case .unsupported:
             return "unsupported"
         }
@@ -95,7 +102,7 @@ public enum TimelineRow {
     /// True for rows the container owns rather than the SDK.
     public var isDecoration: Bool {
         switch self {
-        case .typingIndicator, .paginationActivity:
+        case .typingIndicator, .paginationActivity, .paginationFailure:
             return true
         case .message, .state, .virtual, .unsupported:
             return false

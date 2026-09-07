@@ -50,6 +50,10 @@ struct TimelineItemRowView: View {
             UI.TypingIndicatorRow(names: names)
         case .paginationActivity:
             UI.PaginationActivityRow()
+        case let .paginationFailure(_, message):
+            UI.PaginationFailureRow(message: message) {
+                timeline?.retryPagination()
+            }
         case .unsupported:
             // Height is clamped to 1pt by the measurement layer, so an
             // unrenderable item occupies a row without showing anything.
@@ -321,6 +325,29 @@ class TimelineViewController: NSViewController {
     var isAdjustingScrollAnchor = false
     var scrollReportScheduled = false
 
+    /// A focus request whose row has not arrived yet.
+    ///
+    /// Opening a room at an event (a notification, a reply jump, and the M3
+    /// search jump) sets the focus before the SDK delivers the item, so the
+    /// first attempt usually finds no row. The request is held here and retried
+    /// after each timeline update instead of being dropped.
+    var pendingFocusEventId: MatrixRustSDK.EventOrTransactionId?
+    private var focusScrollScheduled = false
+
+    /// Retries the pending focus scroll off the current runloop cycle.
+    ///
+    /// Callers run inside SwiftUI's view update pass; scrolling reports a new
+    /// position, and that report writes observable timeline state (S-54).
+    func scheduleFocusScroll() {
+        guard pendingFocusEventId != nil, !focusScrollScheduled else { return }
+        focusScrollScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            focusScrollScheduled = false
+            scrollToPendingFocusIfPossible()
+        }
+    }
+
     func listenForFocusTimelineItem() {
         Logger.timelineTableView.debug("Listen for focus timeline item")
 
@@ -330,13 +357,26 @@ class TimelineViewController: NSViewController {
             Task { @MainActor in self?.listenForFocusTimelineItem() }
         }
 
-        guard let focusedTimelineEventId,
-              let focusedItem = timeline.displayItems.first(where: {
-                  $0.asEvent()?.eventOrTransactionId == focusedTimelineEventId
-              }),
+        guard let focusedTimelineEventId else { return }
+        pendingFocusEventId = focusedTimelineEventId
+        scrollToPendingFocusIfPossible()
+    }
+
+    /// Scrolls to the focused row once it exists, and clears the request.
+    ///
+    /// A no-op while the row is absent, so it is safe to call after every
+    /// update.
+    func scrollToPendingFocusIfPossible() {
+        guard let pendingFocusEventId else { return }
+        let focusedItem = timeline.displayItems.first { item in
+            item.asEvent()?.eventOrTransactionId == pendingFocusEventId
+        }
+        guard let focusedItem,
               let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == focusedItem.uniqueId().id })
         else { return }
 
+        self.pendingFocusEventId = nil
+        Logger.timelineTableView.info("focus event resolved to row \(rowIndex): scrolling")
         tableView.animateRowToVisible(rowIndex)
     }
 
