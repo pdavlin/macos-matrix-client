@@ -228,6 +228,15 @@ public final class SpikeHarness {
     /// Writes the report as JSON to the process working directory and prints the path.
     @discardableResult
     public func dumpReport() -> URL? {
+        dumpReport(to: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
+    }
+
+    /// Writes the report as JSON to `directory`, creating it if it is missing.
+    ///
+    /// The automated runner (S-39) needs to put a batch of dumps somewhere
+    /// known, rather than wherever the process happened to be started.
+    @discardableResult
+    public func dumpReport(to directory: URL) -> URL? {
         do {
             let report = makeReport()
             let encoder = JSONEncoder()
@@ -239,8 +248,8 @@ public final class SpikeHarness {
             formatter.dateFormat = "yyyyMMdd-HHmmss"
             formatter.timeZone = .current
             let stamp = formatter.string(from: report.generatedAt)
-            let name = "timeline-spike-\(report.rendererID)-\(stamp).json"
-            let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            let name = "timeline-spike-\(report.rendererID)-\(report.scenario)-\(stamp).json"
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let url = directory.appendingPathComponent(name)
             try data.write(to: url, options: .atomic)
 

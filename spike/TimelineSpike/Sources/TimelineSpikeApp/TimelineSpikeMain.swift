@@ -24,10 +24,12 @@ final class SpikeAppDelegate: NSObject, NSApplicationDelegate {
 struct TimelineSpikeMain: App {
     @NSApplicationDelegateAdaptor(SpikeAppDelegate.self) private var delegate
     @State private var harness = SpikeHarness()
+    /// Set when the process was launched with `--scenario`; see `ScenarioRunner`.
+    private let runnerOptions = RunnerOptions.parse(Array(CommandLine.arguments.dropFirst()))
 
     var body: some Scene {
         Window("Timeline Spike", id: "timeline-spike") {
-            HarnessRootView(harness: harness)
+            HarnessRootView(harness: harness, runnerOptions: runnerOptions)
         }
         .defaultSize(width: 1080, height: 860)
         .commands {
