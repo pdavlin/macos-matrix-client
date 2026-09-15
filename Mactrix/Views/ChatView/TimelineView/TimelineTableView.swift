@@ -170,7 +170,7 @@ class TimelineViewController: NSViewController {
         // mechanism (contract 2026-08-20). AppKit self-sizing stays off.
         tableView.usesAutomaticRowHeights = false
 
-        oldWidth = tableView.frame.width
+        oldWidth = tableView.tableColumns.first?.width
 
         dataSource = .init(tableView: tableView) { [weak self] tableView, _, row, _ in
             guard let self, timelineRows.indices.contains(row) else { return NSView() }
@@ -254,26 +254,47 @@ class TimelineViewController: NSViewController {
     }
 
     var heightRenoteScheduled = false
+    /// Identifies the pending re-note, so a later width change retires it.
+    private var heightRenoteGeneration = 0
 
     @objc func handleTableResize(_: Notification) {
-        guard oldWidth != tableView.frame.width else { return }
-        oldWidth = tableView.frame.width
+        // Heights are cached against the column width, so that is the width a
+        // re-measure must react to. The table frame can move without it.
+        let width = tableView.tableColumns.first?.width
+        guard oldWidth != width else { return }
+        oldWidth = width
         scheduleHeightRenote()
     }
 
-    /// Coalesces a width-change height re-note onto the next runloop cycle.
-    /// This notification fires synchronously while the frame is being set, so
-    /// re-noting here runs inside the current layout pass. A SwiftUI-driven
+    /// How long a width must hold still before the rows are re-measured.
+    ///
+    /// AppKit settles a width in phases: the clip view takes the new width,
+    /// then the scroll view tiles and the scroller's inset narrows the column
+    /// one pass later. A SwiftUI width animation (the inspector transition)
+    /// delivers a change per frame. Every phase used to buy its own full-table
+    /// re-note — 150ms to 860ms, depending on how many rows the table has
+    /// already measured — for a width that never finished rendering (S-59).
+    private static let heightRenoteSettleDelay: TimeInterval = 0.1
+
+    /// Re-measures the rows once the width stops moving, off the layout pass.
+    ///
+    /// The notification fires synchronously while the frame is being set, so
+    /// re-noting here would run inside the current layout pass. A SwiftUI-driven
     /// frame animation (the inspector transition) queries the representable's
     /// size mid-pass, and invalidating row heights during that resolution
     /// dirties constraints while they are being resolved — AppKit turns that
     /// into a crash (the MATRIX-50 constraint-loop class). Deferring runs the
     /// re-note after the pass completes, breaking the re-entrancy.
+    ///
+    /// A live resize keeps the next-cycle timing: the drag must stay responsive,
+    /// and it re-measures the visible rows only.
     private func scheduleHeightRenote() {
-        guard !heightRenoteScheduled else { return }
         heightRenoteScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+        heightRenoteGeneration &+= 1
+        let generation = heightRenoteGeneration
+        let delay = tableView.inLiveResize ? 0 : Self.heightRenoteSettleDelay
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, generation == heightRenoteGeneration else { return }
             heightRenoteScheduled = false
             if tableView.inLiveResize {
                 // During a live resize, re-measure only the visible rows for
@@ -291,25 +312,6 @@ class TimelineViewController: NSViewController {
         activeTypography = typography
         Logger.timelineTableView.info("typography tokens changed: re-measuring all rows")
         noteAllRowHeightsChanged()
-    }
-
-    private func noteVisibleRowHeightsChanged() {
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            context.allowsImplicitAnimation = false
-
-            let visibleRows = tableView.rows(in: tableView.visibleRect)
-            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: visibleRows.lowerBound ..< visibleRows.upperBound))
-        }
-    }
-
-    private func noteAllRowHeightsChanged() {
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            context.allowsImplicitAnimation = false
-
-            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0 ..< tableView.numberOfRows))
-        }
     }
 
     var timelineFetchTask: Task<Void, Never>?
@@ -415,7 +417,8 @@ class TimelineViewController: NSViewController {
         case paginationActivity
     }
 
-    // values used to track width changes
+    /// The column width rows were last measured against; a width change is
+    /// judged against this, not against the table frame.
     var oldWidth: CGFloat?
     let measurementHostingView = {
         let hostView = NSHostingController(rootView: AnyView(EmptyView()))
