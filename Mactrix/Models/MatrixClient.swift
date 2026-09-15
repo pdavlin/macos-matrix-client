@@ -34,6 +34,7 @@ class MatrixClient {
 
         spaceService = await LiveSpaceService(spaceService: client.spaceService())
         clientDelegateHandle = try? client.setDelegate(delegate: self)
+        await installUtdHook()
     }
 
     init(storeID: String, storePassphrase: String, client: ClientProtocol) async {
@@ -43,6 +44,24 @@ class MatrixClient {
 
         spaceService = await LiveSpaceService(spaceService: client.spaceService())
         clientDelegateHandle = try? self.client.setDelegate(delegate: self)
+        await installUtdHook()
+    }
+
+    /// Installs the UTD reporter at client creation, before any view code can
+    /// run. Timelines configured with `reportUtds: true` fail to build if no
+    /// hook is set, and a warm-store launch resolves a room (restored
+    /// selection, or a fast click) before `startSync()` runs — ordering the
+    /// hook inside `startSync` left that window open (MATRIX-61; previously
+    /// MATRIX-55/56). UniFFI's handle map owns the delegate once it is
+    /// lowered, so the reporter needs no strong reference here. The SDK errors
+    /// if a delegate is already set, which is why this lives in the
+    /// once-per-client init path and not somewhere a view can re-enter.
+    private func installUtdHook() async {
+        do {
+            try await client.setUtdDelegate(utdDelegate: UtdReporter())
+        } catch {
+            Logger.matrixClient.error("failed to set UTD delegate: \(String(describing: error), privacy: .public)")
+        }
     }
 
     func userSession() throws -> UserSession {
@@ -245,14 +264,6 @@ class MatrixClient {
         roomListService = _roomListService
         roomListServiceStateHandle = _roomListService.state(listener: self)
         syncIndicatorHandle = _roomListService.syncIndicator(delayBeforeShowingInMs: 200, delayBeforeHidingInMs: 200, listener: self)
-
-        // UniFFI's handle map owns the delegate once it is lowered, so the
-        // reporter needs no strong reference here. The SDK errors if a delegate
-        // is already set, which is why this is in the once-per-client start
-        // path and not somewhere a view can re-enter. This must run before the
-        // room list starts delivering rooms below: timelines configured with
-        // reportUtds: true fail to build if no UTD hook is set yet (MATRIX-56).
-        try await client.setUtdDelegate(utdDelegate: UtdReporter())
 
         let roomEntriesListener = AsyncSDKListener<[RoomListEntriesUpdate]>()
         let _roomListEntriesHandle = try await _roomListService.allRooms().entriesWithDynamicAdapters(pageSize: 100, listener: roomEntriesListener)
