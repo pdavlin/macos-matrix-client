@@ -2,6 +2,7 @@ import AppKit
 import MatrixRustSDK
 import Models
 import OSLog
+import QuartzCore
 import SwiftUI
 import UI
 
@@ -17,6 +18,9 @@ extension TimelineViewController {
     func applyPendingTimelineChanges() {
         let updates = timeline.drainDisplayChanges()
         guard !updates.isEmpty else { return }
+
+        let profileStart = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
+        if TimelineStormProfiler.enabled { TimelineStormProfiler.beginBatch() }
 
         // Captured against the old rows and the old geometry, before either is
         // replaced. Only a structural batch consumes it.
@@ -74,6 +78,16 @@ extension TimelineViewController {
         // the settled document height rather than an animating one, and it
         // stops a re-noted row being clipped to its old frame while the
         // implicit row animation runs (MATRIX-49).
+        var reloadMs = 0.0
+        var noteMs = 0.0
+        var visibleMutated = 0
+        if TimelineStormProfiler.enabled, !mutatedRows.isEmpty {
+            let visible = tableView.rows(in: tableView.visibleRect)
+            visibleMutated = mutatedRows.filter {
+                $0 >= visible.location && $0 < visible.location + visible.length
+            }.count
+        }
+
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
@@ -82,12 +96,32 @@ extension TimelineViewController {
                 dataSource?.apply(snapshot, animatingDifferences: false)
             }
 
-            reloadRows(mutatedRows)
+            let reloadStarted = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
+            refreshRowContents(mutatedRows)
+            let noteStarted = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
+            if TimelineStormProfiler.enabled { TimelineStormProfiler.markNote(true) }
             noteHeightChanges(mutatedRows, context: "timeline update")
+            if TimelineStormProfiler.enabled {
+                TimelineStormProfiler.markNote(false)
+                let finished = CACurrentMediaTime()
+                reloadMs = (noteStarted - reloadStarted) * 1000
+                noteMs = (finished - noteStarted) * 1000
+            }
 
             guard let anchor else { return }
             tableView.tile()
             restoreScrollAnchor(anchor)
+        }
+
+        if TimelineStormProfiler.enabled {
+            TimelineStormProfiler.endBatch(
+                updates: updates.count,
+                mutatedRows: mutatedRows.count,
+                visibleMutated: visibleMutated,
+                reloadMs: reloadMs,
+                noteMs: noteMs,
+                totalMs: (CACurrentMediaTime() - profileStart) * 1000
+            )
         }
 
         // A focus request usually lands before its event does, so the row it
@@ -211,13 +245,31 @@ extension TimelineViewController {
         snapshot.deleteItems(present)
     }
 
-    /// Redraws the given rows without re-applying the snapshot.
+    /// Puts new content into the rows that already have a prepared view.
     ///
     /// `NSTableView` caches prepared views, so a content change that does not
-    /// move rows still needs an explicit reload to show.
-    private func reloadRows(_ rows: IndexSet) {
+    /// move rows still has to reach the view that is showing it. Assigning the
+    /// root view does that without `reloadData(forRowIndexes:)`, which tears the
+    /// row view down, re-asks the data source and lays the replacement out
+    /// synchronously — a second SwiftUI layout pass on top of the one the
+    /// following height note already forces (MATRIX-57).
+    ///
+    /// Rows with no prepared view are skipped: `timelineRows` already holds the
+    /// new model, so the data source renders the new content when the table
+    /// next asks for that row.
+    private func refreshRowContents(_ rows: IndexSet) {
         guard !rows.isEmpty else { return }
-        tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
+        for row in rows {
+            guard timelineRows.indices.contains(row),
+                  let hostView = tableView.view(atColumn: 0, row: row, makeIfNecessary: false)
+                  as? NSHostingView<TimelineItemRowView>
+            else { continue }
+            hostView.rootView = TimelineItemRowView(
+                row: timelineRows[row],
+                timeline: timeline,
+                coordinator: coordinator
+            )
+        }
     }
 
     /// Asks the table to re-measure exactly the rows whose content mutated.

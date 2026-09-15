@@ -2,6 +2,7 @@ import AppKit
 import MatrixRustSDK
 import Models
 import OSLog
+import QuartzCore
 import SwiftUI
 import Tokens
 import UI
@@ -175,6 +176,13 @@ class TimelineViewController: NSViewController {
         dataSource = .init(tableView: tableView) { [weak self] tableView, _, row, _ in
             guard let self, timelineRows.indices.contains(row) else { return NSView() }
 
+            let providerStarted = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
+            defer {
+                if TimelineStormProfiler.enabled {
+                    TimelineStormProfiler.recordProvider((CACurrentMediaTime() - providerStarted) * 1000)
+                }
+            }
+
             let model = timelineRows[row]
             let view = TimelineItemRowView(row: model, timeline: timeline, coordinator: coordinator)
 
@@ -182,6 +190,7 @@ class TimelineViewController: NSViewController {
             if let recycledView = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(model.reuseId), owner: self)
                 as? NSHostingView<TimelineItemRowView>
             {
+                if TimelineStormProfiler.enabled { TimelineStormProfiler.recordRecycled() }
                 recycledView.rootView = view
                 hostView = recycledView
             } else {
@@ -420,10 +429,19 @@ class TimelineViewController: NSViewController {
     /// The column width rows were last measured against; a width change is
     /// judged against this, not against the table frame.
     var oldWidth: CGFloat?
-    let measurementHostingView = {
-        let hostView = NSHostingController(rootView: AnyView(EmptyView()))
-        hostView.sizingOptions = [.preferredContentSize]
-        return hostView
+    /// Offscreen measurement host, concretely typed.
+    ///
+    /// An `AnyView` root hands SwiftUI a fresh root type on every assignment,
+    /// so the view graph is torn down and rebuilt once per measurement instead
+    /// of diffed against the row measured before it. The concrete root keeps
+    /// the graph across measurements, which is most of the per-row cost
+    /// (MATRIX-57). Lazy because the root needs the coordinator.
+    lazy var measurementHostingView: NSHostingController<TimelineItemRowView> = {
+        let controller = NSHostingController(
+            rootView: TimelineItemRowView(row: .unsupported(uniqueId: ""), timeline: timeline, coordinator: coordinator)
+        )
+        controller.sizingOptions = [.preferredContentSize]
+        return controller
     }()
 }
 
@@ -468,10 +486,137 @@ extension TimelineViewController: NSTableViewDelegate {
     /// Measures one row offscreen at the given width — the measurement
     /// source behind the cache, called only on a miss.
     private func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
-        measurementHostingView.rootView = AnyView(TimelineItemRowView(row: row, timeline: timeline, coordinator: coordinator))
+        let started = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
+        measurementHostingView.rootView = TimelineItemRowView(row: row, timeline: timeline, coordinator: coordinator)
 
         let proposedSize = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        return measurementHostingView.sizeThatFits(in: proposedSize).height
+        let height = measurementHostingView.sizeThatFits(in: proposedSize).height
+        if TimelineStormProfiler.enabled {
+            TimelineStormProfiler.recordMeasure((CACurrentMediaTime() - started) * 1000)
+        }
+        return height
+    }
+}
+
+// TEMPORARY (MATRIX-57): storm batch profiler. Removed before the story lands.
+@MainActor
+enum TimelineStormProfiler {
+    static let enabled = ProcessInfo.processInfo.environment["MACTRIX_TIMELINE_PROFILE"] == "1"
+
+    struct Sample {
+        var updates: Int
+        var mutatedRows: Int
+        var visibleMutated: Int
+        var reloadMs: Double
+        var noteMs: Double
+        var measureMs: Double
+        var measureCount: Int
+        var totalMs: Double
+        var providerMs: Double
+        var providerCount: Int
+        var recycledCount: Int
+    }
+
+    private static var samples: [Sample] = []
+    private static var batchMeasureMs: Double = 0
+    private static var batchMeasureCount = 0
+    /// Measure time booked while a note-height call was on the stack.
+    private static var insideNote = false
+    private static var measureMsInsideNote: Double = 0
+    private static var batchProviderMs: Double = 0
+    private static var batchProviderCount = 0
+    private static var batchRecycledCount = 0
+
+    static func beginBatch() {
+        batchMeasureMs = 0
+        batchMeasureCount = 0
+        measureMsInsideNote = 0
+        batchProviderMs = 0
+        batchProviderCount = 0
+        batchRecycledCount = 0
+    }
+
+    static func recordProvider(_ milliseconds: Double) {
+        batchProviderMs += milliseconds
+        batchProviderCount += 1
+    }
+
+    static func recordRecycled() {
+        batchRecycledCount += 1
+    }
+
+    static func markNote(_ active: Bool) {
+        insideNote = active
+    }
+
+    static func recordMeasure(_ milliseconds: Double) {
+        batchMeasureMs += milliseconds
+        batchMeasureCount += 1
+        if insideNote { measureMsInsideNote += milliseconds }
+    }
+
+    static func endBatch(
+        updates: Int,
+        mutatedRows: Int,
+        visibleMutated: Int,
+        reloadMs: Double,
+        noteMs: Double,
+        totalMs: Double
+    ) {
+        samples.append(
+            Sample(
+                updates: updates,
+                mutatedRows: mutatedRows,
+                visibleMutated: visibleMutated,
+                reloadMs: reloadMs,
+                noteMs: noteMs,
+                measureMs: batchMeasureMs,
+                measureCount: batchMeasureCount,
+                totalMs: totalMs,
+                providerMs: batchProviderMs,
+                providerCount: batchProviderCount,
+                recycledCount: batchRecycledCount
+            )
+        )
+        if samples.count.isMultiple(of: 100) { report() }
+    }
+
+    static func report() {
+        guard !samples.isEmpty else { return }
+        func percentile(_ values: [Double], _ fraction: Double) -> Double {
+            let sorted = values.sorted()
+            let index = min(sorted.count - 1, max(0, Int((Double(sorted.count) * fraction).rounded(.down))))
+            return sorted[index]
+        }
+        let totals = samples.map(\.totalMs)
+        let reloads = samples.map(\.reloadMs)
+        let notes = samples.map(\.noteMs)
+        let measures = samples.map(\.measureMs)
+        let rows = samples.map { Double($0.mutatedRows) }
+        let visible = samples.map { Double($0.visibleMutated) }
+        let measureCounts = samples.map { Double($0.measureCount) }
+        func line(_ name: String, _ values: [Double]) -> String {
+            "  \(name): p50 " + String(format: "%.2f", percentile(values, 0.5))
+                + "  p95 " + String(format: "%.2f", percentile(values, 0.95))
+                + "  max " + String(format: "%.2f", values.max() ?? 0)
+                + "  mean " + String(format: "%.2f", values.reduce(0, +) / Double(values.count))
+        }
+        print("[StormProfile] \(samples.count) batches")
+        print(line("total ms", totals))
+        print(line("reload ms", reloads))
+        print(line("note ms", notes))
+        print(line("measure ms", measures))
+        print(line("mutated rows", rows))
+        print(line("visible mutated", visible))
+        print(line("measure count", measureCounts))
+        print(line("provider ms", samples.map(\.providerMs)))
+        print(line("provider count", samples.map { Double($0.providerCount) }))
+        print(line("recycled count", samples.map { Double($0.recycledCount) }))
+        print("  measure ms inside note (last batch): " + String(format: "%.2f", measureMsInsideNote))
+    }
+
+    static func reset() {
+        samples.removeAll()
     }
 }
 
