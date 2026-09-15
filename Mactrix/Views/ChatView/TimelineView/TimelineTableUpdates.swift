@@ -65,6 +65,16 @@ extension TimelineViewController {
 
         let mutatedRows = IndexSet(mutatedIndices.filter { timelineRows.indices.contains($0) })
 
+        // A mutated row far from the viewport keeps the height it has. Its
+        // cached height is already stale by revision, so the re-measure happens
+        // when the table next asks — which `settleStaleHeightsNearViewport`
+        // arranges as the row approaches. Re-noting it here instead buys a
+        // synchronous offscreen SwiftUI layout for a row nobody can see, which
+        // is a third of the storm batch (MATRIX-57).
+        let (nearRows, farRows) = splitByViewportProximity(mutatedRows)
+        for row in farRows { staleHeightRowIds.insert(timelineRows[row].uniqueId) }
+        for row in nearRows { staleHeightRowIds.remove(timelineRows[row].uniqueId) }
+
         Logger.timelineTableView.info(
             """
             timeline update: \(updates.count) change(s) touching \(touchedRows) row(s) \
@@ -97,10 +107,10 @@ extension TimelineViewController {
             }
 
             let reloadStarted = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
-            refreshRowContents(mutatedRows)
+            reloadRows(mutatedRows)
             let noteStarted = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
             if TimelineStormProfiler.enabled { TimelineStormProfiler.markNote(true) }
-            noteHeightChanges(mutatedRows, context: "timeline update")
+            noteHeightChanges(nearRows, context: "timeline update")
             if TimelineStormProfiler.enabled {
                 TimelineStormProfiler.markNote(false)
                 let finished = CACurrentMediaTime()
@@ -141,6 +151,7 @@ extension TimelineViewController {
         timelineRows = timeline.displayItems.map(\.row)
         heightCache.invalidateAll()
         rowRevisions.removeAll()
+        staleHeightRowIds.removeAll()
         leadingDecorationCount = 0
         trailingDecorationCount = 0
         refreshDecorationRows(applyingSnapshot: false)
@@ -192,6 +203,7 @@ extension TimelineViewController {
         for id in removedIds {
             heightCache.invalidate(rowId: id)
             rowRevisions[id] = nil
+            staleHeightRowIds.remove(id)
         }
         deleteSnapshotItems(withIds: removedIds)
         return tableIndex
@@ -221,6 +233,28 @@ extension TimelineViewController {
         return tableIndex
     }
 
+    /// Splits mutated rows into those inside the settle band and those outside.
+    ///
+    /// A table that has not laid out yet reports an empty band; everything
+    /// counts as near then, so the first update after load measures normally
+    /// rather than deferring rows the table is about to ask about anyway.
+    private func splitByViewportProximity(_ rows: IndexSet) -> (near: IndexSet, far: IndexSet) {
+        guard !rows.isEmpty else { return (IndexSet(), IndexSet()) }
+        let band = rowsNearViewport()
+        guard band.length > 0 else { return (rows, IndexSet()) }
+
+        var near = IndexSet()
+        var far = IndexSet()
+        for row in rows {
+            if row >= band.location, row < band.location + band.length {
+                near.insert(row)
+            } else {
+                far.insert(row)
+            }
+        }
+        return (near, far)
+    }
+
     /// Moves recorded indices across an insertion.
     private static func shift(_ indices: Set<Int>, insertedAt index: Int, count: Int) -> Set<Int> {
         Set(indices.map { $0 >= index ? $0 + count : $0 })
@@ -245,31 +279,19 @@ extension TimelineViewController {
         snapshot.deleteItems(present)
     }
 
-    /// Puts new content into the rows that already have a prepared view.
+    /// Redraws the given rows without re-applying the snapshot.
     ///
     /// `NSTableView` caches prepared views, so a content change that does not
-    /// move rows still has to reach the view that is showing it. Assigning the
-    /// root view does that without `reloadData(forRowIndexes:)`, which tears the
-    /// row view down, re-asks the data source and lays the replacement out
-    /// synchronously — a second SwiftUI layout pass on top of the one the
-    /// following height note already forces (MATRIX-57).
+    /// move rows still needs an explicit reload to show.
     ///
-    /// Rows with no prepared view are skipped: `timelineRows` already holds the
-    /// new model, so the data source renders the new content when the table
-    /// next asks for that row.
-    private func refreshRowContents(_ rows: IndexSet) {
+    /// Assigning `rootView` in place on the already-prepared views instead was
+    /// measured and rejected (MATRIX-57): it moves the row's SwiftUI layout out
+    /// of this call and into the frame's own layout pass, where it no longer
+    /// warms the offscreen measurement that follows. Per-row measurement cost
+    /// then rose from 1.33ms to 2.35ms and whole-run CPU rose about 10%.
+    private func reloadRows(_ rows: IndexSet) {
         guard !rows.isEmpty else { return }
-        for row in rows {
-            guard timelineRows.indices.contains(row),
-                  let hostView = tableView.view(atColumn: 0, row: row, makeIfNecessary: false)
-                  as? NSHostingView<TimelineItemRowView>
-            else { continue }
-            hostView.rootView = TimelineItemRowView(
-                row: timelineRows[row],
-                timeline: timeline,
-                coordinator: coordinator
-            )
-        }
+        tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
     }
 
     /// Asks the table to re-measure exactly the rows whose content mutated.
@@ -393,6 +415,7 @@ extension TimelineViewController {
                 timelineRows.removeFirst()
                 leadingDecorationCount = 0
                 heightCache.invalidate(rowId: currentTyping.uniqueId)
+                staleHeightRowIds.remove(currentTyping.uniqueId)
                 deleteSnapshotItems(withIds: [currentTyping.uniqueId])
             }
             if let typingRow {
@@ -407,6 +430,7 @@ extension TimelineViewController {
                 timelineRows.removeLast()
                 trailingDecorationCount = 0
                 heightCache.invalidate(rowId: currentPagination.uniqueId)
+                staleHeightRowIds.remove(currentPagination.uniqueId)
                 deleteSnapshotItems(withIds: [currentPagination.uniqueId])
             }
             if let paginationRow {

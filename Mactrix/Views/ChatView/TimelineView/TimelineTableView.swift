@@ -133,6 +133,17 @@ class TimelineViewController: NSViewController {
     /// Per-row content revision; bumped when the SDK replaces a row's content
     /// (a `.set` diff, arriving as `.update`).
     var rowRevisions: [String: Int] = [:]
+    /// Rows whose content changed while they were far from the viewport.
+    ///
+    /// Their cached height is already stale by revision, so `heightOfRow` will
+    /// re-measure the moment the table asks. What is deferred is the *asking*:
+    /// the table keeps the height it has, and the row is only re-noted once it
+    /// comes within `heightSettleMargin` of the viewport (MATRIX-57).
+    ///
+    /// Keyed by row id, not index, because a later insert or remove renumbers
+    /// rows. Bounded by the live row set: `applyRemove` and `applyReset` drop
+    /// entries, and settling removes them.
+    var staleHeightRowIds: Set<String> = []
     /// The token set heights are currently measured against.
     private var activeTypography: TimelineTypography
 
@@ -436,10 +447,8 @@ class TimelineViewController: NSViewController {
     /// of diffed against the row measured before it. The concrete root keeps
     /// the graph across measurements, which is most of the per-row cost
     /// (MATRIX-57). Lazy because the root needs the coordinator.
-    lazy var measurementHostingView: NSHostingController<TimelineItemRowView> = {
-        let controller = NSHostingController(
-            rootView: TimelineItemRowView(row: .unsupported(uniqueId: ""), timeline: timeline, coordinator: coordinator)
-        )
+    lazy var measurementHostingView: NSHostingController<AnyView> = {
+        let controller = NSHostingController(rootView: AnyView(EmptyView()))
         controller.sizingOptions = [.preferredContentSize]
         return controller
     }()
@@ -487,7 +496,7 @@ extension TimelineViewController: NSTableViewDelegate {
     /// source behind the cache, called only on a miss.
     private func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
         let started = TimelineStormProfiler.enabled ? CACurrentMediaTime() : 0
-        measurementHostingView.rootView = TimelineItemRowView(row: row, timeline: timeline, coordinator: coordinator)
+        measurementHostingView.rootView = AnyView(TimelineItemRowView(row: row, timeline: timeline, coordinator: coordinator))
 
         let proposedSize = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         let height = measurementHostingView.sizeThatFits(in: proposedSize).height

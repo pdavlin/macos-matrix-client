@@ -24,6 +24,9 @@ extension TimelineViewController {
     /// 860ms once the table has measured a working set (S-59). Call it once
     /// per settled width, never once per layout phase.
     func noteAllRowHeightsChanged() {
+        // Every row is about to be re-asked, so nothing is deferred any more.
+        staleHeightRowIds.removeAll()
+
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
@@ -32,13 +35,68 @@ extension TimelineViewController {
         }
     }
 
+    /// How far beyond the viewport a deferred height change is still settled.
+    ///
+    /// One viewport either side. At the protocol's reading speed (250pt/s) that
+    /// is around three seconds of runway before a row with a deferred height
+    /// reaches the screen, which is ample for the re-measure to have happened.
+    static let heightSettleMargin: CGFloat = 1.0
+
+    /// Table rows within the settle band: the visible rows plus one viewport
+    /// either side.
+    func rowsNearViewport() -> NSRange {
+        let visible = tableView.visibleRect
+        let margin = visible.height * Self.heightSettleMargin
+        return tableView.rows(in: visible.insetBy(dx: 0, dy: -margin))
+    }
+
     @objc func viewDidScroll(_: Notification) {
         // S-33 moves the bounds origin itself to compensate a structural update.
         // That move is not the user scrolling, and reporting it mid-update would
         // write observable timeline state inside SwiftUI's view update pass;
         // `scheduleScrollReport` sends the report once the pass is over.
         guard !isAdjustingScrollAnchor else { return }
+        settleStaleHeightsNearViewport()
         updateScrollPosition()
+    }
+
+    /// Re-measures the rows whose height was deferred and that have now come
+    /// within the settle band.
+    ///
+    /// The corrections are applied under a captured anchor, because a row above
+    /// the viewport changing height moves everything below it. A storm batch
+    /// itself is content-only and takes no anchor (S-33 captures one only for a
+    /// structural batch), so without this the deferred corrections would land
+    /// as visible jumps rather than as the drift the gate already tolerates.
+    func settleStaleHeightsNearViewport() {
+        guard !staleHeightRowIds.isEmpty, !heightRenoteScheduled, !tableView.inLiveResize else { return }
+
+        let band = rowsNearViewport()
+        guard band.length > 0 else { return }
+
+        var settling = IndexSet()
+        for row in band.location ..< (band.location + band.length) where timelineRows.indices.contains(row) {
+            if staleHeightRowIds.contains(timelineRows[row].uniqueId) { settling.insert(row) }
+        }
+        guard !settling.isEmpty else { return }
+
+        for row in settling { staleHeightRowIds.remove(timelineRows[row].uniqueId) }
+
+        Logger.timelineTableView.debug(
+            "deferred heights: settling \(settling.count) row(s), \(self.staleHeightRowIds.count) still deferred"
+        )
+
+        let anchor = currentScrollAnchor()
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+
+            tableView.noteHeightOfRows(withIndexesChanged: settling)
+
+            guard let anchor else { return }
+            tableView.tile()
+            restoreScrollAnchor(anchor)
+        }
     }
 
     private func updateScrollPosition() {
