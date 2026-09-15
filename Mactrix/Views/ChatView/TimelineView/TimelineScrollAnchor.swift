@@ -3,10 +3,35 @@ import Models
 import OSLog
 import Utils
 
-/// Scroll geometry for the timeline: the pagination trigger, and the
-/// measured-delta compensation that holds visible content still when a
-/// structural update changes the document around it (S-33).
+/// Scroll geometry for the timeline: row-height invalidation, the pagination
+/// trigger, and the measured-delta compensation that holds visible content
+/// still when a structural update changes the document around it (S-33).
 extension TimelineViewController {
+    /// Re-measures the rows the viewport shows. Internal, not private: the
+    /// width path that calls it lives in `TimelineTableView.swift`.
+    func noteVisibleRowHeightsChanged() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+
+            let visibleRows = tableView.rows(in: tableView.visibleRect)
+            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: visibleRows.lowerBound ..< visibleRows.upperBound))
+        }
+    }
+
+    /// Drops every cached row height, which costs one synchronous re-measure
+    /// of the rows AppKit re-queries — 150ms at 10k rows on a cold table, and
+    /// 860ms once the table has measured a working set (S-59). Call it once
+    /// per settled width, never once per layout phase.
+    func noteAllRowHeightsChanged() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+
+            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0 ..< tableView.numberOfRows))
+        }
+    }
+
     @objc func viewDidScroll(_: Notification) {
         // S-33 moves the bounds origin itself to compensate a structural update.
         // That move is not the user scrolling, and reporting it mid-update would
