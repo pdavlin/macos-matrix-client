@@ -33,12 +33,17 @@ struct HarnessRootView: View {
                     .padding(12)
                     .allowsHitTesting(false)
             }
-            .frame(minWidth: 480)
+            // Under the driver the pane width is pinned, not merely bounded: it is the height
+            // cache key, so the gate's numbers are only comparable at one width.
+            .frame(
+                minWidth: runnerOptions == nil ? 480 : PinnedHarnessGeometry.timelinePaneWidth,
+                maxWidth: runnerOptions == nil ? .infinity : PinnedHarnessGeometry.timelinePaneWidth
+            )
 
             Divider()
 
             ControlPanelView(harness: harness, renderer: $renderer)
-                .frame(width: 340)
+                .frame(width: PinnedHarnessGeometry.controlPanelWidth)
         }
         .background(DisplayLinkHost(harness: harness).frame(width: 0, height: 0))
         .onAppear {

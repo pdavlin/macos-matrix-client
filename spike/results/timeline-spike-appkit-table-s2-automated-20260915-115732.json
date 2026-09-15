@@ -1,0 +1,390 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 1908,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 1,
+    "loadedEventCount" : 10000,
+    "manualPrependCount" : 0,
+    "newestIndex" : 9999,
+    "oldestIndex" : 0,
+    "prependedEventCount" : 0
+  },
+  "frame" : {
+    "hitchCount" : 194,
+    "hitchRate" : 0.05415968732551647,
+    "meanMilliseconds" : 9.170763051373735,
+    "nominalMilliseconds" : 8.333333333387525,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 17.25,
+    "p99Milliseconds" : 25.75,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 3582,
+    "worstMilliseconds" : 35.11904168408364
+  },
+  "generatedAt" : "2026-09-15T16:57:32Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A428)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 317,
+    "recent" : [
+      {
+        "afterOffset" : 535.4315189655172,
+        "beforeOffset" : 443.43151896551717,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 621.4315189655172,
+        "beforeOffset" : 535.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 621.4315189655172,
+        "beforeOffset" : 621.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 621.4315189655172,
+        "beforeOffset" : 621.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 621.4315189655172,
+        "beforeOffset" : 621.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 621.4315189655172,
+        "beforeOffset" : 621.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 621.4315189655172,
+        "beforeOffset" : 621.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 653.4315189655172,
+        "beforeOffset" : 621.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 605.4315189655172,
+        "beforeOffset" : 653.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 605.4315189655172,
+        "beforeOffset" : 605.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 605.4315189655172,
+        "beforeOffset" : 605.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 605.4315189655172,
+        "beforeOffset" : 605.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 605.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 661.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 661.4315189655172,
+        "beforeOffset" : 661.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 661.4315189655172,
+        "beforeOffset" : 661.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 661.4315189655172,
+        "beforeOffset" : 661.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 715.4315189655172,
+        "beforeOffset" : 661.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 639.4315189655172,
+        "beforeOffset" : 715.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 639.4315189655172,
+        "beforeOffset" : 639.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 531.4315189655172,
+        "beforeOffset" : 639.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 531.4315189655172,
+        "beforeOffset" : 531.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 639.4315189655172,
+        "beforeOffset" : 531.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 639.4315189655172,
+        "beforeOffset" : 639.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 639.4315189655172,
+        "beforeOffset" : 639.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 639.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 709.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 709.4315189655172,
+        "beforeOffset" : 709.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 709.4315189655172,
+        "beforeOffset" : 709.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 693.4315189655172,
+        "beforeOffset" : 709.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 811.4315189655172,
+        "beforeOffset" : 693.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 811.4315189655172,
+        "beforeOffset" : 811.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 811.4315189655172,
+        "beforeOffset" : 811.4315189655172,
+        "eventID" : {
+          "rawValue" : 5002
+        },
+        "kind" : "mutation"
+      }
+    ],
+    "stableCount" : 167,
+    "totalMagnitude" : 9855.251201078878,
+    "worstMagnitude" : 231.93116652907338
+  },
+  "prependDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "rendererID" : "appkit-table",
+  "rendererName" : "AppKit NSTableView",
+  "scenario" : "s2-automated",
+  "timelineHeight" : 906,
+  "timelineWidth" : 1114,
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}

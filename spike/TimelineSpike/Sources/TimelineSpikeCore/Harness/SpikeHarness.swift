@@ -265,12 +265,15 @@ public final class SpikeHarness {
     }
 
     public func makeReport() -> SpikeReport {
-        SpikeReport(
+        let viewport = TimelineViewport.currentSize()
+        return SpikeReport(
             generatedAt: Date(),
             scenario: scenarioLabel,
             rendererID: activeRenderer?.id ?? "unknown",
             rendererName: activeRenderer?.displayName ?? "unknown",
             workloadFingerprint: WorkloadFingerprint.value,
+            timelineWidth: Double(viewport.width),
+            timelineHeight: Double(viewport.height),
             configuration: configuration,
             frame: frameRecorder.statistics.summary,
             prependDrift: probe.prependDrift,

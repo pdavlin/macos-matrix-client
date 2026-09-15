@@ -24,7 +24,39 @@ python3 spike/evaluate-gate.py --renderer m1-production --results spike/results
 ```
 
 Exit codes: `0` every threshold passed, `1` one did not, `2` a dump the gate needs is
-missing.
+missing, `3` a dump is not comparable and the gate refused to score it.
+
+### The pinned frame
+
+**Every number in the pinned-frame baseline was recorded at a timeline width of 1114pt. A
+dump taken at any other width is refused, not scored. Figures recorded before this epoch are
+marked as such and cannot be compared with it.**
+
+The scene's window is restorable, so AppKit used to reopen it at whatever frame the previous
+session left in the `NSWindow Frame timeline-spike` default. A stale off-screen frame clamps
+differently on each launch, and row heights are cached per width (S-32), so the width that
+fell out of that clamp moved every frame number the gate recorded. An unpinned pair of runs
+of the same code produced an S2 p95 of 32.25ms and 76.25ms.
+
+Under `--scenario` the harness now pins its own geometry, in three layers:
+
+| Layer | What it does | Where |
+| --- | --- | --- |
+| Saved frame dropped | removes `NSWindow Frame timeline-spike` before the scene builds its window, and stops the run writing one back | `SpikeAppDelegate.applicationWillFinishLaunching`, `PinnedHarnessGeometry.apply(to:)` |
+| Window frame set | 1472×938, centred under the top of the visible frame, fully on screen | `PinnedHarnessGeometry.pinWindow()` |
+| Pane width pinned | the timeline pane gets a hard 1131pt frame, not a minimum, so it holds even if the window cannot get the size it asked for | `HarnessRootView` |
+
+`run-gate.sh` deletes the same default before launch. That is a second layer, not the
+mechanism: a run started by hand from this file is pinned the same way.
+
+The 1131pt pane yields a **1114pt clip view** on the reference machine, because the vertical
+scroller is set to display always and takes 17pt. Switching macOS to overlay scrollers
+("Show scroll bars: When scrolling") makes it 1131pt, and the gate then refuses every dump
+until the baselines are re-recorded. Each dump carries the measured width as
+`timelineWidth`, and `evaluate-gate.py` pins it in `PINNED_TIMELINE_WIDTH_PT`.
+
+Still true, and still your job: **do not resize the window during a run.** The pin is applied
+before the first layout, not enforced afterwards.
 
 ### It needs a logged-in GUI session
 
@@ -99,10 +131,53 @@ The workload digest is unchanged: every dump in `spike/results` carries
 `wl1-4246e7b15677d961`, the same fingerprint the candidates were measured under. The data is
 identical; the view drawing it is not.
 
-## Recorded baseline — 2026-09-06
+## Recorded baseline — 2026-09-15 (pinned-frame epoch)
+
+Both renderers, two runs each, same machine, same release build, same driver, 30s per timed
+scenario, every dump at **1114×906pt**. This is the first set of gate figures whose geometry
+is known. Dumps are in `spike/results/`, stamped `20260915-11`/`-12`.
+
+| Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
+| --- | --- | --- | --- | --- |
+| S1 scroll | frame p95 | ≤ 8.5ms | 8.50 / 8.50 (8.50) PASS | **8.50 / 8.50 (8.50) PASS** |
+| S2 storm, idle | frame p95 | ≤ 2× nominal (16.67ms) | 17.25 FAIL / 13.75 PASS (15.50) | **29.75 / 27.50 (28.63) FAIL** |
+| S3 storm, scrolling | frame p99 | ≤ 3× nominal (25ms) | 23.00 / 24.50 (23.75) PASS | **177.75 / 35.75 (106.75) FAIL** |
+| S2 storm, idle | anchor drift worst | ≤ 815pt | 231.9 / 244.0 (238.0) PASS | **456.0 / 408.0 (432.0) PASS** |
+| S3 storm, scrolling | anchor drift worst | ≤ 815pt | 460.4 / 642.5 (551.4) PASS | **674.0 / 488.0 (581.0) PASS** |
+| S4 prepend ×20 | samples | = 20 | 20 / 20 PASS | **20 / 20 PASS** |
+| S4 prepend ×20 | anchor drift worst | 0.0pt baseline, ≤ 0.5pt | 0.000 / 0.000 PASS | **0.251 / 0.222 (0.237) PASS** |
+
+Gate result: `m1-production` **FAIL** in both runs. `appkit-table` **FAIL** in run 1 and
+**PASS** in run 2, on S2 p95 alone.
+
+### What the pinned numbers say
+
+1. **The MATRIX-57 finding survives.** `m1-production` misses the S2 storm-idle p95 bar in
+   both pinned runs, at 1.65× and 1.79× the limit. The pre-epoch figure (24.25ms) understated
+   it. The failure was never an artifact of the unpinned frame.
+2. **Anchor stability is not the problem, still.** Every drift threshold passes in every run,
+   production included, and the prepend anchor holds to a quarter of a point.
+3. **The reference candidate no longer clears the bars with room.** `appkit-table` straddles
+   S2 p95 (17.25 fails, 13.75 passes — a 25% spread between two runs of the same binary) and
+   sits within 2% of the S3 p99 bar (23.00 and 24.50 against 25). S1 p95 lands on 8.50 exactly
+   in all four runs, passing only because the comparison is `≤`.
+
+Point 3 is a **calibration question, not a change**: thresholds are unchanged in this epoch.
+A bar the reference renderer fails half the time cannot separate a regression from noise, so
+either the S2/S3 bars need re-deriving from pinned reference runs, or the gate needs to score
+a median of N runs rather than the newest dump. Both are somebody's decision, not the
+measurement's. See the MATRIX-60 pull request for the argument.
+
+## Pre-epoch baseline — 2026-09-06 (not comparable)
+
+**Recorded before the frame was pinned. Do not compare these numbers with anything below
+them.** Every run in this table restored whatever window frame the previous session left, so
+each row was measured at an unknown width, and the width is an input to the frame times. The
+dumps stay in `spike/results/` as history; `evaluate-gate.py` refuses to score them because
+they carry no `timelineWidth`. The same applies to the MATRIX-57, MATRIX-58 and MATRIX-59
+figures, which were recorded the same way.
 
 Both renderers, same machine, same release build, same driver, 30s per timed scenario.
-Dumps are in `spike/results/`.
 
 | Scenario | Metric | Threshold | `appkit-table` | `m1-production` |
 | --- | --- | --- | --- | --- |
@@ -123,10 +198,14 @@ mutation storm.
 scroll-only number: under the automated driver the reference candidate does not hold it
 during the storm either (13.75ms in S2). A bar that fails the renderer which set it is the
 wrong bar, so S2 and S3 are scored on `SCENARIOS.md` §6's own limits — p95 ≤ 2× nominal and
-p99 ≤ 3× nominal. The reference candidate passes all of those, which is what makes the
-production failure a signal rather than a calibration error.
+p99 ≤ 3× nominal. The reference candidate passed all of those when the bars were set, which
+is what made the production failure a signal rather than a calibration error. Under the
+pinned frame it no longer passes S2 reliably — see "What the pinned numbers say".
 
 ### The open finding
+
+**Pre-epoch figures. The pinned-frame table above supersedes the numbers in this paragraph;
+the conclusion it draws is unchanged.**
 
 The production container costs roughly **1.8× the reference candidate's p95 under the
 mutation storm** (24.25ms against 13.75ms) and **3× its p99 while scrolling through one**
@@ -140,11 +219,10 @@ plus a `reloadData` for that row. Part of the gap is the heavier real row chrome
 This is **out of scope for S-39**, which delivers the measurement, not the fix. It wants its
 own story.
 
-> **Re-confirm before acting on it.** The machine slept during the recording session. The
-> numbers above are internally consistent and the reference candidate reproduces its
-> published baselines, but a sleep/wake cycle can perturb display-link timing. Re-run
-> `spike/run-gate.sh --renderer m1-production` and `--renderer appkit-table` on a machine
-> that stays awake before anyone files or sizes the follow-up.
+> **Re-confirmed on 2026-09-15.** The original recording session was taken on a machine that
+> slept, so this table carried a warning to re-run it. The pinned-frame baseline above is that
+> re-run: four runs under `caffeinate -dis`, at a known width. The production storm-idle
+> failure reproduces, wider than it first looked.
 
 ## Adding a scenario
 

@@ -43,6 +43,13 @@ fi
 
 mkdir -p "$OUT_DIR"
 
+# The scene's window is restorable, and a stale saved frame clamps differently on
+# each launch. Row heights are cached per width, so that moved every number the
+# gate recorded. The harness ignores the saved frame under --scenario; this line
+# is the second layer, so a frame written by a run that was killed mid-flight
+# cannot reach the next one.
+defaults delete TimelineSpikeApp "NSWindow Frame timeline-spike" >/dev/null 2>&1 || true
+
 echo "==> building"
 swift build -c release --package-path "$PACKAGE_PATH"
 

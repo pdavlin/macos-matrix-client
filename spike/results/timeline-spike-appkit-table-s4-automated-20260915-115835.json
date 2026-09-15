@@ -1,0 +1,230 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 3708,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 0,
+    "loadedEventCount" : 11000,
+    "manualPrependCount" : 20,
+    "newestIndex" : 9999,
+    "oldestIndex" : -1000,
+    "prependedEventCount" : 1000
+  },
+  "frame" : {
+    "hitchCount" : 22,
+    "hitchRate" : 0.00862406899255194,
+    "meanMilliseconds" : 8.535791241997117,
+    "nominalMilliseconds" : 8.333333333487912,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 8.5,
+    "p99Milliseconds" : 13.75,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 2551,
+    "worstMilliseconds" : 41.233583353459835
+  },
+  "generatedAt" : "2026-09-15T16:58:35Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A428)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "prependDrift" : {
+    "count" : 20,
+    "recent" : [
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 514.5000000004657,
+        "beforeOffset" : 514.5000000004657,
+        "eventID" : {
+          "rawValue" : 9203
+        },
+        "kind" : "prepend"
+      }
+    ],
+    "stableCount" : 20,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "rendererID" : "appkit-table",
+  "rendererName" : "AppKit NSTableView",
+  "scenario" : "s4-automated",
+  "timelineHeight" : 906,
+  "timelineWidth" : 1114,
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}
