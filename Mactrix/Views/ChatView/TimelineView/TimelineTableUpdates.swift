@@ -91,11 +91,16 @@ extension TimelineViewController {
         }
 
         // A focus request usually lands before its event does, so the row it
-        // names may have arrived in this batch. Deferred, not called here:
-        // this method runs inside SwiftUI's view update pass and scrolling
-        // reports a new position, which writes observable timeline state —
-        // the S-54 re-entrancy.
-        scheduleFocusScroll()
+        // names may have arrived in this batch. Only a structural batch can
+        // deliver a row that was absent, so a content-only batch never retries:
+        // an unresolved request would otherwise pay a scan of the whole
+        // timeline on every edit that arrives (MATRIX-58). Deferred, not called
+        // here: this method runs inside SwiftUI's view update pass and
+        // scrolling reports a new position, which writes observable timeline
+        // state — the S-54 re-entrancy.
+        if isStructural {
+            scheduleFocusScroll()
+        }
     }
 
     private func applyReset() {

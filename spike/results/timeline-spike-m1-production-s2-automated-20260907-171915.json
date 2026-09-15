@@ -1,0 +1,388 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 1800,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 31,
+    "loadedEventCount" : 10000,
+    "manualPrependCount" : 0,
+    "newestIndex" : 9999,
+    "oldestIndex" : 0,
+    "prependedEventCount" : 0
+  },
+  "frame" : {
+    "hitchCount" : 296,
+    "hitchRate" : 0.10500177367860944,
+    "meanMilliseconds" : 11.011470763859183,
+    "nominalMilliseconds" : 8.333333333464765,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 32,
+    "p99Milliseconds" : 43.25,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 2819,
+    "worstMilliseconds" : 59.699750039726496
+  },
+  "generatedAt" : "2026-09-07T22:19:15Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A5421a)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 269,
+    "recent" : [
+      {
+        "afterOffset" : 247,
+        "beforeOffset" : 355,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 203,
+        "beforeOffset" : 247,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 99,
+        "beforeOffset" : 203,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 367,
+        "beforeOffset" : 99,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 367,
+        "beforeOffset" : 367,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 291,
+        "beforeOffset" : 367,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 291,
+        "beforeOffset" : 291,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 203,
+        "beforeOffset" : 291,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 223,
+        "beforeOffset" : 203,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 135,
+        "beforeOffset" : 223,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 207,
+        "beforeOffset" : 135,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 399,
+        "beforeOffset" : 207,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 335,
+        "beforeOffset" : 399,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 383,
+        "beforeOffset" : 335,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 339,
+        "beforeOffset" : 383,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 323,
+        "beforeOffset" : 339,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 323,
+        "beforeOffset" : 323,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 263,
+        "beforeOffset" : 323,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 219,
+        "beforeOffset" : 263,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 171,
+        "beforeOffset" : 219,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 43,
+        "beforeOffset" : 171,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 43,
+        "beforeOffset" : 43,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : -45,
+        "beforeOffset" : 43,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : -89,
+        "beforeOffset" : -45,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : -185,
+        "beforeOffset" : -89,
+        "eventID" : {
+          "rawValue" : 4755
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 243,
+        "beforeOffset" : 339,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 215,
+        "beforeOffset" : 243,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 43,
+        "beforeOffset" : 215,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 75,
+        "beforeOffset" : 43,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 215,
+        "beforeOffset" : 75,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 219,
+        "beforeOffset" : 215,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 239,
+        "beforeOffset" : 219,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 151,
+        "beforeOffset" : 239,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 71,
+        "beforeOffset" : 151,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 11,
+        "beforeOffset" : 71,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : -33,
+        "beforeOffset" : 11,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 47,
+        "beforeOffset" : -33,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : 47,
+        "beforeOffset" : 47,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : -61,
+        "beforeOffset" : 47,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      },
+      {
+        "afterOffset" : -73,
+        "beforeOffset" : -61,
+        "eventID" : {
+          "rawValue" : 4757
+        },
+        "kind" : "mutation"
+      }
+    ],
+    "stableCount" : 20,
+    "totalMagnitude" : 24996,
+    "worstMagnitude" : 348
+  },
+  "prependDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "rendererID" : "m1-production",
+  "rendererName" : "M1 Production Container",
+  "scenario" : "s2-automated",
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}
