@@ -18,6 +18,9 @@ extension TimelineViewController {
         let updates = timeline.drainDisplayChanges()
         guard !updates.isEmpty else { return }
 
+        let profileStarted = TimelineStormProfiler.now()
+        TimelineStormProfiler.beginBatch()
+
         // Captured against the old rows and the old geometry, before either is
         // replaced. Only a structural batch consumes it.
         let isStructural = updates.contains { $0.change.isStructural }
@@ -74,6 +77,9 @@ extension TimelineViewController {
         // the settled document height rather than an animating one, and it
         // stops a re-noted row being clipped to its old frame while the
         // implicit row animation runs (MATRIX-49).
+        var reloadMs = 0.0
+        var noteMs = 0.0
+
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
@@ -82,13 +88,29 @@ extension TimelineViewController {
                 dataSource?.apply(snapshot, animatingDifferences: false)
             }
 
+            let reloadStarted = TimelineStormProfiler.now()
             reloadRows(mutatedRows)
+            let noteStarted = TimelineStormProfiler.now()
             noteHeightChanges(mutatedRows, context: "timeline update")
+            let noteFinished = TimelineStormProfiler.now()
+            reloadMs = TimelineStormProfiler.milliseconds(from: reloadStarted, to: noteStarted)
+            noteMs = TimelineStormProfiler.milliseconds(from: noteStarted, to: noteFinished)
 
             guard let anchor else { return }
             tableView.tile()
             restoreScrollAnchor(anchor)
         }
+
+        TimelineStormProfiler.endBatch(
+            .init(
+                updates: updates.count,
+                mutatedRows: mutatedRows.count,
+                visibleMutated: visibleMutatedCount(mutatedRows),
+                reloadMs: reloadMs,
+                noteMs: noteMs,
+                totalMs: TimelineStormProfiler.elapsedMilliseconds(since: profileStarted)
+            )
+        )
 
         // A focus request usually lands before its event does, so the row it
         // names may have arrived in this batch. Only a structural batch can
@@ -185,6 +207,17 @@ extension TimelineViewController {
 
         rowRevisions[row.uniqueId, default: 0] += 1
         return tableIndex
+    }
+
+    /// How many of the mutated rows the viewport actually shows.
+    ///
+    /// Profiling only, and it asks the table for its visible range, so it is
+    /// skipped entirely unless the profiler is on.
+    private func visibleMutatedCount(_ rows: IndexSet) -> Int {
+        guard TimelineStormProfiler.enabled, !rows.isEmpty else { return 0 }
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return 0 }
+        return rows.count { $0 >= visible.location && $0 < visible.location + visible.length }
     }
 
     /// Moves recorded indices across an insertion.
