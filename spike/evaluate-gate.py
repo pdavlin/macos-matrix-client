@@ -3,7 +3,8 @@
 
 Reads the newest dump per scenario for one renderer and prints a pass/fail line
 per threshold. Exit code 0 when every threshold passes, 1 when one does not, 2
-when a dump the gate needs is missing.
+when a dump the gate needs is missing, 3 when a dump is not comparable and the
+gate refuses to score it.
 
 The thresholds come from the AppKit candidate that won S-15. They are recorded
 here rather than in a comment so a change to them is a diff someone reviews.
@@ -20,6 +21,16 @@ import sys
 # digest rendered different content per row; its frame times are not comparable,
 # whatever the rest of the file says.
 EXPECTED_FINGERPRINT = "wl1-4246e7b15677d961"
+
+# Timeline clip-view width, in points, every scored dump must have been recorded
+# at. Row heights are cached per width, so a dump taken at another width measured
+# a different layout and its frame times cannot be compared with the baseline.
+# `PinnedHarnessGeometry` pins a 1472x938 window and a 1131pt timeline pane under
+# the automated driver; 1114pt is what the clip view measures inside that pane
+# with legacy (always-visible) scrollers. This is a refusal, not a warning: a
+# scored number from an unpinned run is worse than no number.
+PINNED_TIMELINE_WIDTH_PT = 1114.0
+PINNED_WIDTH_TOLERANCE_PT = 0.5
 
 # Frame p95 on the sustained-scroll scenario, in milliseconds, on a 120 Hz
 # display. This is the AppKit candidate's measured p95 adopted as a bar, and it
@@ -53,6 +64,29 @@ def load(path: pathlib.Path) -> dict:
         return json.load(handle)
 
 
+class UnpinnedDump(Exception):
+    """A dump that cannot be compared with the baseline, whatever its numbers say."""
+
+
+def require_pinned_width(report: dict, path: pathlib.Path) -> None:
+    """Refuse a dump that was not recorded at the pinned timeline width."""
+    width = report.get("timelineWidth")
+    if width is None:
+        raise UnpinnedDump(
+            f"{path.name} predates the pinned-frame epoch: it carries no timelineWidth, so the "
+            "width its rows laid out at is unknown. Pre-epoch dumps are kept for history and "
+            "are not comparable. Re-record with spike/run-gate.sh."
+        )
+    if abs(float(width) - PINNED_TIMELINE_WIDTH_PT) > PINNED_WIDTH_TOLERANCE_PT:
+        raise UnpinnedDump(
+            f"{path.name} was recorded at timeline width {float(width):.1f}pt, not the pinned "
+            f"{PINNED_TIMELINE_WIDTH_PT:g}pt. Row heights are cached per width, so this dump "
+            "measured a different layout. Check that the window was not resized during the run "
+            "and that the scroll bar display setting has not changed, then re-run "
+            "spike/run-gate.sh."
+        )
+
+
 class Gate:
     def __init__(self) -> None:
         self.failed = False
@@ -81,25 +115,32 @@ def main() -> int:
     print(f"renderer: {args.renderer}")
     print(f"results:  {results}")
 
+    # One load per scenario, and every comparability check runs before any
+    # threshold reads the file: a dump the gate cannot compare is refused, not
+    # scored.
+    reports: dict[str, dict] = {}
+    for scenario in ("s1", "s2", "s3", "s4"):
+        path = newest_dump(results, args.renderer, scenario)
+        if path is None:
+            gate.note_missing(scenario)
+            continue
+        report = load(path)
+        check_fingerprint(report, path)
+        require_pinned_width(report, path)
+        reports[scenario] = report
+        print(f"{scenario} ({path.name}): timeline {float(report['timelineWidth']):.0f}x{float(report['timelineHeight']):.0f}pt")
+
     # Frame time. SCENARIOS.md §6 scores p95 in S1 and S2 and p99 in S3, so the
     # 8.5ms bar is applied where the baseline set it and S3 is reported against
     # the protocol's own p99 bar.
-    path = newest_dump(results, args.renderer, "s1")
-    if path is None:
-        gate.note_missing("s1")
-    else:
-        report = load(path)
-        check_fingerprint(report, path)
-        print(f"s1 ({path.name}):")
+    report = reports.get("s1")
+    if report is not None:
+        print("s1:")
         gate.check("frame p95", report["frame"]["p95Milliseconds"], S1_P95_MAX_MS, "ms")
 
-    path = newest_dump(results, args.renderer, "s2")
-    if path is None:
-        gate.note_missing("s2")
-    else:
-        report = load(path)
-        check_fingerprint(report, path)
-        print(f"s2 ({path.name}):")
+    report = reports.get("s2")
+    if report is not None:
+        print("s2:")
         gate.check(
             "frame p95",
             report["frame"]["p95Milliseconds"],
@@ -107,13 +148,9 @@ def main() -> int:
             "ms",
         )
 
-    path = newest_dump(results, args.renderer, "s3")
-    if path is None:
-        gate.note_missing("s3")
-    else:
-        report = load(path)
-        check_fingerprint(report, path)
-        print(f"s3 ({path.name}):")
+    report = reports.get("s3")
+    if report is not None:
+        print("s3:")
         gate.check(
             "frame p99",
             report["frame"]["p99Milliseconds"],
@@ -123,23 +160,16 @@ def main() -> int:
 
     # Mutation-storm anchor drift. Worst case across both storm scenarios.
     for scenario in ("s2", "s3"):
-        path = newest_dump(results, args.renderer, scenario)
-        if path is None:
-            gate.note_missing(scenario)
+        report = reports.get(scenario)
+        if report is None:
             continue
-        report = load(path)
-        check_fingerprint(report, path)
-        print(f"{scenario} ({path.name}):")
+        print(f"{scenario}:")
         gate.check("mutation drift worst", report["mutationDrift"]["worstMagnitude"], MUTATION_DRIFT_MAX_PT, "pt")
 
     # Prepend anchoring.
-    path = newest_dump(results, args.renderer, "s4")
-    if path is None:
-        gate.note_missing("s4")
-    else:
-        report = load(path)
-        check_fingerprint(report, path)
-        print(f"s4 ({path.name}):")
+    report = reports.get("s4")
+    if report is not None:
+        print("s4:")
         gate.check(
             "prepend samples",
             report["prependDrift"]["count"],
@@ -171,4 +201,9 @@ def check_fingerprint(report: dict, path: pathlib.Path) -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except UnpinnedDump as refusal:
+        print(f"\nrefusing to score: {refusal}")
+        print("result: REFUSED")
+        sys.exit(3)

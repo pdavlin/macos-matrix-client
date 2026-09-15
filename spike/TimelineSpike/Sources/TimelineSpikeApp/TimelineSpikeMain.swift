@@ -5,6 +5,13 @@ import TimelineSpikeCore
 /// An SPM executable is not a bundled `.app`, so AppKit starts it as a background process
 /// with no Dock tile and no key window. The delegate promotes it to a regular app.
 final class SpikeAppDelegate: NSObject, NSApplicationDelegate {
+    /// Runs before the scene builds its window, which is the only moment the restorable frame
+    /// can be dropped before AppKit reads it. See `PinnedHarnessGeometry`.
+    func applicationWillFinishLaunching(_: Notification) {
+        guard PinnedHarnessGeometry.isDriverRun else { return }
+        PinnedHarnessGeometry.clearSavedFrame()
+    }
+
     func applicationDidFinishLaunching(_: Notification) {
         // Line-buffer stdout so the report path appears immediately even when the app is
         // launched with its output piped rather than attached to a terminal.

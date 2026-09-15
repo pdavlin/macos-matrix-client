@@ -99,9 +99,13 @@ final class ScenarioRunner {
 
     func start() {
         Task { @MainActor in
+            // Before anything settles: the pinned frame is an input to every number
+            // recorded below, so it has to be applied before the first layout.
+            await PinnedHarnessGeometry.pinWindow()
             // Let the window come up, the table tile and the first layout settle
             // before anything is measured.
             await Self.sleep(seconds: 3)
+            print("[TimelineSpike] timeline viewport: \(NSStringFromSize(TimelineViewport.currentSize()))")
             for scenario in options.scenarios {
                 await run(scenario)
             }
@@ -189,19 +193,9 @@ struct ScrollDriver {
     private let startsAtOrigin: Bool
 
     init?() {
-        guard let contentView = NSApplication.shared.windows.first?.contentView,
-              let scrollView = Self.firstScrollView(in: contentView)
-        else { return nil }
+        guard let scrollView = TimelineViewport.scrollView() else { return nil }
         self.scrollView = scrollView
         self.startsAtOrigin = scrollView.contentView.bounds.origin.y <= Self.maximumOriginY(of: scrollView) / 2
-    }
-
-    private static func firstScrollView(in view: NSView) -> NSScrollView? {
-        if let scrollView = view as? NSScrollView { return scrollView }
-        for subview in view.subviews {
-            if let found = firstScrollView(in: subview) { return found }
-        }
-        return nil
     }
 
     private static func maximumOriginY(of scrollView: NSScrollView) -> CGFloat {

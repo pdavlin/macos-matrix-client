@@ -70,6 +70,15 @@ public struct SpikeReport: Sendable, Codable {
     /// Two dumps with different fingerprints rendered different content per row. Their
     /// frame times are not comparable, whatever the rest of the file says.
     public var workloadFingerprint: String
+    /// Width in points the timeline scroll view had when the report was written.
+    ///
+    /// Row heights are cached per width, so two dumps taken at different widths measured two
+    /// different layouts and their frame times are not comparable. The gate refuses to score a
+    /// dump whose width is not the pinned one.
+    public var timelineWidth: Double
+    /// Viewport height in points at the same moment. Not scored — it records which window the
+    /// numbers came from, since viewport height sets how many rows a frame draws.
+    public var timelineHeight: Double
     public var configuration: HarnessConfiguration
     public var frame: FrameStatistics.Summary
     public var prependDrift: DriftAccumulator
