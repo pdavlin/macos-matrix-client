@@ -175,6 +175,8 @@ class TimelineViewController: NSViewController {
         dataSource = .init(tableView: tableView) { [weak self] tableView, _, row, _ in
             guard let self, timelineRows.indices.contains(row) else { return NSView() }
 
+            let providerStarted = TimelineStormProfiler.now()
+            var didRecycle = false
             let model = timelineRows[row]
             let view = TimelineItemRowView(row: model, timeline: timeline, coordinator: coordinator)
 
@@ -182,6 +184,7 @@ class TimelineViewController: NSViewController {
             if let recycledView = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(model.reuseId), owner: self)
                 as? NSHostingView<TimelineItemRowView>
             {
+                didRecycle = true
                 recycledView.rootView = view
                 hostView = recycledView
             } else {
@@ -199,6 +202,7 @@ class TimelineViewController: NSViewController {
                 hostView.sizingOptions = []
             }
 
+            TimelineStormProfiler.recordProvider(since: providerStarted, recycled: didRecycle)
             return hostView
         }
 
@@ -468,10 +472,13 @@ extension TimelineViewController: NSTableViewDelegate {
     /// Measures one row offscreen at the given width — the measurement
     /// source behind the cache, called only on a miss.
     private func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
+        let started = TimelineStormProfiler.now()
         measurementHostingView.rootView = AnyView(TimelineItemRowView(row: row, timeline: timeline, coordinator: coordinator))
 
         let proposedSize = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        return measurementHostingView.sizeThatFits(in: proposedSize).height
+        let height = measurementHostingView.sizeThatFits(in: proposedSize).height
+        TimelineStormProfiler.recordMeasure(TimelineStormProfiler.elapsedMilliseconds(since: started))
+        return height
     }
 }
 
