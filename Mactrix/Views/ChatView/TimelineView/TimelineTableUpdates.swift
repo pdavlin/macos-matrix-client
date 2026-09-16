@@ -12,8 +12,13 @@ extension TimelineViewController {
     ///
     /// Cost is proportional to the diff, not to the timeline: the display
     /// order is maintained by `LiveTimeline` (no per-update reversed copy),
-    /// row identity comes from the diff (no full identifier rescan), and a
-    /// content-only change reloads the rows it names instead of all of them.
+    /// and row identity comes from the diff (no full identifier rescan).
+    ///
+    /// Structural changes apply here and now — they are rare, and the S-33
+    /// anchor compensation needs the whole batch to be one atomic visual step.
+    /// Content-only updates are queued instead: a storm tick mutates more rows
+    /// than one frame can redraw, so the drain spends a frame budget on them
+    /// (MATRIX-57). This method never redraws a row itself.
     func applyPendingTimelineChanges() {
         let updates = timeline.drainDisplayChanges()
         guard !updates.isEmpty else { return }
@@ -26,12 +31,8 @@ extension TimelineViewController {
         let isStructural = updates.contains { $0.change.isStructural }
         let anchor = isStructural ? currentScrollAnchor() : nil
 
-        // Table indices of rows whose content changed. A structural change
-        // later in the same batch shifts them, so they are moved rather than
-        // rediscovered: rescanning every row for the mutated identifiers is
-        // the O(timeline) cost this story removes.
-        var mutatedIndices: Set<Int> = []
         var touchedRows = 0
+        var queuedRows = 0
         var didReset = false
 
         for update in updates {
@@ -40,74 +41,53 @@ extension TimelineViewController {
             case .reset:
                 applyReset()
                 didReset = true
-                mutatedIndices.removeAll()
             case let .insert(index, count):
-                if let tableIndex = applyInsert(at: index, count: count, items: update.items) {
-                    mutatedIndices = Self.shift(mutatedIndices, insertedAt: tableIndex, count: count)
-                } else {
-                    mutatedIndices.removeAll()
-                }
+                applyInsert(at: index, count: count, items: update.items)
             case let .remove(index, count):
-                if let tableIndex = applyRemove(at: index, count: count) {
-                    mutatedIndices = Self.shift(mutatedIndices, removedAt: tableIndex, count: count)
-                } else {
-                    mutatedIndices.removeAll()
-                }
+                applyRemove(at: index, count: count)
             case let .update(index):
-                if let tableIndex = applyUpdate(at: index, item: update.items.first) {
-                    mutatedIndices.insert(tableIndex)
-                } else {
-                    mutatedIndices.removeAll()
-                }
+                if enqueueUpdate(at: index, item: update.items.first) { queuedRows += 1 }
             }
         }
-
-        let mutatedRows = IndexSet(mutatedIndices.filter { timelineRows.indices.contains($0) })
 
         Logger.timelineTableView.info(
             """
             timeline update: \(updates.count) change(s) touching \(touchedRows) row(s) \
-            of \(self.timelineRows.count) (structural: \(isStructural), reset: \(didReset))
+            of \(self.timelineRows.count) (structural: \(isStructural), reset: \(didReset)), \
+            \(self.pendingRowUpdates.count) row(s) queued for the drain
             """
         )
 
-        // The apply, the height re-note and the compensating scroll are one
-        // visual step, so the intermediate geometry must not be presented. A
-        // zero duration also keeps the clamp in `restoreScrollAnchor` reading
-        // the settled document height rather than an animating one, and it
-        // stops a re-noted row being clipped to its old frame while the
-        // implicit row animation runs (MATRIX-49).
-        var reloadMs = 0.0
-        var noteMs = 0.0
+        // The apply and the compensating scroll are one visual step, so the
+        // intermediate geometry must not be presented. A zero duration also
+        // keeps the clamp in `restoreScrollAnchor` reading the settled document
+        // height rather than an animating one (MATRIX-49). A content-only batch
+        // moves nothing, so it skips the transaction entirely.
+        var applyMs = 0.0
 
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            context.allowsImplicitAnimation = false
+        if isStructural {
+            let applyStarted = TimelineStormProfiler.now()
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
 
-            if isStructural {
                 dataSource?.apply(snapshot, animatingDifferences: false)
+
+                guard let anchor else { return }
+                tableView.tile()
+                restoreScrollAnchor(anchor)
             }
-
-            let reloadStarted = TimelineStormProfiler.now()
-            reloadRows(mutatedRows)
-            let noteStarted = TimelineStormProfiler.now()
-            noteHeightChanges(mutatedRows, context: "timeline update")
-            let noteFinished = TimelineStormProfiler.now()
-            reloadMs = TimelineStormProfiler.milliseconds(from: reloadStarted, to: noteStarted)
-            noteMs = TimelineStormProfiler.milliseconds(from: noteStarted, to: noteFinished)
-
-            guard let anchor else { return }
-            tableView.tile()
-            restoreScrollAnchor(anchor)
+            applyMs = TimelineStormProfiler.elapsedMilliseconds(since: applyStarted)
         }
+
+        scheduleRowUpdateDrain()
 
         TimelineStormProfiler.endBatch(
             .init(
                 updates: updates.count,
-                mutatedRows: mutatedRows.count,
-                visibleMutated: visibleMutatedCount(mutatedRows),
-                reloadMs: reloadMs,
-                noteMs: noteMs,
+                queuedRows: queuedRows,
+                structuralRows: isStructural ? touchedRows - queuedRows : 0,
+                applyMs: applyMs,
                 totalMs: TimelineStormProfiler.elapsedMilliseconds(since: profileStarted)
             )
         )
@@ -129,21 +109,21 @@ extension TimelineViewController {
         timelineRows = timeline.displayItems.map(\.row)
         heightCache.invalidateAll()
         rowRevisions.removeAll()
+        // Every row is rebuilt from the source of truth, which already carries
+        // the content the queue was holding.
+        pendingRowUpdates.removeAll()
         leadingDecorationCount = 0
         trailingDecorationCount = 0
         refreshDecorationRows(applyingSnapshot: false)
         rebuildSnapshot()
     }
 
-    /// Returns the table index the rows were inserted at, or nil if the change
-    /// did not match local state and forced a rebuild.
-    @discardableResult
-    private func applyInsert(at index: Int, count: Int, items: [TimelineItem]) -> Int? {
+    private func applyInsert(at index: Int, count: Int, items: [TimelineItem]) {
         guard items.count == count,
               TimelineDisplayOrder.isValidInsertIndex(index, count: itemRowCount)
         else {
             applyReset()
-            return nil
+            return
         }
 
         let tableIndex = index + leadingDecorationCount
@@ -161,15 +141,12 @@ extension TimelineViewController {
         } else {
             snapshot.appendItems(ids, toSection: .main)
         }
-        return tableIndex
     }
 
-    /// Returns the table index the rows were removed from, or nil on a rebuild.
-    @discardableResult
-    private func applyRemove(at index: Int, count: Int) -> Int? {
+    private func applyRemove(at index: Int, count: Int) {
         guard count > 0, index >= 0, index + count <= itemRowCount else {
             applyReset()
-            return nil
+            return
         }
 
         let tableIndex = index + leadingDecorationCount
@@ -181,57 +158,35 @@ extension TimelineViewController {
             heightCache.invalidate(rowId: id)
             rowRevisions[id] = nil
         }
+        // The drain drops an identity it cannot resolve, but the same identity
+        // can be re-inserted by a later resync; a returning row must not
+        // inherit the payload queued against the copy that left.
+        pendingRowUpdates.remove(uniqueIds: removedIds)
         deleteSnapshotItems(withIds: removedIds)
-        return tableIndex
     }
 
-    /// Replaces one row's content in place and returns its table index, so the
-    /// caller can reload and re-measure exactly that row.
-    private func applyUpdate(at index: Int, item: TimelineItem?) -> Int? {
+    /// Queues one row's new content for the drain, and reports whether it was
+    /// queued.
+    ///
+    /// The identity check stays here rather than moving to the drain: a
+    /// replacement that also changes identity is structural, and deferring it
+    /// would leave the snapshot naming a row the timeline no longer has.
+    private func enqueueUpdate(at index: Int, item: TimelineItem?) -> Bool {
         guard let item, TimelineDisplayOrder.isValidIndex(index, count: itemRowCount) else {
             applyReset()
-            return nil
+            return false
         }
 
         let tableIndex = index + leadingDecorationCount
         let row = item.row
-        let previousId = timelineRows[tableIndex].uniqueId
-        timelineRows[tableIndex] = row
 
-        guard row.uniqueId == previousId else {
-            // A replacement that also changes identity is structural, not a
-            // content update; fall back rather than leave the snapshot stale.
+        guard row.uniqueId == timelineRows[tableIndex].uniqueId else {
             applyReset()
-            return nil
+            return false
         }
 
-        rowRevisions[row.uniqueId, default: 0] += 1
-        return tableIndex
-    }
-
-    /// How many of the mutated rows the viewport actually shows.
-    ///
-    /// Profiling only, and it asks the table for its visible range, so it is
-    /// skipped entirely unless the profiler is on.
-    private func visibleMutatedCount(_ rows: IndexSet) -> Int {
-        guard TimelineStormProfiler.enabled, !rows.isEmpty else { return 0 }
-        let visible = tableView.rows(in: tableView.visibleRect)
-        guard visible.length > 0 else { return 0 }
-        return rows.count { $0 >= visible.location && $0 < visible.location + visible.length }
-    }
-
-    /// Moves recorded indices across an insertion.
-    private static func shift(_ indices: Set<Int>, insertedAt index: Int, count: Int) -> Set<Int> {
-        Set(indices.map { $0 >= index ? $0 + count : $0 })
-    }
-
-    /// Moves recorded indices across a removal, dropping any that were removed.
-    private static func shift(_ indices: Set<Int>, removedAt index: Int, count: Int) -> Set<Int> {
-        Set(indices.compactMap { current in
-            if current < index { return current }
-            if current < index + count { return nil }
-            return current - count
-        })
+        pendingRowUpdates.enqueue(uniqueId: row.uniqueId, payload: row)
+        return true
     }
 
     /// Deletes snapshot items, ignoring identifiers the snapshot no longer
@@ -242,27 +197,6 @@ extension TimelineViewController {
             .filter { snapshot.indexOfItem($0) != nil }
         guard !present.isEmpty else { return }
         snapshot.deleteItems(present)
-    }
-
-    /// Redraws the given rows without re-applying the snapshot.
-    ///
-    /// `NSTableView` caches prepared views, so a content change that does not
-    /// move rows still needs an explicit reload to show.
-    private func reloadRows(_ rows: IndexSet) {
-        guard !rows.isEmpty else { return }
-        tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
-    }
-
-    /// Asks the table to re-measure exactly the rows whose content mutated.
-    private func noteHeightChanges(_ rows: IndexSet, context: String) {
-        guard !rows.isEmpty else {
-            Logger.timelineTableView.debug("\(context, privacy: .public): no row content mutations, heights kept")
-            return
-        }
-        Logger.timelineTableView.debug(
-            "\(context, privacy: .public): re-measuring \(rows.count) mutated row(s) of \(self.timelineRows.count)"
-        )
-        tableView.noteHeightOfRows(withIndexesChanged: rows)
     }
 
     /// Rebuilds the whole snapshot. Only a reset and the initial load take

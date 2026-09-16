@@ -116,6 +116,19 @@ final class ProductionTimelineCoordinator {
             name: NSView.boundsDidChangeNotification,
             object: clipView
         )
+
+        // The container now applies row content on a frame of its own, not
+        // inside the SwiftUI update that delivered it (MATRIX-57). A height
+        // change on such a frame resizes the table without moving the clip
+        // view, so without this the probe would still be holding the offset it
+        // read before the change and would score the move as no drift.
+        controller.tableView.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(tableViewFrameDidChange),
+            name: NSView.frameDidChangeNotification,
+            object: controller.tableView
+        )
     }
 
     /// Brings the display order level with the store, hands the batch to the
@@ -132,6 +145,10 @@ final class ProductionTimelineCoordinator {
     }
 
     @objc private func clipViewBoundsDidChange(_: Notification) {
+        reportGeometry()
+    }
+
+    @objc private func tableViewFrameDidChange(_: Notification) {
         reportGeometry()
     }
 
