@@ -278,12 +278,41 @@ The workload digest is unchanged: every dump in `spike/results` carries
 `wl1-4246e7b15677d961`, the same fingerprint the candidates were measured under. The data is
 identical; the view drawing it is not.
 
+## Recorded baseline — 2026-09-17 (display-link-paced driver)
+
+**PENDING A QUIET MACHINE. Do not fill this table from a run recorded under load.** The S1
+bar is one 120 Hz frame, so a compile or a busy browser moves it. The procedure is "Recording
+a baseline" above: `pgrep -fl TimelineSpike`, then two `caffeinate -dis` runs per renderer.
+
+Evidence the fix works, recorded under load and therefore **not** a baseline: a 5-second S1
+run of `appkit-table` at load1 ≈ 5.5 measured **frame p95 8.500ms PASS**, against 16.75ms FAIL
+for every run of both renderers in the table below. The number landed on the floor of the bar
+in spite of the load, which is what a driver artifact looks like when it is removed.
+
+| Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
+| --- | --- | --- | --- | --- |
+| S1 scroll | frame p95 | ≤ 8.5ms | pending | pending |
+| S3 storm, scrolling | frame p99 | ≤ 3× nominal (25ms) | pending | pending |
+| S3 storm, scrolling | anchor drift worst | ≤ 815pt | pending | pending |
+
+Only the scrolling scenarios are re-recorded here. **S2 and S4 do not move the viewport
+inside their measured window** — both seek, settle, reset the instruments and then measure a
+parked timeline — so the scroll driver cannot reach them, and their rows in the table below
+carry forward unchanged. That also makes them the control for this change: if their numbers
+move, the cause is noise or something else, not this driver.
+
 ## Recorded baseline — 2026-09-17 (pinned-cadence epoch)
 
 Both renderers, two runs each, on the reference rig above, 30s per timed scenario. Every one
 of the 16 dumps recorded **120.0 Hz measured, 8.333ms nominal, 1114×906pt, 1x, legacy
 scrollers** — the cadence held in every scenario of every run, which is the one thing this
 epoch set out to establish. Dumps are in `spike/results/`, stamped `20260917-09`/`-10`.
+
+> **The S1 and S3 rows of this table were recorded by the wall-clock driver and are
+> superseded (MATRIX-65).** S1 measured the driver's race with vsync, not the renderers, and
+> S3 scrolls with the same driver. The re-recorded rows are in the table above. S2 and S4 do
+> not scroll inside their measured window, so the driver change cannot reach them and their
+> rows here still stand.
 
 | Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
 | --- | --- | --- | --- | --- |
@@ -324,10 +353,10 @@ from" was load-bearing all along.
    from a `1/120s Task.sleep`, a software timer racing the vsync it is being measured against.
    At a pinned 120 Hz it has no headroom to absorb its own jitter. The pre-epoch 8.50ms
    readings were taken at an unrecorded cadence, quite possibly 60 Hz, where the same driver
-   had twice the budget per step. **The S1 bar is now measuring the driver, not the
-   renderer.** It wants a follow-up — either drive the scroll from the display link instead of
-   a timer, or re-derive the bar from pinned reference runs. Do not move the bar to make it
-   green.
+   had twice the budget per step. **This bar was measuring the driver, not the renderer.**
+   MATRIX-65 fixed the driver rather than the bar: the scroll is now paced from the display
+   link. See "The driver has to be paced by the clock it is measured against" above, and the
+   re-recorded table below.
 3. **The MATRIX-57 storm-idle failure survives, and narrows.** `m1-production` misses S2 p95
    in both runs (16.75 and 31.50 against 16.67) where the control arm sits at 8.50 in both.
    That is the cleanest production-versus-reference separation in the table.
