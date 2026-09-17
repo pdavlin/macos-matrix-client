@@ -124,6 +124,34 @@ So the harness now asks for the rate rather than accepting one:
 | Rate measured | a 2-second scrolling calibration spin before the first scenario; the p50 of consecutive callback deltas is the frame quantum | `ScenarioRunner.calibrateCadence()` |
 | Rate verified | a measured rate outside ±5% of 120 Hz stops the run with exit `3`, before a single dump is written | same |
 | Rate recorded | measured cadence, display identity and scroller style land in every dump's `environment` | `HarnessEnvironment`, `SpikeReport.environment` |
+| Driver paced by the same link | every scroll write happens inside a display-link callback, one per presented frame, at an offset derived from the callback's own timestamp | `ScrollDriver.drive(for:body:)`, `FrameRecorder.addTickObserver(_:)` |
+
+### The driver has to be paced by the clock it is measured against
+
+Pinning the cadence exposed a defect in the driver, and the first pinned baseline measured
+the defect rather than the renderers (MATRIX-65).
+
+The driver used to write the clip view and then sleep `1/120s` of wall clock. That is a
+software timer racing the vsync it is scored against, and at a pinned 120 Hz it has no
+headroom at all: each sleep resumes a little late, the writes drift across the frame
+boundary, and eventually one frame receives two writes and the next receives none. The
+doubled frame lays out twice the scroll distance, overruns its deadline, and the recorder
+books the missed callback as a 16.75ms interval — two frames, on the nose.
+
+That is exactly what the first pinned table shows: **S1 p95 = 16.75ms in all four runs of
+both renderers**, including the reference candidate that read 8.50 in every pre-epoch run at
+an unrecorded (probably 60 Hz) cadence, where the same driver had twice the budget per step.
+
+The driver is now paced from the display link itself. One scroll write per callback, made
+inside the callback, so the layout it causes belongs to the frame the recorder is timing. The
+offset is a function of the callback's timestamp rather than of a step count, so a dropped
+callback costs the sweep nothing: the next write puts the viewport exactly where the
+scenario's reading speed says it belongs. A run still covers `250pt/s × duration` and still
+traverses the same rows, which is what keeps dumps comparable across the change.
+
+Only the *pacing* moved. The reading speed, the travel distance, the oscillation band and the
+workload fingerprint are all untouched — the fingerprint covers row metrics and the corpus,
+and no timing enters it.
 
 The spin scrolls rather than sitting idle on purpose: the scenarios are measured while the
 viewport moves, and a cadence read from a still window is not evidence about one that does
