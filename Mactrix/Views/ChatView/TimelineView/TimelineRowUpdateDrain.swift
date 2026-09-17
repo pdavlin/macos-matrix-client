@@ -14,21 +14,11 @@ import QuartzCore
 /// and a deferred measurement both measured worse — so the work is paced
 /// instead. Nothing about the S-32 cache or its revision-based invalidation
 /// changes here; only *when* the work runs does.
+///
+/// The per-frame budget is a share of the frame the link is pacing rather than
+/// a flat 6ms (MATRIX-64). See `TimelineDrainBudget` for why the two are the
+/// same thing at 60 Hz and not at 120 Hz.
 extension TimelineViewController {
-    /// Frame time one drain may spend.
-    ///
-    /// A row costs ~2.6ms measured (the reload rebuilds the visible view, the
-    /// note measures the offscreen one), so 6ms admits two rows per frame:
-    /// ~120 rows/second of capacity against the ~60 rows/second a 10Hz storm of
-    /// six rows produces. That 2x headroom is what makes the queue drain rather
-    /// than grow. It is also a third of a 16.67ms frame, which leaves the
-    /// SwiftUI update, the table's own layout and the compositor their share.
-    ///
-    /// Raising it trades frame time for queue latency; lowering it below twice
-    /// a row's cost drops capacity under what the storm produces, and the queue
-    /// grows without bound.
-    private static let drainBudget: CFTimeInterval = 0.006
-
     /// Starts or resumes the drain for whatever is queued.
     ///
     /// Callers run inside SwiftUI's view update pass, so this never drains
@@ -79,9 +69,17 @@ extension TimelineViewController {
         rowUpdateDisplayLink = nil
     }
 
+    /// Spends a share of *this* frame, not a fixed number of milliseconds.
+    ///
+    /// The link reports the interval it is pacing, so the budget follows the
+    /// display: a third of a frame at 60 Hz, a third of a frame at 120 Hz. A
+    /// flat budget would take 72% of a ProMotion frame and leave the SwiftUI
+    /// update, the table's layout and the compositor the remainder. Capacity is
+    /// unaffected — see `TimelineDrainBudget`, where the interval cancels.
     @objc
-    private func drainRowUpdatesForFrame(_: CADisplayLink) {
-        drainRowUpdates(budget: Self.drainBudget)
+    private func drainRowUpdatesForFrame(_ link: CADisplayLink) {
+        let frameInterval = link.targetTimestamp - link.timestamp
+        drainRowUpdates(budget: TimelineDrainBudget.budget(forFrameInterval: frameInterval))
     }
 
     /// Applies queued updates, visible rows first, until the budget is spent.
