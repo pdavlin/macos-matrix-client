@@ -223,8 +223,9 @@ struct TimelineRowHeightFingerprintTests {
 
     @Test
     func senderNameResolvingIsNotHeightNeutral() {
-        // A profile resolving replaces the user ID with a display name in the
-        // header, and that line can wrap.
+        // `Username` pins one line today, so this is insurance rather than a
+        // height the view currently moves. It is cheap: a profile resolves once
+        // per sender, not once per storm tick.
         let before = messageRow(.stub(senderName: "@ada:example.org"))
         let after = messageRow(.stub(senderName: "Ada Lovelace"))
 

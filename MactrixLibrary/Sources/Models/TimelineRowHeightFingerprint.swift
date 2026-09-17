@@ -171,8 +171,13 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
     /// The failure banner a failed local echo draws, which wraps its message.
     /// Nil when the send did not fail.
     public let sendFailureMessage: String?
-    /// The name the profile header draws, which can wrap on a narrow row and
-    /// changes when a sender's profile resolves.
+    /// The name the profile header draws, which changes when a sender's
+    /// profile resolves.
+    ///
+    /// `Username` pins itself to one line today, so this cannot move a height
+    /// as the view stands. It is kept anyway: that pin lives in another module
+    /// and nothing fails the build if it is removed, and a profile resolving is
+    /// not a storm event, so the insurance costs one measure per sender.
     public let senderName: String
     public let reactions: ReactionStripGeometry
 
