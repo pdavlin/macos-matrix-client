@@ -33,7 +33,16 @@ public enum MessageRowKind: String, Hashable, CaseIterable {
 public enum TimelineRow {
     /// A message-like event (SDK `.msgLike` content). The event carries the
     /// message content; rows render it back through the SDK conformance.
-    case message(uniqueId: String, event: EventTimelineItem, kind: MessageRowKind, hasReactions: Bool)
+    ///
+    /// `heightFingerprint` is computed at map time, from the same content the
+    /// row view lays out, and is what lets the update path tell a height-neutral
+    /// mutation from one that has to be re-measured (MATRIX-63).
+    case message(
+        uniqueId: String,
+        event: EventTimelineItem,
+        kind: MessageRowKind,
+        heightFingerprint: TimelineRowHeightFingerprint
+    )
     /// Any event that is not message-like, with its display name.
     case state(uniqueId: String, event: EventTimelineItem, name: String)
     /// A non-event row (day divider, read marker, timeline start).
@@ -82,8 +91,8 @@ public enum TimelineRow {
     /// structurally compatible with the row it is about to render.
     public var reuseId: String {
         switch self {
-        case let .message(_, _, kind, hasReactions):
-            return hasReactions ? "message.\(kind.rawValue).reactions" : "message.\(kind.rawValue)"
+        case let .message(_, _, kind, fingerprint):
+            return fingerprint.hasReactions ? "message.\(kind.rawValue).reactions" : "message.\(kind.rawValue)"
         case .state:
             return "state"
         case let .virtual(_, item):
@@ -96,6 +105,22 @@ public enum TimelineRow {
             return "paginationFailure"
         case .unsupported:
             return "unsupported"
+        }
+    }
+
+    /// Height-relevant content fingerprint, for the rows that carry one
+    /// (MATRIX-63).
+    ///
+    /// Nil for every row that is not a message. Those rows are not fingerprinted
+    /// — a state event's content does not mutate in place, and the decoration
+    /// rows carry their content in their identity — and a nil fingerprint means
+    /// "measure it", so they keep the behaviour they had.
+    public var heightFingerprint: TimelineRowHeightFingerprint? {
+        switch self {
+        case let .message(_, _, _, fingerprint):
+            return fingerprint
+        case .state, .virtual, .typingIndicator, .paginationActivity, .paginationFailure, .unsupported:
+            return nil
         }
     }
 

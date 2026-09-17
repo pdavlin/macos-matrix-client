@@ -28,7 +28,7 @@ extension MatrixRustSDK.TimelineItem {
                 uniqueId: uniqueId().id,
                 event: event,
                 kind: content.rowKind,
-                hasReactions: !content.reactions.isEmpty
+                heightFingerprint: content.heightFingerprint(event: event)
             )
         case .state:
             return .state(uniqueId: uniqueId().id, event: event, name: event.content.description)
@@ -56,6 +56,46 @@ extension MatrixRustSDK.MsgLikeContent {
             return .media
         case .poll, .redacted, .unableToDecrypt, .other, .liveLocation:
             return .other
+        }
+    }
+
+    /// Height-relevant content fingerprint (MATRIX-63). Same table as the app's,
+    /// over the fields the shim's content carries.
+    ///
+    /// The shim has no edit flag, reply, thread summary or send state, so those
+    /// stay at their neutral values. What the storm actually mutates — the body
+    /// text and the reaction tallies — is exactly what the harness has to
+    /// fingerprint for the measurement to mean anything.
+    func heightFingerprint(event: MatrixRustSDK.EventTimelineItem) -> Models.TimelineRowHeightFingerprint {
+        Models.TimelineRowHeightFingerprint(
+            body: bodyGeometry,
+            senderName: event.senderDisplayName ?? event.sender,
+            reactions: Models.ReactionStripGeometry(
+                reactions: reactions.lazy.map { (key: $0.key, senderCount: $0.senders.count) },
+                hasReadReceipts: !event.userReadReceipts.isEmpty
+            )
+        )
+    }
+
+    private var bodyGeometry: Models.MessageBodyGeometry {
+        switch kind {
+        case let .message(content: content):
+            // The harness encodes image geometry into the body string, so the
+            // body text carries the media dimensions here rather than the
+            // dedicated fields.
+            return .init(variant: content.msgType.rawValue, text: content.body)
+        case .sticker:
+            return .init(variant: "sticker", text: "")
+        case .poll:
+            return .init(variant: "poll", text: "")
+        case .redacted:
+            return .init(variant: "redacted", text: "")
+        case .unableToDecrypt:
+            return .init(variant: "utd", text: "")
+        case .other:
+            return .init(variant: "other-event", text: "")
+        case .liveLocation:
+            return .init(variant: "live-location", text: "")
         }
     }
 }

@@ -8,19 +8,55 @@ import Testing
 struct TimelineRowTests {
     @Test
     func messageRowCarriesUniqueIdAndEvent() {
-        let row = TimelineRow.message(uniqueId: "u1", event: MockEventTimelineItem(), kind: .text, hasReactions: false)
+        let fingerprint = TimelineRowHeightFingerprint.stub()
+        let row = TimelineRow.message(
+            uniqueId: "u1",
+            event: MockEventTimelineItem(),
+            kind: .text,
+            heightFingerprint: fingerprint
+        )
 
         #expect(row.uniqueId == "u1")
         #expect(row.reuseId == "message.text")
 
-        guard case let .message(uniqueId, event, kind, hasReactions) = row else {
+        guard case let .message(uniqueId, event, kind, heightFingerprint) = row else {
             Issue.record("expected message row, got \(row)")
             return
         }
         #expect(uniqueId == "u1")
         #expect(event is MockEventTimelineItem)
         #expect(kind == .text)
-        #expect(hasReactions == false)
+        #expect(heightFingerprint == fingerprint)
+        #expect(heightFingerprint.hasReactions == false)
+        #expect(row.heightFingerprint == fingerprint)
+    }
+
+    @Test
+    func messageRowWithReactionsUsesTheReactionRecyclingPool() {
+        let row = TimelineRow.message(
+            uniqueId: "u1",
+            event: MockEventTimelineItem(),
+            kind: .media,
+            heightFingerprint: .stub(pills: [ReactionPillGeometry(key: "👍", senderCount: 1)])
+        )
+
+        #expect(row.reuseId == "message.media.reactions")
+    }
+
+    @Test
+    func nonMessageRowsCarryNoHeightFingerprint() {
+        let rows: [TimelineRow] = [
+            .state(uniqueId: "s", event: MockEventTimelineItem(), name: "joined room"),
+            .virtual(uniqueId: "v", item: .readMarker),
+            .typingIndicator(uniqueId: "t", names: ["Ada"]),
+            .paginationActivity(uniqueId: "p"),
+            .paginationFailure(uniqueId: "f", message: "nope"),
+            .unsupported(uniqueId: "x"),
+        ]
+
+        for row in rows {
+            #expect(row.heightFingerprint == nil)
+        }
     }
 
     @Test
@@ -73,9 +109,12 @@ struct TimelineRowTests {
     func messageReuseIdSeparatesKindsAndReactionStrips() {
         var identifiers: Set<String> = []
         for kind in MessageRowKind.allCases {
-            for hasReactions in [false, true] {
+            for pills in [[], [ReactionPillGeometry(key: "👍", senderCount: 1)]] {
                 let row = TimelineRow.message(
-                    uniqueId: "u", event: MockEventTimelineItem(), kind: kind, hasReactions: hasReactions
+                    uniqueId: "u",
+                    event: MockEventTimelineItem(),
+                    kind: kind,
+                    heightFingerprint: .stub(pills: pills)
                 )
                 identifiers.insert(row.reuseId)
             }
