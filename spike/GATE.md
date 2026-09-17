@@ -280,14 +280,22 @@ identical; the view drawing it is not.
 
 ## Recorded baseline — 2026-09-17 (display-link-paced driver)
 
-**PENDING A QUIET MACHINE. Do not fill this table from a run recorded under load.** The S1
-bar is one 120 Hz frame, so a compile or a busy browser moves it. The procedure is "Recording
-a baseline" above: `pgrep -fl TimelineSpike`, then two `caffeinate -dis` runs per renderer.
+**PENDING THE REFERENCE RIG AND A QUIET MACHINE.** Two conditions, and the first one is
+hardware:
 
-Evidence the fix works, recorded under load and therefore **not** a baseline: a 5-second S1
-run of `appkit-table` at load1 ≈ 5.5 measured **frame p95 8.500ms PASS**, against 16.75ms FAIL
-for every run of both renderers in the table below. The number landed on the floor of the bar
-in spite of the load, which is what a driver artifact looks like when it is removed.
+1. **Dock the machine to the external panel, lid shut.** The attempt on 2026-09-17 at 12:54
+   ran on the built-in 2x Retina display and the MATRIX-64 guard refused it with exit `3`
+   before scoring — correctly. The reference rig is the clamshelled LC49G95T at 1x; see "The
+   pinned environment" above.
+2. **Leave the machine alone.** The S1 bar is one 120 Hz frame, so a compile or a busy
+   browser moves it. The procedure is "Recording a baseline" above: `pgrep -fl TimelineSpike`,
+   then two `caffeinate -dis` runs per renderer.
+
+Evidence the fix works, recorded on the reference rig but under load, and therefore **not** a
+baseline: a 5-second S1 run of `appkit-table` at load1 ≈ 5.5 measured **frame p95 8.500ms
+PASS**, against 16.75ms FAIL for every run of both renderers in the table below. The number
+landed on the floor of the bar in spite of the load, which is what a driver artifact looks
+like once it is removed.
 
 | Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
 | --- | --- | --- | --- | --- |
