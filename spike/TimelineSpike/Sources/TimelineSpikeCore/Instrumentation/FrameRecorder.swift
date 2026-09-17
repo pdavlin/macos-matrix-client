@@ -30,8 +30,10 @@ public final class FrameRecorder: NSObject {
     public private(set) var statistics = FrameStatistics()
     public private(set) var isRunning = false
 
-    /// Invoked on every display tick, after the interval has been recorded.
-    public var onTick: (() -> Void)?
+    /// Handle for one registered tick observer. Hand it back to `removeTickObserver(_:)`.
+    public struct TickObserverToken: Hashable, Sendable {
+        fileprivate let id: Int
+    }
 
     /// Callback rate requested of the display link, in hertz. `nil` takes the display's own.
     ///
@@ -45,6 +47,8 @@ public final class FrameRecorder: NSObject {
 
     private var displayLink: CADisplayLink?
     private var lastTimestamp: CFTimeInterval?
+    private var tickObservers: [(token: TickObserverToken, body: (CFTimeInterval) -> Void)] = []
+    private var nextTickObserverID = 0
     /// Raw callback deltas in milliseconds, collected only between `beginCalibration()` and
     /// `endCalibration()`. Nil the rest of the time so a measured run allocates nothing here.
     private var calibrationIntervals: [Double]?
@@ -89,6 +93,31 @@ public final class FrameRecorder: NSObject {
         lastTimestamp = nil
     }
 
+    // MARK: - Tick observers
+
+    /// Registers a closure invoked on every display tick, after the interval is recorded.
+    ///
+    /// A list rather than the single closure slot this used to be: the anchor probe needs
+    /// the callback and so does the scroll driver, and one slot means whichever registered
+    /// second silently replaced the first.
+    ///
+    /// The closure receives the tick's `CADisplayLink.timestamp`, which is the only clock a
+    /// caller that has to stay in step with the display should read. Work done here runs
+    /// before the frame it belongs to commits, which is what makes this a pacing primitive
+    /// and not just a notification.
+    @discardableResult
+    public func addTickObserver(_ body: @escaping (CFTimeInterval) -> Void) -> TickObserverToken {
+        let token = TickObserverToken(id: nextTickObserverID)
+        nextTickObserverID += 1
+        tickObservers.append((token: token, body: body))
+        return token
+    }
+
+    /// Unregisters an observer. Removing a token twice is a no-op.
+    public func removeTickObserver(_ token: TickObserverToken) {
+        tickObservers.removeAll { $0.token == token }
+    }
+
     // MARK: - Cadence calibration
 
     /// Starts collecting raw callback deltas.
@@ -122,6 +151,11 @@ public final class FrameRecorder: NSObject {
             }
         }
         lastTimestamp = now
-        onTick?()
+        // Iterate a copy: an observer may unregister itself from inside its own callback,
+        // which is how a finished sweep detaches.
+        let observers = tickObservers
+        for observer in observers {
+            observer.body(now)
+        }
     }
 }

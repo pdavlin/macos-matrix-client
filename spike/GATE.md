@@ -124,6 +124,34 @@ So the harness now asks for the rate rather than accepting one:
 | Rate measured | a 2-second scrolling calibration spin before the first scenario; the p50 of consecutive callback deltas is the frame quantum | `ScenarioRunner.calibrateCadence()` |
 | Rate verified | a measured rate outside ±5% of 120 Hz stops the run with exit `3`, before a single dump is written | same |
 | Rate recorded | measured cadence, display identity and scroller style land in every dump's `environment` | `HarnessEnvironment`, `SpikeReport.environment` |
+| Driver paced by the same link | every scroll write happens inside a display-link callback, one per presented frame, at an offset derived from the callback's own timestamp | `ScrollDriver.drive(for:body:)`, `FrameRecorder.addTickObserver(_:)` |
+
+### The driver has to be paced by the clock it is measured against
+
+Pinning the cadence exposed a defect in the driver, and the first pinned baseline measured
+the defect rather than the renderers (MATRIX-65).
+
+The driver used to write the clip view and then sleep `1/120s` of wall clock. That is a
+software timer racing the vsync it is scored against, and at a pinned 120 Hz it has no
+headroom at all: each sleep resumes a little late, the writes drift across the frame
+boundary, and eventually one frame receives two writes and the next receives none. The
+doubled frame lays out twice the scroll distance, overruns its deadline, and the recorder
+books the missed callback as a 16.75ms interval — two frames, on the nose.
+
+That is exactly what the first pinned table shows: **S1 p95 = 16.75ms in all four runs of
+both renderers**, including the reference candidate that read 8.50 in every pre-epoch run at
+an unrecorded (probably 60 Hz) cadence, where the same driver had twice the budget per step.
+
+The driver is now paced from the display link itself. One scroll write per callback, made
+inside the callback, so the layout it causes belongs to the frame the recorder is timing. The
+offset is a function of the callback's timestamp rather than of a step count, so a dropped
+callback costs the sweep nothing: the next write puts the viewport exactly where the
+scenario's reading speed says it belongs. A run still covers `250pt/s × duration` and still
+traverses the same rows, which is what keeps dumps comparable across the change.
+
+Only the *pacing* moved. The reading speed, the travel distance, the oscillation band and the
+workload fingerprint are all untouched — the fingerprint covers row metrics and the corpus,
+and no timing enters it.
 
 The spin scrolls rather than sitting idle on purpose: the scenarios are measured while the
 viewport moves, and a cadence read from a still window is not evidence about one that does
@@ -250,12 +278,67 @@ The workload digest is unchanged: every dump in `spike/results` carries
 `wl1-4246e7b15677d961`, the same fingerprint the candidates were measured under. The data is
 identical; the view drawing it is not.
 
+## Recorded baseline — 2026-09-17 (display-link-paced driver)
+
+**PENDING THE REFERENCE RIG AND A QUIET MACHINE.** Two conditions, and the first one is
+hardware:
+
+1. **Dock the machine to the external panel, lid shut.** The attempt on 2026-09-17 at 12:54
+   ran on the built-in 2x Retina display and the MATRIX-64 guard refused it with exit `3`
+   before scoring — correctly. The reference rig is the clamshelled LC49G95T at 1x; see "The
+   pinned environment" above.
+2. **Leave the machine alone.** The S1 bar is one 120 Hz frame, so a compile or a busy
+   browser moves it. The procedure is "Recording a baseline" above: `pgrep -fl TimelineSpike`,
+   then two `caffeinate -dis` runs per renderer.
+
+### Cross-check: the fix holds, measured off the reference rig
+
+These runs are **not** baselines and `evaluate-gate.py` refused all three, exactly as it
+should. They are still evidence, because the question the fix has to answer — did the driver
+stop losing a frame every twenty — does not need the reference rig to answer it.
+
+| Run | Renderer | Display | S1 frame p95 | S1 frame p99 | Samples |
+| --- | --- | --- | --- | --- | --- |
+| 5s, load1 ≈ 5.5 | `appkit-table` | LC49G95T 1x | **8.50** | — | — |
+| 30s | `appkit-table` | built-in 2x | **8.50** | 14.50 | 3660 |
+| 30s | `m1-production` | built-in 2x | **8.50** | 17.50 | 3640 |
+
+Every run of both renderers in the table below read **16.75** — two frames, on the nose. All
+three runs here read 8.50, one frame, and every one of them measured a true 120.0 Hz cadence
+with an 8.333ms nominal.
+
+The 2x runs are the stronger evidence, not the weaker: 2x rasterizes four times the pixels
+for the same layout, so those two runs cleared the bar in a **harder** environment than the
+baseline rig provides. A result that survives that is not a marginal one.
+
+One thing the 2x pair already shows, and the baseline should be read for: with the driver
+artifact gone, S1 p99 starts to separate the renderers (14.50 against 17.50) where p95 no
+longer does. That is the metric doing its job for the first time in this epoch.
+
+| Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
+| --- | --- | --- | --- | --- |
+| S1 scroll | frame p95 | ≤ 8.5ms | pending | pending |
+| S3 storm, scrolling | frame p99 | ≤ 3× nominal (25ms) | pending | pending |
+| S3 storm, scrolling | anchor drift worst | ≤ 815pt | pending | pending |
+
+Only the scrolling scenarios are re-recorded here. **S2 and S4 do not move the viewport
+inside their measured window** — both seek, settle, reset the instruments and then measure a
+parked timeline — so the scroll driver cannot reach them, and their rows in the table below
+carry forward unchanged. That also makes them the control for this change: if their numbers
+move, the cause is noise or something else, not this driver.
+
 ## Recorded baseline — 2026-09-17 (pinned-cadence epoch)
 
 Both renderers, two runs each, on the reference rig above, 30s per timed scenario. Every one
 of the 16 dumps recorded **120.0 Hz measured, 8.333ms nominal, 1114×906pt, 1x, legacy
 scrollers** — the cadence held in every scenario of every run, which is the one thing this
 epoch set out to establish. Dumps are in `spike/results/`, stamped `20260917-09`/`-10`.
+
+> **The S1 and S3 rows of this table were recorded by the wall-clock driver and are
+> superseded (MATRIX-65).** S1 measured the driver's race with vsync, not the renderers, and
+> S3 scrolls with the same driver. The re-recorded rows are in the table above. S2 and S4 do
+> not scroll inside their measured window, so the driver change cannot reach them and their
+> rows here still stand.
 
 | Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
 | --- | --- | --- | --- | --- |
@@ -296,10 +379,10 @@ from" was load-bearing all along.
    from a `1/120s Task.sleep`, a software timer racing the vsync it is being measured against.
    At a pinned 120 Hz it has no headroom to absorb its own jitter. The pre-epoch 8.50ms
    readings were taken at an unrecorded cadence, quite possibly 60 Hz, where the same driver
-   had twice the budget per step. **The S1 bar is now measuring the driver, not the
-   renderer.** It wants a follow-up — either drive the scroll from the display link instead of
-   a timer, or re-derive the bar from pinned reference runs. Do not move the bar to make it
-   green.
+   had twice the budget per step. **This bar was measuring the driver, not the renderer.**
+   MATRIX-65 fixed the driver rather than the bar: the scroll is now paced from the display
+   link. See "The driver has to be paced by the clock it is measured against" above, and the
+   re-recorded table below.
 3. **The MATRIX-57 storm-idle failure survives, and narrows.** `m1-production` misses S2 p95
    in both runs (16.75 and 31.50 against 16.67) where the control arm sits at 8.50 in both.
    That is the cleanest production-versus-reference separation in the table.
