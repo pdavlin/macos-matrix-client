@@ -1,0 +1,247 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 3534,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 0,
+    "loadedEventCount" : 11000,
+    "manualPrependCount" : 20,
+    "newestIndex" : 9999,
+    "oldestIndex" : -1000,
+    "prependedEventCount" : 1000
+  },
+  "environment" : {
+    "cadence" : {
+      "isHonored" : true,
+      "measuredHertz" : 119.99759991797075,
+      "quantumP50Milliseconds" : 8.333500009030104,
+      "requestedHertz" : 120,
+      "sampleCount" : 267
+    },
+    "display" : {
+      "backingScaleFactor" : 1,
+      "localizedName" : "LC49G95T",
+      "maximumFramesPerSecond" : 120,
+      "pointHeight" : 1440,
+      "pointWidth" : 2560
+    },
+    "scrollerStyle" : "legacy"
+  },
+  "frame" : {
+    "hitchCount" : 20,
+    "hitchRate" : 0.007830853563038372,
+    "meanMilliseconds" : 8.581430876409046,
+    "nominalMilliseconds" : 8.333500000231659,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 8.5,
+    "p99Milliseconds" : 13.25,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 2554,
+    "worstMilliseconds" : 58.12016665004194
+  },
+  "generatedAt" : "2026-09-17T15:04:21Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A428)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "prependDrift" : {
+    "count" : 20,
+    "recent" : [
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 856.999999998603,
+        "beforeOffset" : 856.999999998603,
+        "eventID" : {
+          "rawValue" : 9211
+        },
+        "kind" : "prepend"
+      }
+    ],
+    "stableCount" : 20,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "rendererID" : "appkit-table",
+  "rendererName" : "AppKit NSTableView",
+  "scenario" : "s4-automated",
+  "timelineHeight" : 906,
+  "timelineWidth" : 1114,
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}

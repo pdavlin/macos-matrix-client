@@ -1,0 +1,247 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 3660,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 0,
+    "loadedEventCount" : 11000,
+    "manualPrependCount" : 20,
+    "newestIndex" : 9999,
+    "oldestIndex" : -1000,
+    "prependedEventCount" : 1000
+  },
+  "environment" : {
+    "cadence" : {
+      "isHonored" : true,
+      "measuredHertz" : 119.99759991797075,
+      "quantumP50Milliseconds" : 8.333500009030104,
+      "requestedHertz" : 120,
+      "sampleCount" : 265
+    },
+    "display" : {
+      "backingScaleFactor" : 1,
+      "localizedName" : "LC49G95T",
+      "maximumFramesPerSecond" : 120,
+      "pointHeight" : 1440,
+      "pointWidth" : 2560
+    },
+    "scrollerStyle" : "legacy"
+  },
+  "frame" : {
+    "hitchCount" : 28,
+    "hitchRate" : 0.012022327179046801,
+    "meanMilliseconds" : 9.385400654784272,
+    "nominalMilliseconds" : 8.333499999996508,
+    "p50Milliseconds" : 8.5,
+    "p95Milliseconds" : 8.5,
+    "p99Milliseconds" : 24.25,
+    "percentileResolutionMilliseconds" : 0.25,
+    "sampleCount" : 2329,
+    "worstMilliseconds" : 247.1686666540336
+  },
+  "generatedAt" : "2026-09-17T14:55:57Z",
+  "host" : {
+    "machineModel" : "Mac17,9",
+    "operatingSystem" : "Version 27.0 (Build 26A428)",
+    "processorCount" : 15
+  },
+  "mutationDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "prependDrift" : {
+    "count" : 20,
+    "recent" : [
+      {
+        "afterOffset" : 327.0998573466204,
+        "beforeOffset" : 327,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.92561983456835,
+        "beforeOffset" : 327.0998573466204,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.52639087010175,
+        "beforeOffset" : 326.92561983456835,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.65410706819966,
+        "beforeOffset" : 326.52639087010175,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.34131736517884,
+        "beforeOffset" : 326.65410706819966,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.70840629749,
+        "beforeOffset" : 326.34131736517884,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.3097018369008,
+        "beforeOffset" : 326.70840629749,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.7678018573206,
+        "beforeOffset" : 326.3097018369008,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.40109341195785,
+        "beforeOffset" : 326.7678018573206,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.7564870258793,
+        "beforeOffset" : 326.40109341195785,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.8032998677809,
+        "beforeOffset" : 326.7564870258793,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.68758915830404,
+        "beforeOffset" : 326.8032998677809,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.8659058487974,
+        "beforeOffset" : 326.68758915830404,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.8248776071705,
+        "beforeOffset" : 326.8659058487974,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.3659657430835,
+        "beforeOffset" : 326.8248776071705,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 325.91958939284086,
+        "beforeOffset" : 326.3659657430835,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 325.65528080030344,
+        "beforeOffset" : 325.91958939284086,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 325.84291543625295,
+        "beforeOffset" : 325.65528080030344,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.2801241374109,
+        "beforeOffset" : 325.84291543625295,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      },
+      {
+        "afterOffset" : 326.4351297405083,
+        "beforeOffset" : 326.2801241374109,
+        "eventID" : {
+          "rawValue" : 750
+        },
+        "kind" : "prepend"
+      }
+    ],
+    "stableCount" : 20,
+    "totalMagnitude" : 5.39113942743279,
+    "worstMagnitude" : 0.4589118640869856
+  },
+  "rendererID" : "m1-production",
+  "rendererName" : "M1 Production Container",
+  "scenario" : "s4-automated",
+  "timelineHeight" : 906,
+  "timelineWidth" : 1114,
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}

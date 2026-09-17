@@ -28,6 +28,12 @@ public final class SpikeHarness {
     public private(set) var isMutating = false
     public private(set) var lastReportURL: URL?
     public private(set) var lastError: String?
+    /// Cadence, display and scroller style measured by `calibrateCadence(seconds:)`.
+    ///
+    /// Nil until a calibration has run, which is the interactive case: a dump written from
+    /// the "Dump stats" menu carries no environment and the gate refuses it, the same way it
+    /// refuses a dump with no width.
+    public private(set) var environment: HarnessEnvironment?
 
     /// Free-text label written into the report, so a run can be tied to a scenario in
     /// SCENARIOS.md.
@@ -126,6 +132,39 @@ public final class SpikeHarness {
 
     public func detachDisplayLink() {
         frameRecorder.detach()
+    }
+
+    /// Asks every display link this harness opens for a fixed callback rate.
+    ///
+    /// Call before the renderer mounts: the recorder applies the rate when it creates the
+    /// link, and a link that is already running keeps the rate it was born with.
+    public func pinDisplayLinkCadence(hertz: Double) {
+        frameRecorder.pinnedHertz = hertz
+    }
+
+    /// Starts the cadence calibration spin.
+    ///
+    /// Move the viewport between this and `endCadenceCalibration()`. An idle window is not
+    /// what the scenarios measure, and a cadence read while nothing draws is not evidence
+    /// about one that does.
+    public func beginCadenceCalibration() {
+        frameRecorder.beginCalibration()
+    }
+
+    /// Closes the calibration spin and records what the display link delivered, on which
+    /// display, under which scroller style.
+    @discardableResult
+    public func endCadenceCalibration() -> HarnessEnvironment {
+        let measured = HarnessEnvironment(
+            cadence: frameRecorder.endCalibration(),
+            display: DisplayIdentity.current(),
+            scrollerStyle: HarnessEnvironment.currentScrollerStyle()
+        )
+        environment = measured
+        // The calibration spin's frames landed in the histogram too. Each scenario resets it
+        // anyway; clearing here means a dump can never carry the spin's samples.
+        frameRecorder.resetStatistics()
+        return measured
     }
 
     /// Clears frame statistics and drift accumulators. Call it at the start of every
@@ -274,6 +313,7 @@ public final class SpikeHarness {
             workloadFingerprint: WorkloadFingerprint.value,
             timelineWidth: Double(viewport.width),
             timelineHeight: Double(viewport.height),
+            environment: environment,
             configuration: configuration,
             frame: frameRecorder.statistics.summary,
             prependDrift: probe.prependDrift,
