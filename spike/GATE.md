@@ -24,7 +24,60 @@ python3 spike/evaluate-gate.py --renderer m1-production --results spike/results
 ```
 
 Exit codes: `0` every threshold passed, `1` one did not, `2` a dump the gate needs is
-missing, `3` a dump is not comparable and the gate refused to score it.
+missing, `3` a dump is not comparable and the gate refused to score it. The harness itself
+exits `3` as well, when the calibration spin says the display did not deliver the pinned
+cadence — `run-gate.sh` runs under `set -e`, so that stops the script before it can score
+whatever stale dumps are on disk.
+
+## The pinned environment
+
+**Set this up before recording anything. Three inputs to every number in the baseline are
+properties of the machine, not of the code, and a dump that disagrees on any of them is
+refused rather than scored.**
+
+| Input | Required | Why it moves the numbers | Recorded as |
+| --- | --- | --- | --- |
+| Display | the built-in ProMotion panel, lid open, running the harness window | the panel's ceiling sets what cadence can be pinned at all; an external 60 Hz panel cannot hold 120 | `environment.display` |
+| Cadence | a measured 120 Hz, ±5% | every frame threshold is absolute milliseconds, so the frame quantum is an input to all of them | `environment.cadence` |
+| Scroll bars | System Settings → Appearance → **Show scroll bars: Always** | overlay scrollers hand the clip view back the scroller's 17pt, moving the timeline width from 1114pt to 1131pt, and row heights are cached per width | `environment.scrollerStyle`, `timelineWidth` |
+
+Run under `caffeinate -dis`, and with nothing else heavy on the machine. Do not touch the
+window while it runs.
+
+### Pinning the cadence
+
+The three MATRIX-57 acceptance attempts on 2026-09-17 are what this section exists for. The
+same binary, on the same day, produced an S2 p95 of 18.5ms and 29.75ms, and the difference
+was the display:
+
+1. **Clamshell on an external panel.** Effective 60 Hz, 16.75ms quanta on both arms. The gate
+   scored it without complaint: the S2 and S3 bars are multiples of the measured nominal, so
+   a 60 Hz run silently doubles them.
+2. **Lid open.** macOS switched to overlay scroll bars, the timeline measured 1131pt, and the
+   MATRIX-60 width guard refused — correctly, and that refusal is the only reason the session
+   did not produce another unreadable number.
+3. **Built-in ProMotion panel.** Adaptive refresh moved the quantum *mid-session*: one run at
+   60 Hz quanta throughout, and three of four runs dropped prepend samples to 17-19 of 20.
+
+So the harness now asks for the rate rather than accepting one:
+
+| Layer | What it does | Where |
+| --- | --- | --- |
+| Rate requested | `CADisplayLink.preferredFrameRateRange` set to a **fixed** range, `minimum == maximum == 120`. A preferred-only range is what adaptive refresh is free to move | `FrameRecorder.applyPinnedRate()`, from `SpikeHarness.pinDisplayLinkCadence(hertz:)` |
+| Rate requested early | applied to the live link as well as the next one, so the driver does not race the renderer mounting | `FrameRecorder.pinnedHertz`'s `didSet` |
+| Rate measured | a 2-second scrolling calibration spin before the first scenario; the p50 of consecutive callback deltas is the frame quantum | `ScenarioRunner.calibrateCadence()` |
+| Rate verified | a measured rate outside ±5% of 120 Hz stops the run with exit `3`, before a single dump is written | same |
+| Rate recorded | measured cadence, display identity and scroller style land in every dump's `environment` | `HarnessEnvironment`, `SpikeReport.environment` |
+
+The spin scrolls rather than sitting idle on purpose: the scenarios are measured while the
+viewport moves, and a cadence read from a still window is not evidence about one that does
+not stand still.
+
+`evaluate-gate.py` then refuses, with a distinct message and exit `3`, any dump that carries
+no `environment` (pre-epoch), whose measured cadence is outside `PINNED_CADENCE_HZ` ±
+`PINNED_CADENCE_TOLERANCE`, or whose `scrollerStyle` is not `PINNED_SCROLLER_STYLE`. It is
+the same refusal shape MATRIX-60 gave the width, for the same reason: a scored number from a
+run whose environment is unknown is worse than no number.
 
 ### The pinned frame
 
@@ -131,11 +184,44 @@ The workload digest is unchanged: every dump in `spike/results` carries
 `wl1-4246e7b15677d961`, the same fingerprint the candidates were measured under. The data is
 identical; the view drawing it is not.
 
-## Recorded baseline — 2026-09-15 (pinned-frame epoch)
+## Recorded baseline — pinned-cadence epoch
+
+**Not yet recorded.** The epoch opens with this change; its baselines have to be recorded on
+the pinned environment above, and the machine has been docked to an external panel since the
+change landed. Until the table below is filled in, the gate has thresholds but no reference
+runs to compare a regression against, and `spike/results/` holds nothing the evaluator will
+score — every dump on disk predates `environment` and is refused.
+
+| Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
+| --- | --- | --- | --- | --- |
+| S1 scroll | frame p95 | ≤ 8.5ms | pending | pending |
+| S2 storm, idle | frame p95 | ≤ 2× nominal (16.67ms) | pending | pending |
+| S3 storm, scrolling | frame p99 | ≤ 3× nominal (25ms) | pending | pending |
+| S2 storm, idle | anchor drift worst | ≤ 815pt | pending | pending |
+| S3 storm, scrolling | anchor drift worst | ≤ 815pt | pending | pending |
+| S4 prepend ×20 | samples | = 20 | pending | pending |
+| S4 prepend ×20 | anchor drift worst | 0.0pt baseline, ≤ 0.5pt | pending | pending |
+
+Two things changed under `m1-production` between the pre-cadence table and this one, and both
+have to be read into the first numbers recorded here:
+
+1. **The cadence is now 120 Hz by construction, not by luck.** The S2 and S3 bars are
+   multiples of the measured nominal, so they were 33.3ms and 50ms in any run that presented
+   at 60 Hz. They are 16.67ms and 25ms here, in every run.
+2. **The drain budget is a share of a frame, not a flat 6ms** (MATRIX-64, see below). At
+   120 Hz that is 3ms rather than 6ms per callback, which is the same ~120 rows/second of
+   capacity spread over twice as many callbacks.
+
+## Pinned-frame baseline — 2026-09-15 (pre-cadence epoch, not comparable)
+
+**Recorded before the cadence was pinned. These dumps carry no `environment`, so the frame
+quantum their milliseconds were measured against is unknown, and `evaluate-gate.py` refuses
+to score them.** They stay here because the conclusion they support — the production
+container's storm-idle failure — is not in doubt; the figures themselves are.
 
 Both renderers, two runs each, same machine, same release build, same driver, 30s per timed
-scenario, every dump at **1114×906pt**. This is the first set of gate figures whose geometry
-is known. Dumps are in `spike/results/`, stamped `20260915-11`/`-12`.
+scenario, every dump at **1114×906pt**. Dumps are in `spike/results/`, stamped
+`20260915-11`/`-12`.
 
 | Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
 | --- | --- | --- | --- | --- |
@@ -223,6 +309,32 @@ own story.
 > slept, so this table carried a warning to re-run it. The pinned-frame baseline above is that
 > re-run: four runs under `caffeinate -dis`, at a known width. The production storm-idle
 > failure reproduces, wider than it first looked.
+
+## The drain budget is cadence-aware (MATRIX-64)
+
+Pinning the gate at 120 Hz raised a question about the thing being measured, not just about
+the measurement. MATRIX-57 paces the container's row updates against its own `CADisplayLink`
+and gave each callback a flat **6ms**, calibrated against a 60 Hz frame: a third of 16.67ms,
+two rows per callback at ~2.6ms a row, ~120 rows/second against the ~60 rows/second a 10 Hz
+storm of six mutations produces.
+
+Both halves of that move with the refresh rate, in opposite directions:
+
+- **Capacity** falls with the rate, because a flat budget fixes rows *per callback*. 60 Hz is
+  the floor the number was chosen at, so **throughput at 60 Hz is the designed 2× headroom,
+  not a shortfall — the queue drains.** The premise that a 60 Hz panel starves the drain is
+  the wrong way round.
+- **Frame share** rises with the rate. A flat 6ms is 72% of a 120 Hz frame, leaving the
+  SwiftUI update, the table's layout and the compositor 2.3ms of 8.33ms.
+
+`Models.TimelineDrainBudget` replaces the constant with a share of the interval the link
+reports, `0.36 × frameInterval`, clamped to 30-240 Hz. It is the same 6ms at 60 Hz. Rows per
+callback is `budget / rowCost`, so capacity is `(share × interval / rowCost) × (1 / interval)`
+and the interval cancels: two rows per callback at 60 Hz, one at 120 Hz, five at 24 Hz, and
+~120 rows/second at all three. `TimelineDrainBudgetTests` holds that property at every rate.
+
+Whether the smaller per-callback budget also moves the S2 and S3 frame times is a question
+for the first pinned-cadence baseline, not a claim made here.
 
 ## Adding a scenario
 

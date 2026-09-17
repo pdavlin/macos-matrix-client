@@ -6,6 +6,12 @@ per threshold. Exit code 0 when every threshold passes, 1 when one does not, 2
 when a dump the gate needs is missing, 3 when a dump is not comparable and the
 gate refuses to score it.
 
+Three things make a dump comparable, and all three are refusals rather than
+warnings: the workload it rendered (`workloadFingerprint`), the width its rows
+laid out at (`timelineWidth`, MATRIX-60) and the frame quantum its milliseconds
+were measured against (`environment`, MATRIX-64). A scored number from a run
+whose environment is unknown is worse than no number.
+
 The thresholds come from the AppKit candidate that won S-15. They are recorded
 here rather than in a comment so a change to them is a diff someone reviews.
 """
@@ -32,8 +38,23 @@ EXPECTED_FINGERPRINT = "wl1-4246e7b15677d961"
 PINNED_TIMELINE_WIDTH_PT = 1114.0
 PINNED_WIDTH_TOLERANCE_PT = 0.5
 
-# Frame p95 on the sustained-scroll scenario, in milliseconds, on a 120 Hz
-# display. This is the AppKit candidate's measured p95 adopted as a bar, and it
+# Display cadence, in hertz, every scored dump must have been recorded at. Frame thresholds
+# below are absolute milliseconds, so the frame quantum is an input to all of them: the same
+# binary scored an S2 p95 of 18.5ms on a 120 Hz panel and 29.75ms on a 60 Hz one. The harness
+# asks the display link for a fixed 120 Hz, measures what arrived during a calibration spin,
+# and writes it into `environment.cadence`. Anything else is refused, not scored.
+PINNED_CADENCE_HZ = 120.0
+# Fraction the measured cadence may differ from the pinned rate. Matches `PinnedCadence`.
+PINNED_CADENCE_TOLERANCE = 0.05
+# Scroller style the baseline was recorded under. This is not cosmetic: overlay scrollers give
+# the clip view back the 17pt the legacy scroller occupies, which changes the timeline width
+# and therefore the cached row heights. It is checked separately from the width so the refusal
+# names the cause rather than the symptom.
+PINNED_SCROLLER_STYLE = "legacy"
+
+# Frame p95 on the sustained-scroll scenario, in milliseconds, at the pinned
+# 120 Hz cadence (8.333ms quantum, so this bar is a shade over one dropped
+# frame). This is the AppKit candidate's measured p95 adopted as a bar, and it
 # is a scroll-only number: the reference candidate does not hold it under the
 # mutation storm either, so applying it to S2 would fail the renderer that set
 # it. S2 and S3 are scored on SCENARIOS.md §6's own bars instead.
@@ -87,6 +108,44 @@ def require_pinned_width(report: dict, path: pathlib.Path) -> None:
         )
 
 
+def require_pinned_cadence(report: dict, path: pathlib.Path) -> None:
+    """Refuse a dump that did not present at the pinned cadence, or under another scroller style."""
+    environment = report.get("environment")
+    if environment is None:
+        raise UnpinnedDump(
+            f"{path.name} predates the pinned-cadence epoch: it carries no environment, so the "
+            "frame quantum its milliseconds were measured against is unknown. Pre-epoch dumps are "
+            "kept for history and are not comparable. Re-record with spike/run-gate.sh."
+        )
+
+    cadence = environment.get("cadence") or {}
+    measured = cadence.get("measuredHertz")
+    if measured is None:
+        raise UnpinnedDump(
+            f"{path.name} carries an environment with no measured cadence. Re-record with "
+            "spike/run-gate.sh."
+        )
+    measured = float(measured)
+    if abs(measured - PINNED_CADENCE_HZ) > PINNED_CADENCE_HZ * PINNED_CADENCE_TOLERANCE:
+        display = (environment.get("display") or {}).get("localizedName", "unknown display")
+        raise UnpinnedDump(
+            f"{path.name} was recorded at {measured:.1f}Hz (frame quantum "
+            f"{float(cadence.get('quantumP50Milliseconds', 0)):.3f}ms) on {display}, not the pinned "
+            f"{PINNED_CADENCE_HZ:g}Hz. Every frame threshold here is an absolute millisecond figure, "
+            "so a dump taken at another quantum measured a different bar. Run the gate on a display "
+            "that holds the pinned rate — see spike/GATE.md."
+        )
+
+    style = environment.get("scrollerStyle")
+    if style != PINNED_SCROLLER_STYLE:
+        raise UnpinnedDump(
+            f"{path.name} was recorded with {style!r} scrollers, not the baseline's "
+            f"{PINNED_SCROLLER_STYLE!r}. Overlay scrollers hand the clip view back the 17pt the "
+            "legacy scroller occupies, so the rows laid out at a different width. Set System "
+            "Settings > Appearance > Show scroll bars to Always, then re-run spike/run-gate.sh."
+        )
+
+
 class Gate:
     def __init__(self) -> None:
         self.failed = False
@@ -127,8 +186,14 @@ def main() -> int:
         report = load(path)
         check_fingerprint(report, path)
         require_pinned_width(report, path)
+        require_pinned_cadence(report, path)
         reports[scenario] = report
-        print(f"{scenario} ({path.name}): timeline {float(report['timelineWidth']):.0f}x{float(report['timelineHeight']):.0f}pt")
+        cadence = report["environment"]["cadence"]
+        print(
+            f"{scenario} ({path.name}): timeline "
+            f"{float(report['timelineWidth']):.0f}x{float(report['timelineHeight']):.0f}pt, "
+            f"{float(cadence['measuredHertz']):.1f}Hz"
+        )
 
     # Frame time. SCENARIOS.md §6 scores p95 in S1 and S2 and p99 in S3, so the
     # 8.5ms bar is applied where the baseline set it and S3 is reported against

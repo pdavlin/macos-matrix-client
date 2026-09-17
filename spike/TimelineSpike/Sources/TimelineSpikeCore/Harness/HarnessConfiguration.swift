@@ -79,6 +79,12 @@ public struct SpikeReport: Sendable, Codable {
     /// Viewport height in points at the same moment. Not scored — it records which window the
     /// numbers came from, since viewport height sets how many rows a frame draws.
     public var timelineHeight: Double
+    /// Cadence, display and scroller style the run presented under (MATRIX-64).
+    ///
+    /// Frame thresholds are absolute milliseconds, so the frame quantum is an input to every
+    /// one of them. Nil in a dump written before the cadence-pinned epoch, or by hand from
+    /// the menu; the gate refuses both rather than scoring them against a 120 Hz bar.
+    public var environment: HarnessEnvironment?
     public var configuration: HarnessConfiguration
     public var frame: FrameStatistics.Summary
     public var prependDrift: DriftAccumulator

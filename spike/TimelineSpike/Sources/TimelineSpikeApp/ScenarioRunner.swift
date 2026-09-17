@@ -97,15 +97,31 @@ final class ScenarioRunner {
         self.options = options
     }
 
+    /// Length of the cadence calibration spin, in seconds.
+    ///
+    /// Two seconds is ~240 samples at the pinned rate: far more than a median needs, and
+    /// short enough that it does not show up in the gate's runtime.
+    private static let calibrationSeconds: TimeInterval = 2
+
+    /// Exit status when the run refuses to measure. Matches `evaluate-gate.py`'s REFUSED
+    /// code, and `run-gate.sh` runs under `set -e`, so a refusal stops the script before it
+    /// can score whatever stale dumps are on disk.
+    private static let refusalExitCode: Int32 = 3
+
     func start() {
         Task { @MainActor in
             // Before anything settles: the pinned frame is an input to every number
             // recorded below, so it has to be applied before the first layout.
             await PinnedHarnessGeometry.pinWindow()
+            // The cadence is an input to every frame number the same way the width is, so
+            // the request goes in before anything is measured. It reaches a link that is
+            // already running as well as the next one.
+            harness.pinDisplayLinkCadence(hertz: PinnedCadence.hertz)
             // Let the window come up, the table tile and the first layout settle
             // before anything is measured.
             await Self.sleep(seconds: 3)
             print("[TimelineSpike] timeline viewport: \(NSStringFromSize(TimelineViewport.currentSize()))")
+            await calibrateCadence()
             for scenario in options.scenarios {
                 await run(scenario)
             }
@@ -116,6 +132,54 @@ final class ScenarioRunner {
             if options.quitWhenDone {
                 NSApplication.shared.terminate(nil)
             }
+        }
+    }
+
+    /// Measures the frame quantum the display link is really delivering, and stops the run
+    /// when it is not the pinned one.
+    ///
+    /// The spin scrolls rather than sitting idle: the scenarios are measured while the
+    /// viewport moves, and a cadence read from a still window is not evidence about one that
+    /// does not stand still.
+    ///
+    /// A refusal exits the process. Degrading quietly is what produced the three unreadable
+    /// MATRIX-57 acceptance sessions — one at 60 Hz on an external panel, one where adaptive
+    /// refresh moved the quantum mid-session — and an absolute millisecond threshold scored
+    /// against an unknown quantum is not a measurement.
+    private func calibrateCadence() async {
+        harness.beginCadenceCalibration()
+        if let driver = ScrollDriver() {
+            await driver.settleAtStart()
+            await driver.sweep(for: Self.calibrationSeconds)
+        } else {
+            print("[TimelineSpike] runner: no scroll view for the calibration spin, measuring an idle window")
+            await Self.sleep(seconds: Self.calibrationSeconds)
+        }
+        let environment = harness.endCadenceCalibration()
+        print("[TimelineSpike] environment: \(environment.summaryLine)")
+
+        guard environment.cadence.isHonored else {
+            let cadence = environment.cadence
+            print(
+                "[TimelineSpike] refusing to measure: the display link delivered "
+                    + String(format: "%.1f", cadence.measuredHertz)
+                    + "Hz (frame quantum "
+                    + String(format: "%.3f", cadence.quantumP50Milliseconds)
+                    + "ms over \(cadence.sampleCount) samples), not the pinned "
+                    + String(format: "%g", PinnedCadence.hertz)
+                    + "Hz."
+            )
+            print(
+                "[TimelineSpike] display: \(environment.display.localizedName), panel ceiling "
+                    + "\(environment.display.maximumFramesPerSecond)Hz, \(environment.scrollerStyle) scrollers."
+            )
+            print(
+                "[TimelineSpike] frame thresholds are absolute milliseconds, so a dump recorded at "
+                    + "another quantum is not comparable with the baseline. Run on a display that can "
+                    + "hold \(String(format: "%g", PinnedCadence.hertz))Hz — see spike/GATE.md, "
+                    + "\"The pinned environment\"."
+            )
+            exit(Self.refusalExitCode)
         }
     }
 
