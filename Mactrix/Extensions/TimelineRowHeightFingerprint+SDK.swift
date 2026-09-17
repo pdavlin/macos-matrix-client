@@ -24,7 +24,9 @@ extension MatrixRustSDK.MsgLikeContent {
     func heightFingerprint(event: MatrixRustSDK.EventTimelineItem) -> Models.TimelineRowHeightFingerprint {
         Models.TimelineRowHeightFingerprint(
             body: bodyGeometry,
-            replyToEventId: inReplyTo?.eventId(),
+            // Presence, not the target's id: `eventId()` is an FFI call per
+            // mapped row, and a reply relation does not move under an edit.
+            hasReplyPreview: inReplyTo != nil,
             // Presence only: the summary draws a fixed one-line label, so a new
             // reply changes its text and not its height.
             hasThreadSummary: threadSummary != nil,

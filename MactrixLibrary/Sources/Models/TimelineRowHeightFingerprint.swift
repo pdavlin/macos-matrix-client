@@ -159,13 +159,17 @@ public struct MessageBodyGeometry: Equatable, Sendable {
 /// fields that draw one-line metadata (mime type, byte size, duration).
 public struct TimelineRowHeightFingerprint: Equatable, Sendable {
     public let body: MessageBodyGeometry
-    /// Identity of the replied-to event. Doubles as presence: a reply preview
-    /// is an `EmbeddedMessageView` plus 10pt of padding above the body.
+    /// Whether the row draws a reply preview: an `EmbeddedMessageView` plus
+    /// 10pt of padding above the body.
+    ///
+    /// Presence, not the replied-to event's identity. The identity costs an FFI
+    /// call per mapped row and cannot change without the row becoming a
+    /// different event — an edit does not move a reply relation.
     ///
     /// The preview's resolved *text* is not here, and cannot be: reply details
     /// load asynchronously against the timeline object rather than arriving as
     /// a row update, so no fingerprint could see that change either way.
-    public let replyToEventId: String?
+    public let hasReplyPreview: Bool
     /// A thread summary draws an extra line under the body.
     public let hasThreadSummary: Bool
     /// The failure banner a failed local echo draws, which wraps its message.
@@ -187,14 +191,14 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
 
     public init(
         body: MessageBodyGeometry,
-        replyToEventId: String? = nil,
+        hasReplyPreview: Bool = false,
         hasThreadSummary: Bool = false,
         sendFailureMessage: String? = nil,
         senderName: String,
         reactions: ReactionStripGeometry
     ) {
         self.body = body
-        self.replyToEventId = replyToEventId
+        self.hasReplyPreview = hasReplyPreview
         self.hasThreadSummary = hasThreadSummary
         self.sendFailureMessage = sendFailureMessage
         self.senderName = senderName

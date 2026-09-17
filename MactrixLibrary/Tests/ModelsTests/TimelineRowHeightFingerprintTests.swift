@@ -7,7 +7,7 @@ extension TimelineRowHeightFingerprint {
     /// changes exactly the one field it is about.
     static func stub(
         body: MessageBodyGeometry = .init(variant: "text", text: "hello"),
-        replyToEventId: String? = nil,
+        hasReplyPreview: Bool = false,
         hasThreadSummary: Bool = false,
         sendFailureMessage: String? = nil,
         senderName: String = "@ada:example.org",
@@ -16,7 +16,7 @@ extension TimelineRowHeightFingerprint {
     ) -> TimelineRowHeightFingerprint {
         TimelineRowHeightFingerprint(
             body: body,
-            replyToEventId: replyToEventId,
+            hasReplyPreview: hasReplyPreview,
             hasThreadSummary: hasThreadSummary,
             sendFailureMessage: sendFailureMessage,
             senderName: senderName,
@@ -199,8 +199,8 @@ struct TimelineRowHeightFingerprintTests {
 
     @Test
     func replyPreviewAppearingIsNotHeightNeutral() {
-        let before = messageRow(.stub(replyToEventId: nil))
-        let after = messageRow(.stub(replyToEventId: "$abc"))
+        let before = messageRow(.stub(hasReplyPreview: false))
+        let after = messageRow(.stub(hasReplyPreview: true))
 
         #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
     }
