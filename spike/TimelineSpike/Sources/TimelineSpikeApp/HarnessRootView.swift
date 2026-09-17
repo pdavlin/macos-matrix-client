@@ -33,11 +33,16 @@ struct HarnessRootView: View {
                     .padding(12)
                     .allowsHitTesting(false)
             }
-            // Under the driver the pane width is pinned, not merely bounded: it is the height
-            // cache key, so the gate's numbers are only comparable at one width.
+            // Under the driver both pane dimensions are pinned, not merely bounded. Width is
+            // the height cache key; height sets how many rows a frame draws. Pinning the
+            // window is not enough for either — SwiftUI sizes this pane to its content's
+            // ideal height and lets the window clip it, which on a display taller than the
+            // laptop panel gave the gate a 1327pt clip view inside a 938pt window.
             .frame(
                 minWidth: runnerOptions == nil ? 480 : PinnedHarnessGeometry.timelinePaneWidth,
-                maxWidth: runnerOptions == nil ? .infinity : PinnedHarnessGeometry.timelinePaneWidth
+                maxWidth: runnerOptions == nil ? .infinity : PinnedHarnessGeometry.timelinePaneWidth,
+                minHeight: runnerOptions == nil ? 320 : PinnedHarnessGeometry.timelinePaneHeight,
+                maxHeight: runnerOptions == nil ? .infinity : PinnedHarnessGeometry.timelinePaneHeight
             )
 
             Divider()

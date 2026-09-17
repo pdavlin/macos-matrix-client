@@ -38,6 +38,16 @@ EXPECTED_FINGERPRINT = "wl1-4246e7b15677d961"
 PINNED_TIMELINE_WIDTH_PT = 1114.0
 PINNED_WIDTH_TOLERANCE_PT = 0.5
 
+# Timeline clip-view height, in points, every scored dump must have been recorded at. Height
+# was recorded but not enforced until MATRIX-64, and that gap cost a recording session: on a
+# 2560x1440 display SwiftUI sized the timeline pane to its content's ideal height and let the
+# 938pt window clip it, so the gate measured a 1327pt viewport — 47% more rows drawn per frame
+# — while the run log still reported the pinned window frame. The laptop panel had been
+# clamping it to 906pt and hiding the problem. Height sets how many rows a frame draws, so it
+# is an input to every frame number here exactly as width is.
+PINNED_TIMELINE_HEIGHT_PT = 906.0
+PINNED_HEIGHT_TOLERANCE_PT = 0.5
+
 # Display cadence, in hertz, every scored dump must have been recorded at. Frame thresholds
 # below are absolute milliseconds, so the frame quantum is an input to all of them: the same
 # binary scored an S2 p95 of 18.5ms on a 120 Hz panel and 29.75ms on a 60 Hz one. The harness
@@ -57,7 +67,12 @@ PINNED_SCROLLER_STYLE = "legacy"
 # constant edited — but the scale is the physical variable behind the cost, it is numeric, and
 # it is stable. Recording a baseline on a rig at another scale means changing this line, which
 # is the same reviewed-diff discipline the width and the thresholds get.
-PINNED_BACKING_SCALE_FACTOR = 2.0
+#
+# 1x, not 2x: the reference rig is the docked clamshell setup described in GATE.md, which is
+# the one the machine actually sits in. The built-in ProMotion panel is the higher-fidelity
+# display and the wrong reference — it spent 2026-09-17 demonstrating that its adaptive
+# refresh will not hold a quantum across a recording session.
+PINNED_BACKING_SCALE_FACTOR = 1.0
 PINNED_BACKING_SCALE_TOLERANCE = 0.01
 
 # Frame p95 on the sustained-scroll scenario, in milliseconds, at the pinned
@@ -113,6 +128,21 @@ def require_pinned_width(report: dict, path: pathlib.Path) -> None:
             "measured a different layout. Check that the window was not resized during the run "
             "and that the scroll bar display setting has not changed, then re-run "
             "spike/run-gate.sh."
+        )
+
+    height = report.get("timelineHeight")
+    if height is None:
+        raise UnpinnedDump(
+            f"{path.name} predates the pinned-frame epoch: it carries no timelineHeight. "
+            "Re-record with spike/run-gate.sh."
+        )
+    if abs(float(height) - PINNED_TIMELINE_HEIGHT_PT) > PINNED_HEIGHT_TOLERANCE_PT:
+        raise UnpinnedDump(
+            f"{path.name} was recorded at timeline height {float(height):.1f}pt, not the pinned "
+            f"{PINNED_TIMELINE_HEIGHT_PT:g}pt. Viewport height sets how many rows a frame draws, "
+            "so this dump measured a different amount of work per frame. A taller viewport than "
+            "the pin means the harness window grew to the display rather than to its pinned "
+            "frame; re-run spike/run-gate.sh on a build that pins the pane height."
         )
 
 
