@@ -35,14 +35,41 @@ whatever stale dumps are on disk.
 properties of the machine, not of the code, and a dump that disagrees on any of them is
 refused rather than scored.**
 
-| Input | Required | Why it moves the numbers | Recorded as |
-| --- | --- | --- | --- |
-| Display | the built-in ProMotion panel, lid open, running the harness window | the panel's ceiling sets what cadence can be pinned at all; an external 60 Hz panel cannot hold 120 | `environment.display` |
-| Cadence | a measured 120 Hz, ±5% | every frame threshold is absolute milliseconds, so the frame quantum is an input to all of them | `environment.cadence` |
-| Scroll bars | System Settings → Appearance → **Show scroll bars: Always** | overlay scrollers hand the clip view back the scroller's 17pt, moving the timeline width from 1114pt to 1131pt, and row heights are cached per width | `environment.scrollerStyle`, `timelineWidth` |
+| Input | Required | Why it moves the numbers | Recorded as | Refused on mismatch |
+| --- | --- | --- | --- | --- |
+| Cadence | a measured **120 Hz**, ±5% | every frame threshold is absolute milliseconds, so the frame quantum is an input to all of them | `environment.cadence` | yes, and the run stops before writing a dump |
+| Backing scale | **2x** — a Retina panel, which on this machine means the built-in ProMotion display | the same layout in points rasterizes four times the pixels at 2x, so it costs different work to draw | `environment.display.backingScaleFactor` | yes |
+| Scroll bars | System Settings → Appearance → **Show scroll bars: Always** | overlay scrollers hand the clip view back the scroller's 17pt, moving the timeline width from 1114pt to 1131pt, and row heights are cached per width | `environment.scrollerStyle`, `timelineWidth` | yes, on both fields |
+| Display model | any panel meeting the three above | — | `environment.display.localizedName` | **no, recorded only** |
 
-Run under `caffeinate -dis`, and with nothing else heavy on the machine. Do not touch the
-window while it runs.
+The display's *name* is deliberately not a refusal: swapping a monitor should not require a
+constant edited. The scale is, because it is the physical variable behind the cost, it is
+numeric, and it is stable. `PINNED_BACKING_SCALE_FACTOR` in `evaluate-gate.py` names the
+baseline's scale; recording a baseline on a rig at another scale means changing that line,
+which gets the same reviewed-diff treatment as the width and the thresholds.
+
+Run under `caffeinate -dis`, and with nothing else heavy on the machine — a baseline is the
+reference every later run is scored against, so noise recorded into it never washes out. Do
+not touch the window while it runs.
+
+### Recording a baseline
+
+```
+pgrep -fl TimelineSpike                      # nothing else driving the window
+caffeinate -dis spike/run-gate.sh --renderer m1-production
+caffeinate -dis spike/run-gate.sh --renderer m1-production
+caffeinate -dis spike/run-gate.sh --renderer appkit-table
+caffeinate -dis spike/run-gate.sh --renderer appkit-table
+```
+
+Each run prints its environment line before the first scenario. Check it before letting the
+run continue:
+
+```
+[TimelineSpike] environment: 120.0Hz (p50 8.334ms) on <display> 1512x982@2x, ceiling 120Hz, legacy scrollers
+```
+
+Then commit the dumps and fill in the table below from `evaluate-gate.py`'s output.
 
 ### Pinning the cadence
 
@@ -75,9 +102,17 @@ not stand still.
 
 `evaluate-gate.py` then refuses, with a distinct message and exit `3`, any dump that carries
 no `environment` (pre-epoch), whose measured cadence is outside `PINNED_CADENCE_HZ` ±
-`PINNED_CADENCE_TOLERANCE`, or whose `scrollerStyle` is not `PINNED_SCROLLER_STYLE`. It is
-the same refusal shape MATRIX-60 gave the width, for the same reason: a scored number from a
-run whose environment is unknown is worse than no number.
+`PINNED_CADENCE_TOLERANCE`, whose `scrollerStyle` is not `PINNED_SCROLLER_STYLE`, or whose
+backing scale is not `PINNED_BACKING_SCALE_FACTOR`. It is the same refusal shape MATRIX-60
+gave the width, for the same reason: a scored number from a run whose environment is unknown
+is worse than no number.
+
+One caveat worth writing down. On 2026-09-17 the clamshelled external panel measured a clean
+120.0 Hz (8.3335ms quantum over 263 samples) from the same rig that had presented at an
+effective 60 Hz that morning. Nothing here explains that: it was a one-time state, and the
+machine was not reconfigured in between. The pin does not make the cause go away — it makes
+the state **detectable**, in the log line and in the dump, either way. That is the whole
+claim.
 
 ### The pinned frame
 

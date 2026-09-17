@@ -167,9 +167,15 @@ public struct HarnessEnvironment: Sendable, Equatable, Codable {
     }
 
     /// A one-line form for the run log.
+    ///
+    /// The backing scale is in here rather than only in the dump because it is the field an
+    /// operator most needs before a long recording session: a 1x panel rasterizes a quarter
+    /// of the pixels a 2x one does for the same point size, and the gate scores a dump
+    /// against a baseline recorded at one scale.
     public var summaryLine: String {
         let cadenceText = String(format: "%.1fHz (p50 %.3fms)", cadence.measuredHertz, cadence.quantumP50Milliseconds)
-        let displayText = String(format: "%.0fx%.0f", display.pointWidth, display.pointHeight)
-        return "\(cadenceText) on \(display.localizedName) \(displayText)@\(display.maximumFramesPerSecond)Hz, \(scrollerStyle) scrollers"
+        let displayText = String(format: "%.0fx%.0f@%.0fx", display.pointWidth, display.pointHeight, display.backingScaleFactor)
+        return "\(cadenceText) on \(display.localizedName) \(displayText), ceiling "
+            + "\(display.maximumFramesPerSecond)Hz, \(scrollerStyle) scrollers"
     }
 }

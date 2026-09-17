@@ -51,6 +51,14 @@ PINNED_CADENCE_TOLERANCE = 0.05
 # and therefore the cached row heights. It is checked separately from the width so the refusal
 # names the cause rather than the symptom.
 PINNED_SCROLLER_STYLE = "legacy"
+# Backing scale factor the baseline was recorded at. A 1x panel rasterizes a quarter of the
+# pixels a 2x one does for the same point size, so the same layout costs different work to
+# draw. The display's *name* is deliberately not checked — swapping monitors should not need a
+# constant edited — but the scale is the physical variable behind the cost, it is numeric, and
+# it is stable. Recording a baseline on a rig at another scale means changing this line, which
+# is the same reviewed-diff discipline the width and the thresholds get.
+PINNED_BACKING_SCALE_FACTOR = 2.0
+PINNED_BACKING_SCALE_TOLERANCE = 0.01
 
 # Frame p95 on the sustained-scroll scenario, in milliseconds, at the pinned
 # 120 Hz cadence (8.333ms quantum, so this bar is a shade over one dropped
@@ -145,6 +153,22 @@ def require_pinned_cadence(report: dict, path: pathlib.Path) -> None:
             "Settings > Appearance > Show scroll bars to Always, then re-run spike/run-gate.sh."
         )
 
+    display = environment.get("display") or {}
+    scale = display.get("backingScaleFactor")
+    if scale is None:
+        raise UnpinnedDump(
+            f"{path.name} carries an environment with no backing scale factor. Re-record with "
+            "spike/run-gate.sh."
+        )
+    if abs(float(scale) - PINNED_BACKING_SCALE_FACTOR) > PINNED_BACKING_SCALE_TOLERANCE:
+        raise UnpinnedDump(
+            f"{path.name} was recorded at {float(scale):g}x backing scale on "
+            f"{display.get('localizedName', 'an unknown display')}, not the baseline's "
+            f"{PINNED_BACKING_SCALE_FACTOR:g}x. The same layout in points rasterizes a different "
+            "number of pixels at another scale, so it costs different work to draw. Run the gate "
+            "on a display at the baseline's scale — see spike/GATE.md."
+        )
+
 
 class Gate:
     def __init__(self) -> None:
@@ -188,11 +212,13 @@ def main() -> int:
         require_pinned_width(report, path)
         require_pinned_cadence(report, path)
         reports[scenario] = report
-        cadence = report["environment"]["cadence"]
+        environment = report["environment"]
         print(
             f"{scenario} ({path.name}): timeline "
             f"{float(report['timelineWidth']):.0f}x{float(report['timelineHeight']):.0f}pt, "
-            f"{float(cadence['measuredHertz']):.1f}Hz"
+            f"{float(environment['cadence']['measuredHertz']):.1f}Hz, "
+            f"{float(environment['display']['backingScaleFactor']):g}x on "
+            f"{environment['display'].get('localizedName', 'unknown')}"
         )
 
     # Frame time. SCENARIOS.md §6 scores p95 in S1 and S2 and p99 in S3, so the
