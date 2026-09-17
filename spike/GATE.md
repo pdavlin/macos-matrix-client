@@ -291,11 +291,29 @@ hardware:
    browser moves it. The procedure is "Recording a baseline" above: `pgrep -fl TimelineSpike`,
    then two `caffeinate -dis` runs per renderer.
 
-Evidence the fix works, recorded on the reference rig but under load, and therefore **not** a
-baseline: a 5-second S1 run of `appkit-table` at load1 ≈ 5.5 measured **frame p95 8.500ms
-PASS**, against 16.75ms FAIL for every run of both renderers in the table below. The number
-landed on the floor of the bar in spite of the load, which is what a driver artifact looks
-like once it is removed.
+### Cross-check: the fix holds, measured off the reference rig
+
+These runs are **not** baselines and `evaluate-gate.py` refused all three, exactly as it
+should. They are still evidence, because the question the fix has to answer — did the driver
+stop losing a frame every twenty — does not need the reference rig to answer it.
+
+| Run | Renderer | Display | S1 frame p95 | S1 frame p99 | Samples |
+| --- | --- | --- | --- | --- | --- |
+| 5s, load1 ≈ 5.5 | `appkit-table` | LC49G95T 1x | **8.50** | — | — |
+| 30s | `appkit-table` | built-in 2x | **8.50** | 14.50 | 3660 |
+| 30s | `m1-production` | built-in 2x | **8.50** | 17.50 | 3640 |
+
+Every run of both renderers in the table below read **16.75** — two frames, on the nose. All
+three runs here read 8.50, one frame, and every one of them measured a true 120.0 Hz cadence
+with an 8.333ms nominal.
+
+The 2x runs are the stronger evidence, not the weaker: 2x rasterizes four times the pixels
+for the same layout, so those two runs cleared the bar in a **harder** environment than the
+baseline rig provides. A result that survives that is not a marginal one.
+
+One thing the 2x pair already shows, and the baseline should be read for: with the driver
+artifact gone, S1 p99 starts to separate the renderers (14.50 against 17.50) where p95 no
+longer does. That is the metric doing its job for the first time in this epoch.
 
 | Scenario | Metric | Threshold | `appkit-table` run 1 / run 2 (median) | `m1-production` run 1 / run 2 (median) |
 | --- | --- | --- | --- | --- |
