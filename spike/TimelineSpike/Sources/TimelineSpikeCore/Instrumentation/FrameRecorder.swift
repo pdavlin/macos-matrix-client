@@ -87,6 +87,12 @@ public final class FrameRecorder: NSObject {
         isRunning = false
     }
 
+    /// Clears the histogram without dropping the link. Use it between scenarios.
+    public func resetStatistics() {
+        statistics.reset()
+        lastTimestamp = nil
+    }
+
     // MARK: - Tick observers
 
     /// Registers a closure invoked on every display tick, after the interval is recorded.
@@ -110,12 +116,6 @@ public final class FrameRecorder: NSObject {
     /// Unregisters an observer. Removing a token twice is a no-op.
     public func removeTickObserver(_ token: TickObserverToken) {
         tickObservers.removeAll { $0.token == token }
-    }
-
-    /// Clears the histogram without dropping the link. Use it between scenarios.
-    public func resetStatistics() {
-        statistics.reset()
-        lastTimestamp = nil
     }
 
     // MARK: - Cadence calibration
