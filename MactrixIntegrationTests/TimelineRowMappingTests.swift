@@ -21,7 +21,7 @@ final class TimelineRowMappingTests: XCTestCase {
 
         let row = item.row
 
-        guard case let .message(uniqueId, event, kind, hasReactions) = row else {
+        guard case let .message(uniqueId, event, kind, heightFingerprint) = row else {
             XCTFail("expected message row, got \(String(describing: row))")
             return
         }
@@ -30,9 +30,45 @@ final class TimelineRowMappingTests: XCTestCase {
         // A redacted body is neither text nor media, and the fake carries no
         // reactions, so the row lands in the plain "other" recycling pool.
         XCTAssertEqual(kind, .other)
-        XCTAssertFalse(hasReactions)
+        XCTAssertFalse(heightFingerprint.hasReactions)
         XCTAssertEqual(row.reuseId, "message.other")
         XCTAssertNotNil(event as? MatrixRustSDK.EventTimelineItem)
+    }
+
+    // MARK: - MATRIX-63: height fingerprint over real SDK content
+
+    /// Mapping the same content twice has to produce equal fingerprints, or the
+    /// skip rule never fires at all. The reaction-by-reaction rules are pinned
+    /// in `TimelineRowHeightFingerprintTests`; this pins the SDK mapping that
+    /// feeds them.
+    func testMappingTheSameContentTwiceIsHeightNeutral() {
+        let content: MatrixRustSDK.TimelineItemContent = .msgLike(content: makeMsgLikeContent())
+        let first = makeMock(event: makeEvent(content: content), virtual: nil, uniqueId: "msg-1").row
+        let second = makeMock(event: makeEvent(content: content), virtual: nil, uniqueId: "msg-1").row
+
+        XCTAssertTrue(Models.TimelineRowHeightFingerprint.heightIsUnchanged(from: first, to: second))
+    }
+
+    /// The profile header draws the sender, and that line can wrap, so a sender
+    /// change has to reach the fingerprint.
+    func testSenderChangeIsNotHeightNeutral() {
+        let content: MatrixRustSDK.TimelineItemContent = .msgLike(content: makeMsgLikeContent())
+        let alice = makeMock(
+            event: makeEvent(content: content, sender: "@alice:example.org"), virtual: nil, uniqueId: "msg-1"
+        ).row
+        let bob = makeMock(
+            event: makeEvent(content: content, sender: "@bob:example.org"), virtual: nil, uniqueId: "msg-1"
+        ).row
+
+        XCTAssertFalse(Models.TimelineRowHeightFingerprint.heightIsUnchanged(from: alice, to: bob))
+    }
+
+    /// A state row carries no fingerprint, so it can never take the skip.
+    func testStateRowIsNeverHeightNeutral() {
+        let row = makeMock(event: makeEvent(content: .callInvite), virtual: nil, uniqueId: "state-3").row
+
+        XCTAssertNil(row.heightFingerprint)
+        XCTAssertFalse(Models.TimelineRowHeightFingerprint.heightIsUnchanged(from: row, to: row))
     }
 
     func testNonMessageContentKindsMapToStateRows() {
@@ -135,11 +171,14 @@ final class TimelineRowMappingTests: XCTestCase {
         MockTimelineItem(event: event, virtual: virtual, uniqueId: uniqueId)
     }
 
-    private func makeEvent(content: MatrixRustSDK.TimelineItemContent) -> MatrixRustSDK.EventTimelineItem {
+    private func makeEvent(
+        content: MatrixRustSDK.TimelineItemContent,
+        sender: String = "@alice:example.org"
+    ) -> MatrixRustSDK.EventTimelineItem {
         MatrixRustSDK.EventTimelineItem(
             isRemote: true,
             eventOrTransactionId: .eventId(eventId: "event-id"),
-            sender: "@alice:example.org",
+            sender: sender,
             senderProfile: .unavailable,
             forwarder: nil,
             forwarderProfile: nil,

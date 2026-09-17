@@ -286,7 +286,7 @@ extension MatrixRustSDK.TimelineItem {
                 uniqueId: uniqueId().id,
                 event: event,
                 kind: content.rowKind,
-                hasReactions: !content.reactions.isEmpty
+                heightFingerprint: content.heightFingerprint(event: event)
             )
         default:
             return .state(uniqueId: uniqueId().id, event: event, name: event.content.description)

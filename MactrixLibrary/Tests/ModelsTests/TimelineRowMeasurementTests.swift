@@ -58,7 +58,7 @@ struct TimelineRowMeasurementTests {
     }
 
     private static func messageRow(id: String = "m1") -> TimelineRow {
-        .message(uniqueId: id, event: MockEventTimelineItem(), kind: .text, hasReactions: false)
+        .message(uniqueId: id, event: MockEventTimelineItem(), kind: .text, heightFingerprint: .stub())
     }
 
     // MARK: - Measurement math

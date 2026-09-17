@@ -46,6 +46,10 @@ enum TimelineStormProfiler {
         var rows: Int
         /// Rows inside the viewport, which the drain applies first.
         var visibleRows: Int
+        /// Rows whose height fingerprint was unchanged, so the drain reloaded
+        /// them without re-measuring (MATRIX-63). Against `rows`, this is the
+        /// share of a storm the fingerprint takes off the measurement path.
+        var skippedMeasures: Int
         var reloadMs: Double
         var noteMs: Double
         var totalMs: Double
@@ -136,6 +140,17 @@ enum TimelineStormProfiler {
         for (name, values) in drainSeries() {
             print(line(name, values))
         }
+        // Per-drain percentiles answer "did a frame miss"; these answer "how
+        // much of the storm never reached the measurement path" (MATRIX-63),
+        // which a distribution over small per-drain counts hides.
+        let rows = drains.reduce(0) { $0 + $1.timing.rows }
+        let skipped = drains.reduce(0) { $0 + $1.timing.skippedMeasures }
+        let measures = drains.reduce(0) { $0 + $1.measureCount }
+        let skipShare = rows > 0 ? Double(skipped) / Double(rows) * 100 : 0
+        print(
+            "  totals: rows \(rows)  measures skipped \(skipped) (\(format(skipShare))%)"
+                + "  offscreen measures \(measures)"
+        )
     }
 
     static func reset() {
@@ -184,6 +199,7 @@ enum TimelineStormProfiler {
             ("provider ms", drains.map(\.providerMs)),
             ("applied rows", drains.map { Double($0.timing.rows) }),
             ("visible applied", drains.map { Double($0.timing.visibleRows) }),
+            ("measures skipped", drains.map { Double($0.timing.skippedMeasures) }),
             ("measure count", drains.map { Double($0.measureCount) }),
             ("provider count", drains.map { Double($0.providerCount) }),
             ("recycled count", drains.map { Double($0.recycledCount) }),

@@ -100,6 +100,7 @@ extension TimelineViewController {
 
         var applied = 0
         var visibleApplied = 0
+        var skippedMeasures = 0
         var reloadMs = 0.0
         var noteMs = 0.0
 
@@ -135,6 +136,7 @@ extension TimelineViewController {
 
                 applied += 1
                 if update.isVisible { visibleApplied += 1 }
+                if timing.skippedMeasure { skippedMeasures += 1 }
                 reloadMs += timing.reloadMs
                 noteMs += timing.noteMs
             }
@@ -150,6 +152,7 @@ extension TimelineViewController {
             .init(
                 rows: applied,
                 visibleRows: visibleApplied,
+                skippedMeasures: skippedMeasures,
                 reloadMs: reloadMs,
                 noteMs: noteMs,
                 totalMs: TimelineStormProfiler.elapsedMilliseconds(since: started),
@@ -158,29 +161,59 @@ extension TimelineViewController {
         )
     }
 
-    /// Swaps in one row's new content and redraws exactly that row.
+    /// Swaps in one row's new content, redraws exactly that row, and re-measures
+    /// it only if its height can have changed.
     ///
     /// The revision bump is what invalidates the S-32 height cache entry, so it
-    /// must land before the note asks for the height.
+    /// must land before the note asks for the height. A height-neutral mutation
+    /// gets neither (MATRIX-63): the row keeps its revision, so the cache keeps
+    /// answering with the height it already measured, and the note — which is
+    /// what drives the offscreen SwiftUI measure — never runs.
+    ///
+    /// The reload always runs. Skipping the measure is not skipping the update:
+    /// a re-tallied reaction pill has to redraw its count, it just does not have
+    /// to be measured again to do it.
     private func applyRowUpdate(
         _ update: TimelineRowUpdateQueue<TimelineRow>.Resolved
-    ) -> (reloadMs: Double, noteMs: Double) {
+    ) -> RowUpdateTiming {
+        // Read before the swap: this is the content the cached height was
+        // measured against.
+        let previous = timelineRows[update.index]
         timelineRows[update.index] = update.payload
-        rowRevisions[update.uniqueId, default: 0] += 1
+
+        let heightIsUnchanged = TimelineRowHeightFingerprint.heightIsUnchanged(
+            from: previous,
+            to: update.payload
+        )
+        if !heightIsUnchanged {
+            rowRevisions[update.uniqueId, default: 0] += 1
+        }
         let rows = IndexSet(integer: update.index)
 
         // `NSTableView` caches prepared views, so a content change that does not
-        // move rows still needs an explicit reload to show.
+        // move rows still needs an explicit reload to show. The note is what
+        // forces a height question; if the reload asks one of its own, the
+        // answer is the same, because an unchanged revision is a cache hit.
         let reloadStarted = TimelineStormProfiler.now()
         tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
         let noteStarted = TimelineStormProfiler.now()
-        tableView.noteHeightOfRows(withIndexesChanged: rows)
+        if !heightIsUnchanged {
+            tableView.noteHeightOfRows(withIndexesChanged: rows)
+        }
         let finished = TimelineStormProfiler.now()
 
-        return (
-            TimelineStormProfiler.milliseconds(from: reloadStarted, to: noteStarted),
-            TimelineStormProfiler.milliseconds(from: noteStarted, to: finished)
+        return RowUpdateTiming(
+            reloadMs: TimelineStormProfiler.milliseconds(from: reloadStarted, to: noteStarted),
+            noteMs: TimelineStormProfiler.milliseconds(from: noteStarted, to: finished),
+            skippedMeasure: heightIsUnchanged
         )
+    }
+
+    /// What applying one row cost, and whether it took the measurement path.
+    private struct RowUpdateTiming {
+        var reloadMs: Double
+        var noteMs: Double
+        var skippedMeasure: Bool
     }
 
     /// Resolves a row identity to the index it currently occupies.
