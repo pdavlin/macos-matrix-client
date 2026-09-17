@@ -191,8 +191,9 @@ extension TimelineViewController {
         let rows = IndexSet(integer: update.index)
 
         // `NSTableView` caches prepared views, so a content change that does not
-        // move rows still needs an explicit reload to show. The reload does not
-        // re-ask for row heights; only the note below does.
+        // move rows still needs an explicit reload to show. The note is what
+        // forces a height question; if the reload asks one of its own, the
+        // answer is the same, because an unchanged revision is a cache hit.
         let reloadStarted = TimelineStormProfiler.now()
         tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
         let noteStarted = TimelineStormProfiler.now()
