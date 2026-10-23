@@ -47,8 +47,20 @@ struct SpaceDisclosureGroup: View {
         }
     }
 
+    /// Whether the account has joined this room even though the room list does
+    /// not hold it. The chat-list filter (MATRIX-67) narrows `rooms`, so a
+    /// joined low-priority or filtered-out room is missing from it; without
+    /// this check its space row would offer "Join".
+    private var isJoinedOutsideRoomList: Bool {
+        guard let room = try? appState.matrixClient?.client.getRoom(roomId: space.id) else { return false }
+        if case .joined = room.membership() {
+            return true
+        }
+        return false
+    }
+
     var joinRoom: (() async throws -> Void)? {
-        if appState.matrixClient?.rooms.contains(where: { $0.room.id() == space.id }) == false {
+        if appState.matrixClient?.rooms.contains(where: { $0.room.id() == space.id }) == false, !isJoinedOutsideRoomList {
             return {
                 Logger.viewCycle.error("Joining room: \(space.id)")
                 guard let matrixClient = appState.matrixClient else { return }

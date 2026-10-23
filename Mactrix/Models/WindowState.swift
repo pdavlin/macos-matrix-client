@@ -1,5 +1,6 @@
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 import Utils
@@ -24,8 +25,8 @@ enum SearchDirectResult {
 enum SelectedScreen {
     case joinedRoom(timeline: LiveTimeline)
     case loadMatrixUrl(_ url: Utils.MatrixUriScheme)
-    case previewRoom(_ room: RoomPreview)
-    case user(profile: UserProfile)
+    case previewRoom(_ room: MatrixRustSDK.RoomPreview)
+    case user(profile: MatrixRustSDK.UserProfile)
     case newRoom
     case none
 }
@@ -47,6 +48,9 @@ final class WindowState {
 
     /// The collapsed/expanded states of the sections in the sidebar.
     var sidebarSections = SidebarSectionCollapsibility()
+
+    /// The sidebar chat-list filter (MATRIX-67). Restored per window.
+    var chatListFilter: ChatListFilter = .inbox
 
     var searchFocused: Binding<Bool> {
         Binding(
@@ -134,17 +138,22 @@ extension WindowState: @MainActor RawRepresentable {
         let selectedRoomId: String?
         let inspectorVisible: Bool
         let sidebarSections: SidebarSectionCollapsibility
+        /// Optional so a window saved before MATRIX-67, which has no filter,
+        /// still decodes; it restores as the inbox.
+        let chatListFilter: ChatListFilter?
 
         @MainActor init(windowState: WindowState) {
             self.selectedRoomId = windowState.selectedRoomId
             self.inspectorVisible = windowState.inspectorVisible
             self.sidebarSections = windowState.sidebarSections
+            self.chatListFilter = windowState.chatListFilter
         }
 
         @MainActor func restore(windowState: WindowState) {
             windowState.selectedRoomId = selectedRoomId
             windowState.inspectorVisible = inspectorVisible
             windowState.sidebarSections = sidebarSections
+            windowState.chatListFilter = chatListFilter ?? .inbox
         }
     }
 
@@ -179,8 +188,8 @@ extension WindowState: @MainActor RawRepresentable {
 enum SearchToken: Hashable, Identifiable {
     case users, rooms, spaces, messages
     case resolvedRoomAlias(alias: String, resolvedRoom: ResolvedRoomAlias)
-    case resolvedRoomId(roomPreview: RoomPreview)
-    case resolvedUser(profile: UserProfile)
+    case resolvedRoomId(roomPreview: MatrixRustSDK.RoomPreview)
+    case resolvedUser(profile: MatrixRustSDK.UserProfile)
 
     var id: Self { self }
 }
