@@ -1,6 +1,66 @@
 import Models
 import SwiftUI
 
+/// A person's avatar in a fixed circular slot, with a monogram fallback.
+///
+/// The shared `UserAvatarPlaceholder` fills with `Color(userID:)`, a named
+/// color from the app's asset catalog. Outside the app bundle (the UI
+/// package, its snapshot tests) that name does not resolve, so the fill was
+/// clear and the white initial disappeared. This fallback is self-contained.
+struct NewChatAvatar: View {
+    let person: NewChatPerson
+    let size: CGFloat
+    let imageLoader: ImageLoader?
+
+    var body: some View {
+        AvatarImage(avatarUrl: person.avatarUrl, imageLoader: imageLoader) {
+            NewChatMonogram(person: person, size: size)
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+}
+
+/// The first letter or digit of a person's name on a solid fill.
+///
+/// The palette is mid-dark so white text keeps its contrast on light and
+/// dark backgrounds alike. The fill is picked from the user ID, so a person
+/// keeps one color across rows and pills.
+struct NewChatMonogram: View {
+    let person: NewChatPerson
+    let size: CGFloat
+
+    static let palette: [Color] = [
+        Color(red: 0.20, green: 0.44, blue: 0.80),
+        Color(red: 0.45, green: 0.33, blue: 0.78),
+        Color(red: 0.75, green: 0.29, blue: 0.47),
+        Color(red: 0.78, green: 0.38, blue: 0.10),
+        Color(red: 0.11, green: 0.52, blue: 0.44),
+        Color(red: 0.38, green: 0.45, blue: 0.53),
+        Color(red: 0.55, green: 0.38, blue: 0.22),
+        Color(red: 0.24, green: 0.51, blue: 0.24),
+    ]
+
+    var initial: String {
+        person.label.first { $0.isLetter || $0.isNumber }.map { String($0).uppercased() } ?? "?"
+    }
+
+    var fill: Color {
+        let index = person.userId.unicodeScalars.reduce(0) { $0 + Int($1.value) } % Self.palette.count
+        return Self.palette[index]
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().fill(fill)
+            Text(initial)
+                .font(.system(size: size * 0.5, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 /// A chosen person in the To: field: avatar and name in a capsule, with a
 /// remove button. Sizes follow Beeper's pill (rounded 20, 2/8 padding).
 struct NewChatPill: View {
@@ -10,9 +70,7 @@ struct NewChatPill: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            AvatarImage(userProfile: person, imageLoader: imageLoader)
-                .frame(width: 16, height: 16)
-                .clipShape(Circle())
+            NewChatAvatar(person: person, size: 16, imageLoader: imageLoader)
             Text(person.label)
                 .font(.system(size: 13))
                 .lineLimit(1)
@@ -78,9 +136,7 @@ struct NewChatPersonRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            AvatarImage(userProfile: person, imageLoader: imageLoader)
-                .frame(width: 24, height: 24)
-                .clipShape(Circle())
+            NewChatAvatar(person: person, size: 24, imageLoader: imageLoader)
             Text(person.label)
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
