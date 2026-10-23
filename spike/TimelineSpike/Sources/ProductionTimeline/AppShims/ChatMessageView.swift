@@ -22,7 +22,9 @@ struct ChatMessageView: View, UI.MessageEventActions {
     let timeline: LiveTimeline?
     let event: MatrixRustSDK.EventTimelineItem
     let msg: MatrixRustSDK.MsgLikeContent
-    let includeProfileHeader: Bool
+    /// The row's place in its run (MATRIX-68), drawn through the same
+    /// `UI.MessageRunRow` the app uses.
+    let grouping: Models.TimelineRowGrouping
 
     // The row's hover buttons call these. Nothing is sent anywhere; the point
     // of building them is that the buttons exist in the measured view tree.
@@ -58,10 +60,15 @@ struct ChatMessageView: View, UI.MessageEventActions {
     }
 
     var body: some View {
-        if includeProfileHeader {
+        UI.MessageRunRow(grouping: grouping) {
             UI.MessageEventProfileView(event: event, actions: self, imageLoader: nil)
                 .font(.system(size: typography.base))
+        } message: {
+            eventBody
         }
+    }
+
+    private var eventBody: some View {
         UI.MessageEventBodyView(
             event: event,
             focused: false,

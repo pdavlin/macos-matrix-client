@@ -87,12 +87,16 @@ public enum TimelineRow {
     /// Granularity matters: `NSTableView` hands back any view registered
     /// under the same identifier, and `NSHostingView` only reuses its subview
     /// tree when the new root view has the same shape. Splitting by message
-    /// kind, and by whether a reaction strip is present, keeps a recycled view
-    /// structurally compatible with the row it is about to render.
+    /// kind, by whether a reaction strip is present, and by whether the row
+    /// draws a profile header (MATRIX-68) keeps a recycled view structurally
+    /// compatible with the row it is about to render. The gap band is not in
+    /// it: a gap is a padding value, not a different tree.
     public var reuseId: String {
         switch self {
         case let .message(_, _, kind, fingerprint):
-            return fingerprint.hasReactions ? "message.\(kind.rawValue).reactions" : "message.\(kind.rawValue)"
+            let continuation = fingerprint.grouping.isContinuation ? ".continuation" : ""
+            let reactions = fingerprint.hasReactions ? ".reactions" : ""
+            return "message.\(kind.rawValue)\(continuation)\(reactions)"
         case .state:
             return "state"
         case let .virtual(_, item):

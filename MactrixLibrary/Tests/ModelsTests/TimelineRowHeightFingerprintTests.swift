@@ -264,6 +264,76 @@ struct TimelineRowHeightFingerprintTests {
         )
     }
 
+    // MARK: - Grouping (MATRIX-68)
+
+    @Test
+    func losingTheProfileHeaderIsNotHeightNeutral() {
+        let before = messageRow(.stub())
+        let after = messageRow(.stub().with(grouping: TimelineRowGrouping(isContinuation: true, gap: .none)))
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
+    }
+
+    @Test
+    func aGapBandChangeIsNotHeightNeutral() {
+        let before = messageRow(.stub().with(grouping: TimelineRowGrouping(isContinuation: true, gap: .sameSenderBurst)))
+        let after = messageRow(.stub().with(grouping: TimelineRowGrouping(isContinuation: true, gap: .pause)))
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
+    }
+
+    @Test
+    func aReTalliedReactionOnAGroupedRowStaysHeightNeutralOnceThePayloadIsRegrouped() {
+        // The drain's order of operations, in miniature: the payload arrives
+        // mapped on its own (ungrouped), and must be grouped against the same
+        // predecessor before it is compared, or every storm row re-measures.
+        let calendar = Calendar(identifier: .gregorian)
+        let start = Date(timeIntervalSince1970: 1_792_746_000)
+        let predecessor = TimelineRow.message(
+            uniqueId: "p",
+            event: GroupingTestEvent(sender: "@ada:example.org", date: start),
+            kind: .text,
+            heightFingerprint: .stub()
+        )
+        let event = GroupingTestEvent(sender: "@ada:example.org", date: start.addingTimeInterval(20))
+        let laidOut = TimelineRow.message(
+            uniqueId: "u1",
+            event: event,
+            kind: .text,
+            heightFingerprint: .stub(pills: [pill("👍", 3)])
+        ).regrouped(after: predecessor, calendar: calendar)
+        let payload = TimelineRow.message(
+            uniqueId: "u1",
+            event: event,
+            kind: .text,
+            heightFingerprint: .stub(pills: [pill("👍", 4)])
+        )
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: laidOut, to: payload))
+        #expect(
+            TimelineRowHeightFingerprint.heightIsUnchanged(
+                from: laidOut,
+                to: payload.regrouped(after: predecessor, calendar: calendar)
+            )
+        )
+    }
+
+    @Test
+    func withGroupingChangesOnlyTheGrouping() {
+        let fingerprint = TimelineRowHeightFingerprint.stub(
+            body: .init(variant: "text", text: "edited", isEdited: true),
+            hasReplyPreview: true,
+            sendFailureMessage: "offline",
+            pills: [pill("👍", 2)]
+        )
+        let grouping = TimelineRowGrouping(isContinuation: true, gap: .longPause)
+        let regrouped = fingerprint.with(grouping: grouping)
+
+        #expect(fingerprint.grouping == .standalone)
+        #expect(regrouped.grouping == grouping)
+        #expect(regrouped.with(grouping: .standalone) == fingerprint)
+    }
+
     // MARK: - Digit arithmetic
 
     @Test(arguments: [(0, 1), (1, 1), (9, 1), (10, 2), (99, 2), (100, 3), (1000, 4)])

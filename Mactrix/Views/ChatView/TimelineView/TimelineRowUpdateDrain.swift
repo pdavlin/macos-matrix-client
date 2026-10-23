@@ -177,16 +177,40 @@ extension TimelineViewController {
         // Read before the swap: this is the content the cached height was
         // measured against.
         let previous = timelineRows[update.index]
-        timelineRows[update.index] = update.payload
+        // The payload was mapped on its own and carries no grouping. It is
+        // grouped against the predecessor it has *now*, not the one it had when
+        // it was queued: a structural change can land in between (MATRIX-68).
+        // Grouping before the comparison is what keeps a re-tallied reaction
+        // height-neutral; an ungrouped payload would differ from every grouped
+        // row and re-measure the whole storm.
+        let predecessorIndex = TimelineRowRegrouping.predecessorIndex(of: update.index)
+        let payload = update.payload.regrouped(
+            after: timelineRows.indices.contains(predecessorIndex) ? timelineRows[predecessorIndex] : nil,
+            calendar: groupingCalendar
+        )
+        timelineRows[update.index] = payload
 
         let heightIsUnchanged = TimelineRowHeightFingerprint.heightIsUnchanged(
             from: previous,
-            to: update.payload
+            to: payload
         )
         if !heightIsUnchanged {
             rowRevisions[update.uniqueId, default: 0] += 1
         }
-        let rows = IndexSet(integer: update.index)
+        var rows = IndexSet(integer: update.index)
+        var notedRows = heightIsUnchanged ? IndexSet() : rows
+
+        // A replacement that moves the row's sender or timestamp (a local echo
+        // taking the server's time) moves the next row's grouping with it.
+        // Anything else leaves the next row alone, so a storm pays nothing here.
+        if previous.groupingAnchor != payload.groupingAnchor {
+            let successor = TimelineRowRegrouping.successorIndex(of: update.index)
+            if TimelineRowRegrouping.regroupRow(at: successor, in: &timelineRows, calendar: groupingCalendar) {
+                rowRevisions[timelineRows[successor].uniqueId, default: 0] += 1
+                rows.insert(successor)
+                notedRows.insert(successor)
+            }
+        }
 
         // `NSTableView` caches prepared views, so a content change that does not
         // move rows still needs an explicit reload to show. The note is what
@@ -195,8 +219,8 @@ extension TimelineViewController {
         let reloadStarted = TimelineStormProfiler.now()
         tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
         let noteStarted = TimelineStormProfiler.now()
-        if !heightIsUnchanged {
-            tableView.noteHeightOfRows(withIndexesChanged: rows)
+        if !notedRows.isEmpty {
+            tableView.noteHeightOfRows(withIndexesChanged: notedRows)
         }
         let finished = TimelineStormProfiler.now()
 
@@ -221,7 +245,7 @@ extension TimelineViewController {
     /// main, pagination, which is how the rows array is laid out. The identity
     /// re-check is not defensive dressing — it is the invariant that makes an
     /// O(1) lookup safe to write a row through.
-    private func rowIndex(ofRowId rowId: String) -> Int? {
+    func rowIndex(ofRowId rowId: String) -> Int? {
         guard let index = snapshot.indexOfItem(TimelineUniqueId(id: rowId)) else { return nil }
         guard timelineRows.indices.contains(index), timelineRows[index].uniqueId == rowId else {
             Logger.timelineTableView.error(
