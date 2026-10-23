@@ -33,9 +33,12 @@ struct TimelineItemRowView: View {
     @ViewBuilder
     var contentView: some View {
         switch row {
-        case let .message(_, event, _, _):
+        case let .message(_, event, _, fingerprint):
             if let event = event as? MatrixRustSDK.EventTimelineItem, case let .msgLike(content: content) = event.content {
-                ChatMessageView(timeline: timeline, event: event, msg: content, includeProfileHeader: true)
+                // The grouping rides in the fingerprint so a change to it is a
+                // height change the cache sees (MATRIX-68). The container
+                // derives it; the view only draws it.
+                ChatMessageView(timeline: timeline, event: event, msg: content, grouping: fingerprint.grouping)
             } else {
                 logAndShow("Message", log: "Message row did not resolve to an SDK event with msg-like content")
             }

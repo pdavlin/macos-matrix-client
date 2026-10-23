@@ -13,7 +13,12 @@ struct TimelineGroupView: View {
         switch timelineGroup {
         case .messages(let messages, _, _):
             ForEach(messages) { message in
-                ChatMessageView(timeline: timeline, event: message.event, msg: message.content, includeProfileHeader: message.id == messages.first?.id)
+                ChatMessageView(
+                    timeline: timeline,
+                    event: message.event,
+                    msg: message.content,
+                    grouping: Models.TimelineRowGrouping(isContinuation: message.id != messages.first?.id, gap: .none)
+                )
             }
         case .stateChanges(let events, _, _):
             TimelineStateEventsView(timeline: timeline, events: events)

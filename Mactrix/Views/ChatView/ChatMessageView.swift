@@ -13,7 +13,9 @@ struct ChatMessageView: View, UI.MessageEventActions {
     let timeline: LiveTimeline?
     let event: MatrixRustSDK.EventTimelineItem
     let msg: MatrixRustSDK.MsgLikeContent
-    let includeProfileHeader: Bool
+    /// The row's place in its run (MATRIX-68): whether it draws the profile
+    /// header, and the rhythm gap above it.
+    let grouping: Models.TimelineRowGrouping
 
     var name: String {
         if case let .ready(displayName, _, _) = event.senderProfileDetails, let displayName = displayName {
@@ -179,10 +181,15 @@ struct ChatMessageView: View, UI.MessageEventActions {
     }
 
     var body: some View {
-        if includeProfileHeader {
+        UI.MessageRunRow(grouping: grouping) {
             UI.MessageEventProfileView(event: event, actions: self, imageLoader: appState.matrixClient)
                 .font(.system(size: typography.base))
+        } message: {
+            eventBody
         }
+    }
+
+    private var eventBody: some View {
         UI.MessageEventBodyView(event: event, focused: isEventFocused, reactions: msg.reactions, actions: self, ownUserID: ownUserId, imageLoader: appState.matrixClient, roomMembers: timeline?.room.members ?? []) {
             VStack(alignment: .leading, spacing: 10) {
                 if let replyTo = msg.inReplyTo {
