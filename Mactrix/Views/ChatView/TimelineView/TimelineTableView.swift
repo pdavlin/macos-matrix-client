@@ -50,6 +50,15 @@ class TimelineViewController: NSViewController {
     /// Number of decoration rows at the oldest end.
     var trailingDecorationCount = 0
 
+    /// Rows a structural batch must re-derive the grouping of before it is
+    /// applied (MATRIX-68), by identity because later changes in the same
+    /// batch renumber them. Filled by the insert and remove paths, consumed
+    /// once per batch.
+    var batchRegroupIds: [String] = []
+    /// The rows the current batch inserted. They are new to the table, so a
+    /// grouping is set before their first measure rather than re-measured.
+    var batchInsertedIds: Set<String> = []
+
     var itemRowCount: Int {
         timelineRows.count - leadingDecorationCount - trailingDecorationCount
     }
@@ -74,6 +83,10 @@ class TimelineViewController: NSViewController {
     /// The token set heights are currently measured against.
     private var activeTypography: TimelineTypography
 
+    /// Decides "the same day" for sender grouping (MATRIX-68): the user's
+    /// calendar and time zone, the day a reader sees in the date dividers.
+    let groupingCalendar = Calendar.autoupdatingCurrent
+
     init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline) {
         self.coordinator = coordinator
         self.timeline = timeline
@@ -83,6 +96,7 @@ class TimelineViewController: NSViewController {
         // Start from the current display order and take ownership of the
         // change queue, so the first update applies only what happens next.
         timelineRows = timeline.displayItems.map(\.row)
+        TimelineRowRegrouping.regroupAll(&timelineRows, calendar: groupingCalendar)
         _ = timeline.drainDisplayChanges()
         refreshDecorationRows(applyingSnapshot: false)
     }
