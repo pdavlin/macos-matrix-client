@@ -1,5 +1,6 @@
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 import Utils
@@ -24,9 +25,11 @@ enum SearchDirectResult {
 enum SelectedScreen {
     case joinedRoom(timeline: LiveTimeline)
     case loadMatrixUrl(_ url: Utils.MatrixUriScheme)
-    case previewRoom(_ room: RoomPreview)
-    case user(profile: UserProfile)
+    case previewRoom(_ room: MatrixRustSDK.RoomPreview)
+    case user(profile: MatrixRustSDK.UserProfile)
     case newRoom
+    /// The Beeper-style new chat draft in the detail pane (MATRIX-75).
+    case newChat(mode: NewChatMode)
     case none
 }
 
@@ -179,8 +182,8 @@ extension WindowState: @MainActor RawRepresentable {
 enum SearchToken: Hashable, Identifiable {
     case users, rooms, spaces, messages
     case resolvedRoomAlias(alias: String, resolvedRoom: ResolvedRoomAlias)
-    case resolvedRoomId(roomPreview: RoomPreview)
-    case resolvedUser(profile: UserProfile)
+    case resolvedRoomId(roomPreview: MatrixRustSDK.RoomPreview)
+    case resolvedUser(profile: MatrixRustSDK.UserProfile)
 
     var id: Self { self }
 }
