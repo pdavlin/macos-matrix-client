@@ -37,7 +37,7 @@ Bridges are upstream mautrix appservices on the Synapse host (contract §11, 202
 
 Deployed: Slack (`mautrix-slack` v0.2610.0, port 29335, bot `@slackbot:davlin.io`, puppets `@slack_*`). The shared `doublepuppet` registration serves every bridge.
 
-**Backup coverage: pending MATRIX-70.** The nightly run does not yet dump `mautrix_*` databases or copy `/opt/mautrix-*/` and `appservices/`. Until it does, a lost primary loses bridge state, including the crypto pickle key: bridged rooms then need the bridge's encryption reset and a fresh network login.
+**Backup coverage (MATRIX-70, live 2026-10-23):** the nightly davbuntu run dumps each bridge DB to `dumps/mautrix_<net>-<date>.dump` (forced command `pg-dump-mautrix_<net>`), copies `/opt/mautrix-<net>/{config,registration}.yaml` to `config/<date>/bridges/` (`tar-bridges`), and `tar-config` now includes `appservices/`. Each new bridge needs its own `pg-dump-<db>` entry in `/home/synbackup/bin/dispatch.sh`, a matching exact-command line in `/etc/sudoers.d/synbackup`, its DB name in the davbuntu loop, and its paths in `tar-bridges`. The bridge config holds the crypto pickle key: losing it means resetting bridge encryption and a fresh network login.
 
 **Restore order** (failover step 3 and 4 add these):
 
