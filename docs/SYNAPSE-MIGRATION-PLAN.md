@@ -21,6 +21,32 @@
 - `homeserver.yaml`, `homeserver.signing.key`, and bridge/appservice registration files copied to davbuntu on every change.
 - Target layout on davbuntu: `/srv/synapse-standby/` — dumps, media, keys, config, dated.
 
+## Bridges (E-HS-03)
+
+Bridges are upstream mautrix appservices on the Synapse host (contract §11, 2026-10-23, MATRIX-69). They are part of the server's state: a restore without them strands every bridged room.
+
+| Item | Location on the primary |
+|---|---|
+| Binary (pinned, sha256-checked) | `/opt/mautrix-<net>/mautrix-<net>` |
+| Config (DB URI, as/hs tokens, crypto pickle key) | `/opt/mautrix-<net>/config.yaml`, mode 0600, owner `mautrix-<net>` |
+| Registration (bridge copy) | `/opt/mautrix-<net>/registration.yaml` |
+| Registrations loaded by Synapse | `/etc/matrix-synapse/appservices/{doublepuppet,<net>}.yaml`, `root:matrix-synapse` 0640 |
+| Synapse include | `/etc/matrix-synapse/conf.d/appservices.yaml` |
+| Database | Postgres role + DB `mautrix_<net>` on the Synapse instance |
+| Service | systemd `mautrix-<net>.service`, user `mautrix-<net>`, appservice on `127.0.0.1` |
+
+Deployed: Slack (`mautrix-slack` v0.2610.0, port 29335, bot `@slackbot:davlin.io`, puppets `@slack_*`). The shared `doublepuppet` registration serves every bridge.
+
+**Backup coverage: pending MATRIX-70.** The nightly run does not yet dump `mautrix_*` databases or copy `/opt/mautrix-*/` and `appservices/`. Until it does, a lost primary loses bridge state, including the crypto pickle key: bridged rooms then need the bridge's encryption reset and a fresh network login.
+
+**Restore order** (failover step 3 and 4 add these):
+
+1. Restore each `mautrix_<net>` dump into Postgres alongside `synapse` (create the role first).
+2. Place `/etc/matrix-synapse/appservices/` and `conf.d/appservices.yaml` with the rest of the Synapse config.
+3. Install the same pinned bridge binary, the system user, `/opt/mautrix-<net>/` (config + registration), and the systemd unit.
+4. Start Synapse first, then each bridge. Confirm the bot profile resolves and the bridge log has no `ERR` lines.
+5. Never run a bridge on two hosts at once: same rule as invariant 1, because both would answer for the same appservice namespace.
+
 ## Migration: exe.dev → davbuntu (failover)
 
 1. Stop Synapse on the exe.dev primary. If the host is dead, make sure it stays dead (VM stopped or deleted) before step 4.
