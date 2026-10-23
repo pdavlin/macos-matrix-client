@@ -28,6 +28,8 @@ struct MainView: View {
                 let newRoom = try await matrixClient.client.createRoom(request: params.asMatrixRequest)
                 windowState.selectedRoomId = newRoom
             })
+        case .newChat(let mode):
+            NewChatContainerView(mode: mode, openRoom: openRoom)
         case .loadMatrixUrl(let matrixUri):
             LoadMatrixUriScreen(matrixUri: matrixUri)
         case .user(profile: let profile):
@@ -192,6 +194,19 @@ struct MainView: View {
             } else {
                 NSApp.terminate(nil)
             }
+        }
+    }
+
+    /// Shows `roomId`, leaving whatever screen is up.
+    ///
+    /// Setting the selection alone is not enough when the room is already
+    /// selected (for example a New Chat that resolves to the DM the window
+    /// last showed): `.task(id:)` does not fire for an unchanged ID.
+    func openRoom(_ roomId: String) async {
+        if windowState.selectedRoomId == roomId {
+            await onRoomSelected()
+        } else {
+            windowState.selectedRoomId = roomId
         }
     }
 
