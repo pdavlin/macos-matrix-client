@@ -1,13 +1,18 @@
 import AsyncAlgorithms
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 
 @MainActor @Observable
 public final class SidebarRoom: Identifiable {
     public let id: String
     public private(set) var room: MatrixRustSDK.Room
-    public var roomInfo: RoomInfo?
+    public var roomInfo: MatrixRustSDK.RoomInfo?
+    /// The room's latest event, mapped for the chat-list preview (MATRIX-67).
+    /// Refreshed with every room info fetch, so it moves with the unread
+    /// counts.
+    public private(set) var latestEvent: Models.ChatListLatestEvent?
 
     @ObservationIgnored private var roomInfoHandle: TaskHandle?
     @ObservationIgnored private var listenerTask: Task<Void, Never>?
@@ -22,6 +27,7 @@ public final class SidebarRoom: Identifiable {
             } catch {
                 Logger.SidebarRoom.error("Failed to fetch initial room info: \(error)")
             }
+            await refreshLatestEvent()
 
             listenToRoomInfo()
         }
@@ -41,19 +47,30 @@ public final class SidebarRoom: Identifiable {
             } catch {
                 Logger.SidebarRoom.error("Failed to fetch room info on update: \(error)")
             }
+            await refreshLatestEvent()
             listenToRoomInfo()
         }
     }
 
     private func listenToRoomInfo() {
-        let listener = AsyncSDKListener<RoomInfo>()
+        let listener = AsyncSDKListener<MatrixRustSDK.RoomInfo>()
         roomInfoHandle = room.subscribeToRoomInfoUpdates(listener: listener)
 
         listenerTask = Task { [weak self] in
             for await roomInfo in listener.debounce(for: .milliseconds(500)) {
                 guard let self, !Task.isCancelled else { break }
                 self.roomInfo = roomInfo
+                await self.refreshLatestEvent()
             }
+        }
+    }
+
+    /// Re-reads the latest event. Assigns only on change, so an unrelated room
+    /// info update does not invalidate the row.
+    private func refreshLatestEvent() async {
+        let event = await room.latestEvent().chatListEvent
+        if event != latestEvent {
+            latestEvent = event
         }
     }
 }

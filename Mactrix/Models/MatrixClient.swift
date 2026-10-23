@@ -1,6 +1,7 @@
 import AsyncAlgorithms
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 import Security
 import SwiftUI
@@ -237,7 +238,7 @@ class MatrixClient {
 
     /// The latest session verification request received by another client
     var sessionVerificationRequest: SessionVerificationRequestDetails?
-    var sessionVerificationData: SessionVerificationData?
+    var sessionVerificationData: MatrixRustSDK.SessionVerificationData?
     var verificationState: VerificationState?
 
     /// S-24: `UserIdentity.hasVerificationViolation()` for the account's own user.
@@ -254,6 +255,27 @@ class MatrixClient {
 
     var notificationClient: NotificationClient?
 
+    /// MATRIX-67: the chat-list filter the sidebar last chose.
+    ///
+    /// The entries controller belongs to the client, not to a window, so the
+    /// sidebar re-applies its window's choice whenever that window becomes
+    /// active, and the most recently active window's filter is the one shown.
+    @ObservationIgnored private(set) var chatListFilter: ChatListFilter = .inbox
+
+    /// Applies `filter` to the room-list entries. A no-op when it is already
+    /// applied: every `setFilter` resets the list, and each reset re-fetches
+    /// every row's room info and latest event.
+    func setChatListFilter(_ filter: ChatListFilter) {
+        guard filter != chatListFilter else { return }
+        chatListFilter = filter
+        // Before `startSync()` there is no handle yet; it picks up
+        // `chatListFilter` when it creates one.
+        guard let controller = roomListEntriesHandle?.controller() else { return }
+        if !controller.setFilter(kind: filter.roomListFilter) {
+            Logger.matrixClient.error("room list rejected filter \(filter.rawValue, privacy: .public)")
+        }
+    }
+
     func startSync() async throws {
         let _syncService = try await client.syncService().withOfflineMode().finish()
         syncService = _syncService
@@ -267,7 +289,7 @@ class MatrixClient {
 
         let roomEntriesListener = AsyncSDKListener<[RoomListEntriesUpdate]>()
         let _roomListEntriesHandle = try await _roomListService.allRooms().entriesWithDynamicAdapters(pageSize: 100, listener: roomEntriesListener)
-        _ = _roomListEntriesHandle.controller().setFilter(kind: .all(filters: []))
+        _ = _roomListEntriesHandle.controller().setFilter(kind: chatListFilter.roomListFilter)
         roomListEntriesHandle = _roomListEntriesHandle
 
         roomEntriesTask = Task { [weak self] in
