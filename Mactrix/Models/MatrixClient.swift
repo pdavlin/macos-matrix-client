@@ -427,17 +427,9 @@ extension MatrixClient {
 
         func sendMessage() async {
             do {
-                if let room = try matrixClient.client.getDmRoom(userId: userId) {
-                    windowState.selectedRoomId = room.id
-                    return
-                }
-
-                let createRoomParams = CreateRoomParameters(
-                    name: nil, isEncrypted: false, isDirect: true, visibility: .private,
-                    preset: .privateChat, invite: [userId]
-                )
-                let roomId = try await matrixClient.client.createRoom(request: createRoomParams)
-                windowState.selectedRoomId = roomId
+                // Shared with the New Chat screen, so DMs started here are
+                // encrypted too (MATRIX-75).
+                windowState.selectedRoomId = try await matrixClient.startDirectChat(userId: userId)
             } catch {
                 Logger.viewCycle.error("failed to get DM room for user \(userId): \(error)")
             }

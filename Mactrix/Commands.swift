@@ -1,8 +1,10 @@
+import Models
 import SwiftUI
 import Tokens
 
 struct AppCommands: Commands {
     @FocusedValue(WindowState.self) private var windowState: WindowState?
+    @Environment(\.openWindow) private var openWindow
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     var body: some Commands {
@@ -11,8 +13,41 @@ struct AppCommands: Commands {
         TextEditingCommands()
         ToolbarCommands()
 
+        newItems
         newTab
         fontSizeCommands
+    }
+
+    /// File > New (MATRIX-75): ⌘N is New Chat and ⇧⌘N is New Group, as in
+    /// Beeper. Replacing `.newItem` drops the WindowGroup's default ⌘N
+    /// "New Window", which moves to ⌥⌘N. The full create-room form stays
+    /// reachable without a shortcut.
+    var newItems: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("New Chat") {
+                windowState?.selectedScreen = .newChat(mode: .direct)
+            }
+            .keyboardShortcut("n", modifiers: [.command])
+            .disabled(windowState == nil)
+
+            Button("New Group") {
+                windowState?.selectedScreen = .newChat(mode: .group)
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(windowState == nil)
+
+            Button("New Room with Options…") {
+                windowState?.selectedScreen = .newRoom
+            }
+            .disabled(windowState == nil)
+
+            Divider()
+
+            Button("New Window") {
+                openWindow(id: "main")
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
+        }
     }
 
     var newTab: some Commands {
@@ -37,21 +72,20 @@ struct AppCommands: Commands {
                 Text("New Tab")
             }
             .keyboardShortcut("t", modifiers: [.command])
-
-            if let windowState {
-                Self.createRoomButton(windowState: windowState)
-            }
         }
     }
 
+    /// The sidebar toolbar's compose button, which opens New Chat
+    /// (MATRIX-75). It keeps its pre-MATRIX-75 name because `SidebarView`
+    /// calls it and MATRIX-67 is rewriting that file; rename it once that
+    /// lands. The shortcut belongs to the File menu item, not this button.
     static func createRoomButton(windowState: WindowState) -> some View {
         Button {
-            windowState.selectedScreen = .newRoom
+            windowState.selectedScreen = .newChat(mode: .direct)
         } label: {
-            Label("Create room", systemImage: "plus.bubble")
+            Label("New Chat", systemImage: "square.and.pencil")
         }
-        .help("Create a new room")
-        .keyboardShortcut("N", modifiers: [.command, .shift])
+        .help("Start a new chat (⌘N)")
     }
 
     var fontSizeCommands: some Commands {
