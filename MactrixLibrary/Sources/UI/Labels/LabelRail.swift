@@ -91,7 +91,12 @@ public struct LabelRail: View {
                     )
 
                     ForEach(Array(labels.enumerated()), id: \.element.id) { offset, label in
-                        LabelRailItem(label: label, badge: badges[label.id] ?? .none, isSelected: selection == label.id, shortcutIndex: offset + 1) {
+                        LabelRailItem(
+                            label: label,
+                            badge: badges[label.id] ?? .none,
+                            isSelected: selection == label.id,
+                            shortcutIndex: offset + 1
+                        ) {
                             actions.select(label.id)
                         }
                         .contextMenu {

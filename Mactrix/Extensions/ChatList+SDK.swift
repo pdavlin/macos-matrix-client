@@ -179,7 +179,21 @@ extension Models.ChatListFilter {
     /// and a filter that dropped them would turn joined spaces into "Join"
     /// rows. The chat list itself skips spaces.
     var roomListFilter: RoomListEntriesDynamicFilterKind {
-        let chats: [RoomListEntriesDynamicFilterKind] = switch self {
+        roomListFilter(labelRooms: nil)
+    }
+
+    /// MATRIX-77: the filter narrowed to a label's rooms. Spaces still pass,
+    /// for the reason above; the label narrows only the chats.
+    func roomListFilter(labelRooms: [String]?) -> RoomListEntriesDynamicFilterKind {
+        var chats = chatFilters
+        if let labelRooms {
+            chats.append(.identifiers(identifiers: labelRooms))
+        }
+        return .any(filters: [.space, .all(filters: chats)])
+    }
+
+    private var chatFilters: [RoomListEntriesDynamicFilterKind] {
+        switch self {
         case .inbox:
             [.nonLowPriority]
         case .unread:
@@ -191,13 +205,14 @@ extension Models.ChatListFilter {
         case .lowPriority:
             [.lowPriority]
         }
-        return .any(filters: [.space, .all(filters: chats)])
     }
 }
 
 extension SidebarRoom {
     /// The chat-list row for this room. `now` decides the timestamp bucket.
-    func chatListRow(now: Date = .now) -> Models.ChatListRowModel {
+    /// `mutedByLabel` is MATRIX-77's label mute: every label that holds the
+    /// room is muted.
+    func chatListRow(now: Date = .now, mutedByLabel: Bool = false) -> Models.ChatListRowModel {
         let isDirect = roomInfo?.isDirect == true
         let preview = latestEvent?.preview(isDirect: isDirect)
         let unread = roomInfo.map { info in
@@ -206,9 +221,10 @@ extension SidebarRoom {
                 numUnreadNotifications: info.numUnreadNotifications,
                 numUnreadMentions: info.numUnreadMentions,
                 isMarkedUnread: info.isMarkedUnread,
-                isMuted: info.isMuted
+                isMuted: info.isMuted,
+                isMutedByLabel: mutedByLabel
             )
-        } ?? ChatListUnread()
+        } ?? ChatListUnread(isMutedByLabel: mutedByLabel)
 
         return ChatListRowModel(
             id: id,
