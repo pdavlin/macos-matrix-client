@@ -52,13 +52,21 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
         } else if unread.isUnread {
             parts.append("unread")
         }
-        if unread.isMuted {
+        if unread.isMutedByLabel {
+            parts.append("muted by label")
+        } else if unread.isMuted {
             parts.append("muted")
         }
         if hasSendFailure {
             parts.append("message failed to send")
         }
         return parts.joined(separator: ", ")
+    }
+
+    /// The row tooltip: the title, and why the row is muted when a label
+    /// muted it (MATRIX-77).
+    public var helpText: String {
+        unread.isMutedByLabel ? "\(title)\nMuted by Label" : title
     }
 }
 
@@ -72,12 +80,22 @@ public struct ChatListUnread: Equatable, Sendable {
     /// The user's notification mode for the room is mute. The capsule turns
     /// gray; nothing else changes. Display only — the row never sets it.
     public var isMuted: Bool
+    /// MATRIX-77: the room is muted because every label that holds it is
+    /// muted, not by its own notification mode. Implies `isMuted`.
+    public var isMutedByLabel: Bool
 
-    public init(count: UInt64 = 0, hasMention: Bool = false, isUnread: Bool = false, isMuted: Bool = false) {
+    public init(
+        count: UInt64 = 0,
+        hasMention: Bool = false,
+        isUnread: Bool = false,
+        isMuted: Bool = false,
+        isMutedByLabel: Bool = false
+    ) {
         self.count = count
         self.hasMention = hasMention
         self.isUnread = isUnread
-        self.isMuted = isMuted
+        self.isMuted = isMuted || isMutedByLabel
+        self.isMutedByLabel = isMutedByLabel
     }
 
     /// Builds the state from the SDK's three counters.
@@ -91,14 +109,18 @@ public struct ChatListUnread: Equatable, Sendable {
         numUnreadNotifications: UInt64,
         numUnreadMentions: UInt64,
         isMarkedUnread: Bool,
-        isMuted: Bool
+        isMuted: Bool,
+        isMutedByLabel: Bool = false
     ) {
         let count = max(numUnreadMessages, numUnreadNotifications, numUnreadMentions)
         self.init(
             count: count,
             hasMention: numUnreadMentions > 0,
             isUnread: count > 0 || isMarkedUnread,
-            isMuted: isMuted
+            isMuted: isMuted,
+            // The room's own mute is the stronger statement: name the label
+            // only when it is the reason.
+            isMutedByLabel: isMutedByLabel && !isMuted
         )
     }
 }
