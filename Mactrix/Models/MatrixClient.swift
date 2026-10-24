@@ -210,6 +210,7 @@ class MatrixClient {
         roomListServiceState = nil
         showRoomSyncIndicator = nil
         notificationClient = nil
+        labels = nil
 
         try? await client.logout()
         client = nil
@@ -255,6 +256,9 @@ class MatrixClient {
 
     var notificationClient: NotificationClient?
 
+    /// MATRIX-77: the account's chat labels. Created when sync starts.
+    var labels: LabelsModel?
+
     /// MATRIX-67: the chat-list filter the sidebar last chose.
     ///
     /// The entries controller belongs to the client, not to a window, so the
@@ -262,16 +266,22 @@ class MatrixClient {
     /// active, and the most recently active window's filter is the one shown.
     @ObservationIgnored private(set) var chatListFilter: ChatListFilter = .inbox
 
-    /// Applies `filter` to the room-list entries. A no-op when it is already
-    /// applied: every `setFilter` resets the list, and each reset re-fetches
-    /// every row's room info and latest event.
-    func setChatListFilter(_ filter: ChatListFilter) {
-        guard filter != chatListFilter else { return }
+    /// MATRIX-77: the rooms of the label the sidebar last selected, or nil
+    /// for the Inbox. Applied with `chatListFilter`, per client like it.
+    @ObservationIgnored private(set) var chatListLabelRooms: [String]?
+
+    /// Applies `filter`, narrowed to `labelRooms` when a label is selected,
+    /// to the room-list entries. A no-op when it is already applied: every
+    /// `setFilter` resets the list, and each reset re-fetches every row's
+    /// room info and latest event.
+    func setChatListFilter(_ filter: ChatListFilter, labelRooms: [String]? = nil) {
+        guard filter != chatListFilter || labelRooms != chatListLabelRooms else { return }
         chatListFilter = filter
+        chatListLabelRooms = labelRooms
         // Before `startSync()` there is no handle yet; it picks up
         // `chatListFilter` when it creates one.
         guard let controller = roomListEntriesHandle?.controller() else { return }
-        if !controller.setFilter(kind: filter.roomListFilter) {
+        if !controller.setFilter(kind: filter.roomListFilter(labelRooms: labelRooms)) {
             Logger.matrixClient.error("room list rejected filter \(filter.rawValue, privacy: .public)")
         }
     }
@@ -289,7 +299,7 @@ class MatrixClient {
 
         let roomEntriesListener = AsyncSDKListener<[RoomListEntriesUpdate]>()
         let _roomListEntriesHandle = try await _roomListService.allRooms().entriesWithDynamicAdapters(pageSize: 100, listener: roomEntriesListener)
-        _ = _roomListEntriesHandle.controller().setFilter(kind: chatListFilter.roomListFilter)
+        _ = _roomListEntriesHandle.controller().setFilter(kind: chatListFilter.roomListFilter(labelRooms: chatListLabelRooms))
         roomListEntriesHandle = _roomListEntriesHandle
 
         roomEntriesTask = Task { [weak self] in
@@ -315,6 +325,14 @@ class MatrixClient {
 
         ignoredUsersHandle = client.subscribeToIgnoredUsers(listener: self)
         ignoredUserIds = try await client.ignoredUsers()
+
+        // MATRIX-77: labels read the local store, so this first read shows
+        // what the last session synced; the room list's `running` state
+        // re-reads once sync catches up.
+        if labels == nil {
+            labels = LabelsModel(client: client, notifications: notifications)
+        }
+        await labels?.refresh()
 
         // Start the sync loop.
         await _syncService.start()
