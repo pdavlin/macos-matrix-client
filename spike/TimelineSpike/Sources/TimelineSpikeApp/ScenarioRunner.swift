@@ -148,7 +148,7 @@ final class ScenarioRunner {
     /// against an unknown quantum is not a measurement.
     private func calibrateCadence() async {
         harness.beginCadenceCalibration()
-        if let driver = ScrollDriver() {
+        if let driver = ScrollDriver(ticks: harness.frameRecorder) {
             await driver.settleAtStart()
             await driver.sweep(for: Self.calibrationSeconds)
         } else {
@@ -196,7 +196,7 @@ final class ScenarioRunner {
             )
         )
 
-        guard let driver = ScrollDriver() else {
+        guard let driver = ScrollDriver(ticks: harness.frameRecorder) else {
             print("[TimelineSpike] runner: no scroll view found, cannot run \(scenario.rawValue)")
             return
         }
@@ -251,14 +251,25 @@ final class ScenarioRunner {
 /// "older" is a different direction in each. The driver reads where the
 /// timeline parks itself on load — always the newest end — and treats the other
 /// extreme as older.
+///
+/// ## Pacing
+///
+/// Every move this driver makes is written from a display-link callback, never from a
+/// wall-clock sleep. See `drive(for:body:)` for why that distinction is the difference
+/// between measuring a renderer and measuring the driver.
 @MainActor
 struct ScrollDriver {
     private let scrollView: NSScrollView
+    private let ticks: FrameRecorder
     private let startsAtOrigin: Bool
 
-    init?() {
+    /// - Parameter ticks: the recorder whose display link paces the moves. It is the same
+    ///   link the frame statistics come from, deliberately: a driver paced by one clock and
+    ///   measured against another is the defect this initializer's signature prevents.
+    init?(ticks: FrameRecorder) {
         guard let scrollView = TimelineViewport.scrollView() else { return nil }
         self.scrollView = scrollView
+        self.ticks = ticks
         self.startsAtOrigin = scrollView.contentView.bounds.origin.y <= Self.maximumOriginY(of: scrollView) / 2
     }
 
@@ -294,15 +305,28 @@ struct ScrollDriver {
 
     /// Steps to a position, one frame at a time, so the container sees a scroll
     /// rather than a jump.
+    ///
+    /// A reposition, not a measurement: every scenario that seeks resets the instruments
+    /// afterwards. It is paced off the display link anyway, because one pacing mechanism in
+    /// a driver is easier to reason about than two.
     func seek(toFraction target: CGFloat) async {
         let start = currentFraction()
-        let steps = max(1, Int(abs(target - start) * 600))
-        for step in 1 ... steps {
-            let progress = CGFloat(step) / CGFloat(steps)
+        let distance = abs(target - start)
+        guard distance > 0 else { return }
+        // The hand-rolled loop crossed the whole range in 600 steps of one frame each. Same
+        // speed, expressed as the duration the tick-paced driver takes it in.
+        let duration = Double(distance) * Self.seekFrames * PinnedCadence.quantumMilliseconds / 1000
+        await drive(for: duration) { elapsed in
+            let progress = CGFloat(min(1, elapsed / duration))
             setOrigin(originY(forFraction: start + (target - start) * progress))
-            try? await Task.sleep(nanoseconds: 8_000_000)
         }
+        // Land exactly on the target: the last callback lands a fraction of a frame short.
+        setOrigin(originY(forFraction: target))
     }
+
+    /// Frames a full-range seek takes. Far faster than reading speed, which is the point —
+    /// a seek is setup, and its cost is not in any scenario's numbers.
+    private static let seekFrames: Double = 600
 
     /// Reading speed, in points per second.
     ///
@@ -312,38 +336,71 @@ struct ScrollDriver {
     /// which is why an automated run measures a band at the right speed rather
     /// than the whole corpus at the wrong one.
     private static let pointsPerSecond: CGFloat = 250
-    private static let stepInterval: TimeInterval = 1.0 / 120.0
+    private static let pacer = ScrollPacer(pointsPerSecond: pointsPerSecond)
 
     /// A steady drag toward the oldest end for `duration`. This is S1.
     func sweep(for duration: TimeInterval) async {
-        let deadline = Date().addingTimeInterval(duration)
-        let step = Self.pointsPerSecond * CGFloat(Self.stepInterval)
-        var travelled: CGFloat = 0
-        while Date() < deadline {
-            travelled += step
-            setOrigin(originY(forTravel: travelled))
-            try? await Task.sleep(nanoseconds: UInt64(Self.stepInterval * 1_000_000_000))
+        let pacer = Self.pacer
+        await drive(for: duration) { elapsed in
+            setOrigin(originY(forTravel: pacer.travel(elapsed: elapsed)))
         }
     }
 
     /// Up and down over a band at the same reading speed. This is S3.
     func oscillate(for duration: TimeInterval) async {
-        let deadline = Date().addingTimeInterval(duration)
         let start = scrollView.contentView.bounds.origin.y
         // Four screens of travel before each reversal: far enough that every row
         // in the band is recycled, close enough to stay a drag rather than a jump.
         let band = scrollView.contentView.bounds.height * 4
-        let step = Self.pointsPerSecond * CGFloat(Self.stepInterval)
-        var travelled: CGFloat = 0
-        var direction: CGFloat = 1
-        while Date() < deadline {
-            travelled += direction * step
-            if travelled >= band || travelled <= 0 {
-                direction = -direction
-                travelled = min(max(0, travelled), band)
-            }
+        let pacer = Self.pacer
+        await drive(for: duration) { elapsed in
+            let travelled = pacer.foldedTravel(elapsed: elapsed, band: band)
             setOrigin(start + (startsAtOrigin ? travelled : -travelled))
-            try? await Task.sleep(nanoseconds: UInt64(Self.stepInterval * 1_000_000_000))
+        }
+    }
+
+    /// Wall-clock slack the stall watchdog allows on top of the requested duration.
+    ///
+    /// Generous, because it is not a quality bar — it exists so a dead display link ends the
+    /// run instead of hanging the gate forever.
+    private static let stallGraceSeconds: TimeInterval = 2
+
+    /// Calls `body` once per display-link callback, until `duration` of callback time has
+    /// passed, then returns.
+    ///
+    /// ## Why the callback and not a sleep
+    ///
+    /// The driver used to write the clip view and then sleep `1/120s` of wall clock. At the
+    /// pinned 120 Hz cadence (MATRIX-64) that leaves zero headroom: a sleep resumes a little
+    /// late, so writes drift across the vsync boundary until one frame receives two of them
+    /// and the next receives none. The doubled frame lays out twice the scroll distance,
+    /// overruns its deadline, and the recorder books a missed callback as a 16.75ms
+    /// interval. That is what put S1's p95 at exactly two frames for *both* renderers in the
+    /// MATRIX-64 baselines — a number produced by the driver, not by the renderer.
+    ///
+    /// Pacing from the callback removes the race by construction. There is exactly one write
+    /// per presented frame, and the write happens inside the callback, before that frame
+    /// commits, so the layout it causes belongs to the frame the recorder is timing.
+    ///
+    /// ## Why `body` takes elapsed time
+    ///
+    /// The offset is a function of callback time, not of how many callbacks arrived. A
+    /// dropped callback then shortens nothing: the next one puts the viewport exactly where
+    /// the scenario's reading speed says it belongs, so the sweep covers the same rows in
+    /// the same duration as any other run. The workload stays the scenario's workload.
+    private func drive(for duration: TimeInterval, body: @escaping (TimeInterval) -> Void) async {
+        guard duration > 0 else { return }
+        let session = DriveSession()
+        let recorder = ticks
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            session.start(continuation: continuation, recorder: recorder, watchdogSeconds: duration + Self.stallGraceSeconds)
+            session.token = recorder.addTickObserver { timestamp in
+                let elapsed = session.elapsed(at: timestamp)
+                body(min(elapsed, duration))
+                if elapsed >= duration {
+                    session.finish(recorder: recorder)
+                }
+            }
         }
     }
 
@@ -351,5 +408,69 @@ struct ScrollDriver {
     /// the table runs.
     private func originY(forTravel travel: CGFloat) -> CGFloat {
         startsAtOrigin ? travel : maximumOriginY - travel
+    }
+}
+
+/// The mutable state of one `ScrollDriver.drive(for:body:)` call.
+///
+/// A class because the tick observer and the stall watchdog have to see the same
+/// already-finished state: a `CheckedContinuation` may be resumed exactly once, and either
+/// of them can be the one that gets there first.
+@MainActor
+private final class DriveSession {
+    /// Set by the caller immediately after registering the observer this session finishes.
+    var token: FrameRecorder.TickObserverToken?
+
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var watchdog: Task<Void, Never>?
+    private var startTimestamp: CFTimeInterval?
+
+    /// Adopts the continuation and arms the stall watchdog.
+    ///
+    /// The watchdog is not a quality check — a move that runs a frame or two long is normal
+    /// and lands well inside the grace. It exists because a display link that stops
+    /// delivering would otherwise hang the gate for good, and a gate that hangs is worse
+    /// than one that reports a stall.
+    func start(
+        continuation: CheckedContinuation<Void, Never>,
+        recorder: FrameRecorder,
+        watchdogSeconds: TimeInterval
+    ) {
+        self.continuation = continuation
+        watchdog = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(max(0, watchdogSeconds) * 1_000_000_000))
+            guard !Task.isCancelled, let self, self.isRunning else { return }
+            print(
+                "[TimelineSpike] scroll driver: the move did not finish within "
+                    + String(format: "%.1f", watchdogSeconds)
+                    + "s of wall clock. The display link stalled, and this scenario's numbers "
+                    + "describe a viewport that stopped moving."
+            )
+            self.finish(recorder: recorder)
+        }
+    }
+
+    private var isRunning: Bool { continuation != nil }
+
+    /// Seconds of callback time since the first callback of this move. The first reads zero.
+    func elapsed(at timestamp: CFTimeInterval) -> TimeInterval {
+        guard let startTimestamp else {
+            self.startTimestamp = timestamp
+            return 0
+        }
+        return timestamp - startTimestamp
+    }
+
+    /// Detaches the observer, cancels the watchdog and resumes the caller. Idempotent.
+    func finish(recorder: FrameRecorder) {
+        if let token {
+            recorder.removeTickObserver(token)
+            self.token = nil
+        }
+        watchdog?.cancel()
+        watchdog = nil
+        let pending = continuation
+        continuation = nil
+        pending?.resume()
     }
 }
