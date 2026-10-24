@@ -92,7 +92,7 @@ struct ChatLabelDocumentTests {
     }
 
     @Test
-    func newerVersionIsReadButNotWritable() throws {
+    func newerVersionIsReadButNotWritable() {
         let result = ChatLabelDocument.read(#"{"version":2,"labels":[{"id":"x","name":"X"}]}"#)
         #expect(result.document.labels.count == 1)
         #expect(!result.document.isWritable)

@@ -63,6 +63,8 @@ struct RoomContextMenu: View {
                 }
             }
 
+            AddToLabelMenu(roomId: room.id)
+
             Button {
                 Task {
                     do {

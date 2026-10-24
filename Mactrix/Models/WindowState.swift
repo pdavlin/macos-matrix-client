@@ -52,6 +52,14 @@ final class WindowState {
     /// The sidebar chat-list filter (MATRIX-67). Restored per window.
     var chatListFilter: ChatListFilter = .inbox
 
+    /// The label selected in the sidebar rail (MATRIX-77), or nil for the
+    /// Inbox. Restored per window. An ID the labels do not hold (yet, or any
+    /// more) shows the Inbox.
+    var selectedLabelId: String?
+
+    /// The label sheet to show, if any (MATRIX-77). Not restored.
+    var labelEditor: LabelEditorRequest?
+
     var searchFocused: Binding<Bool> {
         Binding(
             get: { self.inspectorContent == .search },
@@ -141,12 +149,15 @@ extension WindowState: @MainActor RawRepresentable {
         /// Optional so a window saved before MATRIX-67, which has no filter,
         /// still decodes; it restores as the inbox.
         let chatListFilter: ChatListFilter?
+        /// MATRIX-77. Optional, so older windows restore with the Inbox.
+        let selectedLabelId: String?
 
         @MainActor init(windowState: WindowState) {
             self.selectedRoomId = windowState.selectedRoomId
             self.inspectorVisible = windowState.inspectorVisible
             self.sidebarSections = windowState.sidebarSections
             self.chatListFilter = windowState.chatListFilter
+            self.selectedLabelId = windowState.selectedLabelId
         }
 
         @MainActor func restore(windowState: WindowState) {
@@ -154,6 +165,7 @@ extension WindowState: @MainActor RawRepresentable {
             windowState.inspectorVisible = inspectorVisible
             windowState.sidebarSections = sidebarSections
             windowState.chatListFilter = chatListFilter ?? .inbox
+            windowState.selectedLabelId = selectedLabelId
         }
     }
 
@@ -183,6 +195,21 @@ extension WindowState: @MainActor RawRepresentable {
     }
 
     typealias RawValue = String
+}
+
+/// A request to open the label sheet (MATRIX-77).
+enum LabelEditorRequest: Identifiable, Equatable {
+    /// Create a label, with `roomId` checked when the sheet opens from a
+    /// chat's context menu.
+    case create(preselectedRoomId: String?)
+    case edit(labelId: String)
+
+    var id: String {
+        switch self {
+        case let .create(roomId): "create:\(roomId ?? "")"
+        case let .edit(labelId): "edit:\(labelId)"
+        }
+    }
 }
 
 enum SearchToken: Hashable, Identifiable {
