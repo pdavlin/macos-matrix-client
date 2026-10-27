@@ -1,11 +1,11 @@
 import MatrixRustSDK
 
-protocol MessageContent {
+public protocol MessageContent {
     var body: String { get }
     var formatted: FormattedBody? { get }
 }
 
-protocol MediaMessageContent {
+public protocol MediaMessageContent {
     var filename: String { get }
     var caption: String? { get }
     var formattedCaption: FormattedBody? { get }

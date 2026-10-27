@@ -70,7 +70,7 @@ public struct TimelineGroups: Hashable {
         return nil
     }
 
-    var versions: [String: Int] {
+    public var versions: [String: Int] {
         var result = [String: Int]()
 
         for group in groups {

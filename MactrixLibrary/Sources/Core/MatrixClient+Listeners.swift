@@ -2,7 +2,7 @@ import Foundation
 import MatrixRustSDK
 import OSLog
 
-extension MatrixClient {
+public extension MatrixClient {
     /// A compact, greppable summary of a room-list batch.
     ///
     /// Separate from `updateRoomEntries` to keep that function under the
@@ -77,7 +77,7 @@ extension MatrixClient {
 }
 
 extension MatrixClient: SyncServiceStateObserver {
-    nonisolated func onUpdate(state: MatrixRustSDK.SyncServiceState) {
+    public nonisolated func onUpdate(state: MatrixRustSDK.SyncServiceState) {
         Task { @MainActor in
             syncState = state
         }
@@ -85,7 +85,7 @@ extension MatrixClient: SyncServiceStateObserver {
 }
 
 extension MatrixClient: VerificationStateListener {
-    nonisolated func onUpdate(status: MatrixRustSDK.VerificationState) {
+    public nonisolated func onUpdate(status: MatrixRustSDK.VerificationState) {
         Task { @MainActor in
             // Recorded because a session that reports `unverified` on every
             // launch cannot read the key backup, which shows up downstream as
@@ -142,7 +142,7 @@ extension MatrixClient: VerificationStateListener {
 }
 
 extension MatrixClient: RecoveryStateListener {
-    nonisolated func onUpdate(status: MatrixRustSDK.RecoveryState) {
+    public nonisolated func onUpdate(status: MatrixRustSDK.RecoveryState) {
         Task { @MainActor in
             recoveryState = status
         }
@@ -157,7 +157,7 @@ extension MatrixClient: RecoveryStateListener {
 }
 
 extension MatrixClient: RoomListServiceStateListener {
-    nonisolated func onUpdate(state: MatrixRustSDK.RoomListServiceState) {
+    public nonisolated func onUpdate(state: MatrixRustSDK.RoomListServiceState) {
         Task { @MainActor in
             // Logged because this state gates the recovery UI (see
             // `RecoveryPrompt`) and because an empty sidebar is otherwise
@@ -177,7 +177,7 @@ extension MatrixClient: RoomListServiceStateListener {
 }
 
 extension MatrixClient: RoomListServiceSyncIndicatorListener {
-    nonisolated func onUpdate(syncIndicator: MatrixRustSDK.RoomListServiceSyncIndicator) {
+    public nonisolated func onUpdate(syncIndicator: MatrixRustSDK.RoomListServiceSyncIndicator) {
         Task { @MainActor in
             showRoomSyncIndicator = syncIndicator
         }
@@ -185,7 +185,7 @@ extension MatrixClient: RoomListServiceSyncIndicatorListener {
 }
 
 extension MatrixClient: MatrixRustSDK.ClientDelegate {
-    nonisolated func onBackgroundTaskErrorReport(taskName: String, error: MatrixRustSDK.BackgroundTaskFailureReason) {
+    public nonisolated func onBackgroundTaskErrorReport(taskName: String, error: MatrixRustSDK.BackgroundTaskFailureReason) {
         // Both fields public: a task name and a failure reason are diagnostics,
         // not secrets, and the redacted version of this line was useless while
         // chasing an empty room list.
@@ -194,7 +194,7 @@ extension MatrixClient: MatrixRustSDK.ClientDelegate {
         )
     }
 
-    nonisolated func didReceiveAuthError(isSoftLogout: Bool) {
+    public nonisolated func didReceiveAuthError(isSoftLogout: Bool) {
         Task { @MainActor in
             if isSoftLogout {
                 Logger.matrixClient.debug("did receive auth error: soft logout true")
@@ -215,7 +215,7 @@ extension MatrixClient: MatrixRustSDK.ClientDelegate {
 }
 
 extension MatrixClient: MatrixRustSDK.IgnoredUsersListener {
-    nonisolated func call(ignoredUserIds: [String]) {
+    public nonisolated func call(ignoredUserIds: [String]) {
         Task { @MainActor in
             Logger.matrixClient.debug("Updated ignored users: \(ignoredUserIds)")
             self.ignoredUserIds = ignoredUserIds
@@ -224,29 +224,29 @@ extension MatrixClient: MatrixRustSDK.IgnoredUsersListener {
 }
 
 extension MatrixClient: SessionVerificationControllerDelegate {
-    nonisolated func didReceiveVerificationRequest(details: MatrixRustSDK.SessionVerificationRequestDetails) {
+    public nonisolated func didReceiveVerificationRequest(details: MatrixRustSDK.SessionVerificationRequestDetails) {
         Task { @MainActor in
             Logger.matrixClient.debug("session verification: didReceiveVerificationRequest")
             sessionVerificationRequest = details
         }
     }
 
-    nonisolated func didAcceptVerificationRequest() {
+    public nonisolated func didAcceptVerificationRequest() {
         Logger.matrixClient.debug("session verification: didAcceptVerificationRequest")
     }
 
-    nonisolated func didStartSasVerification() {
+    public nonisolated func didStartSasVerification() {
         Logger.matrixClient.debug("session verification: didStartSasVerification")
     }
 
-    nonisolated func didReceiveVerificationData(data: MatrixRustSDK.SessionVerificationData) {
+    public nonisolated func didReceiveVerificationData(data: MatrixRustSDK.SessionVerificationData) {
         Task { @MainActor in
             Logger.matrixClient.debug("session verification: didReceiveVerificationData")
             sessionVerificationData = data
         }
     }
 
-    nonisolated func didFail() {
+    public nonisolated func didFail() {
         Task { @MainActor in
             Logger.matrixClient.debug("session verification: didFail")
             sessionVerificationRequest = nil
@@ -254,7 +254,7 @@ extension MatrixClient: SessionVerificationControllerDelegate {
         }
     }
 
-    nonisolated func didCancel() {
+    public nonisolated func didCancel() {
         Task { @MainActor in
             Logger.matrixClient.debug("session verification: didCancel")
             sessionVerificationRequest = nil
@@ -262,7 +262,7 @@ extension MatrixClient: SessionVerificationControllerDelegate {
         }
     }
 
-    nonisolated func didFinish() {
+    public nonisolated func didFinish() {
         Task { @MainActor in
             Logger.matrixClient.debug("session verification: didFinish")
             sessionVerificationRequest = nil

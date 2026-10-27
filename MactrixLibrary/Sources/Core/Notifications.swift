@@ -3,15 +3,15 @@ import OSLog
 import UserNotifications
 
 // This class is Sendable because MatrixRustSDK.SyncNotificationListener requires it to be so
-@MainActor @Observable final class MatrixNotifications: NSObject {
-    var selectedRoomId: String?
+@MainActor @Observable public final class MatrixNotifications: NSObject {
+    public var selectedRoomId: String?
 
-    typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
+    public typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
 
     @ObservationIgnored private let notificationContinuation: AsyncStream<NotificationEvent>.Continuation
     @ObservationIgnored private var streamTask: Task<Void, Never>?
 
-    override init() {
+    override public init() {
         let (stream, continuation) = AsyncStream<NotificationEvent>.makeStream()
         notificationContinuation = continuation
 
@@ -28,7 +28,7 @@ import UserNotifications
 }
 
 extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    public func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let roomId = response.notification.request.content.userInfo["roomId"] as? String
         Logger.notification.info("Notification delegate didReceive: \(roomId ?? "<no room id>")")
         selectedRoomId = roomId
@@ -36,12 +36,12 @@ extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
 }
 
 extension MatrixNotifications: MatrixRustSDK.SyncNotificationListener {
-    nonisolated func onNotification(notification: MatrixRustSDK.NotificationItem, roomId: String) {
+    public nonisolated func onNotification(notification: MatrixRustSDK.NotificationItem, roomId: String) {
         notificationContinuation.yield((notification, roomId))
     }
 }
 
-extension MatrixNotifications {
+public extension MatrixNotifications {
     func sendNotification(notification: MatrixRustSDK.NotificationItem, roomId: String) async {
         do {
             let success = try await UNUserNotificationCenter.current()

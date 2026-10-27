@@ -3,18 +3,18 @@ import MatrixRustSDK
 
 @MainActor @Observable
 public final class SidebarSpaceRoom {
-    let spaceRoom: SpaceRoom
+    public let spaceRoom: SpaceRoom
 
-    var children: Children = .loading
+    public var children: Children = .loading
 
     private let spaceService: LiveSpaceService
 
-    init(spaceService: LiveSpaceService, spaceRoom: SpaceRoom) {
+    public init(spaceService: LiveSpaceService, spaceRoom: SpaceRoom) {
         self.spaceService = spaceService
         self.spaceRoom = spaceRoom
     }
 
-    func loadChildren() async {
+    public func loadChildren() async {
         if case .loaded = children {
             return
         }
@@ -27,7 +27,7 @@ public final class SidebarSpaceRoom {
         }
     }
 
-    enum Children {
+    public enum Children {
         case loading
         case loaded(children: LiveSpaceRoomList)
         case error(error: Error)

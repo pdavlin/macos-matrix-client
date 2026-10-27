@@ -4,13 +4,18 @@ import MatrixRustSDK
 import OSLog
 import SwiftUI
 
-struct HomeserverLogin {
-    let storeID: String
-    let storePassphrase: String
-    let unauthenticatedClient: ClientProtocol
-    let loginDetails: HomeserverLoginDetailsProtocol
+public struct HomeserverLogin: Sendable {
+    public let storeID: String
+    public let storePassphrase: String
+    public let unauthenticatedClient: ClientProtocol
+    public let loginDetails: HomeserverLoginDetailsProtocol
 
-    init(storeID: String, storePassphrase: String, unauthenticatedClient: ClientProtocol, loginDetails: HomeserverLoginDetailsProtocol) {
+    public init(
+        storeID: String,
+        storePassphrase: String,
+        unauthenticatedClient: ClientProtocol,
+        loginDetails: HomeserverLoginDetailsProtocol
+    ) {
         self.storeID = storeID
         self.storePassphrase = storePassphrase
         self.unauthenticatedClient = unauthenticatedClient
@@ -18,7 +23,7 @@ struct HomeserverLogin {
     }
 
     @MainActor
-    func loginPassword(homeServer _: String, username: String, password: String) async throws -> MatrixClient {
+    public func loginPassword(homeServer _: String, username: String, password: String) async throws -> MatrixClient {
         // Login using password authentication.
         try await unauthenticatedClient.login(username: username, password: password, initialDeviceName: "Mactrix", deviceId: nil)
         return try await onSuccessfullLogin()
@@ -30,7 +35,7 @@ struct HomeserverLogin {
     }
 
     @MainActor
-    func loginOidc(webAuthSession: WebAuthenticationSession) async throws -> MatrixClient {
+    public func loginOidc(webAuthSession: WebAuthenticationSession) async throws -> MatrixClient {
         Logger.matrixClient.debug("login oidc begin")
         let authInfo = try await unauthenticatedClient.urlForOidc(oidcConfiguration: oidcConfiguration, prompt: .login, loginHint: nil, deviceId: nil, additionalScopes: nil)
         let url = URL(string: authInfo.loginUrl())!

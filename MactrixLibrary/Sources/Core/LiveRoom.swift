@@ -5,7 +5,7 @@ import OSLog
 
 @MainActor @Observable
 public final class LiveRoom: Identifiable {
-    let sidebarRoom: SidebarRoom
+    public let sidebarRoom: SidebarRoom
 
     public var typingUserIds: [String] = []
     public var members: [MatrixRustSDK.RoomMember] = []

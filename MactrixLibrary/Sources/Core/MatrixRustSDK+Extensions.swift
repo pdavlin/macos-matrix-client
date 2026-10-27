@@ -15,7 +15,7 @@ extension MatrixRustSDK.RoomMember: @retroactive Identifiable, Models.RoomMember
     }
 }
 
-extension MatrixRustSDK.RoomMemberRole {
+public extension MatrixRustSDK.RoomMemberRole {
     var asModel: Models.RoomMemberRole {
         switch self {
         case .creator:
@@ -30,7 +30,7 @@ extension MatrixRustSDK.RoomMemberRole {
     }
 }
 
-extension MatrixRustSDK.RecoveryState {
+public extension MatrixRustSDK.RecoveryState {
     var asModel: Models.RecoveryStatus {
         switch self {
         case .unknown: .unknown
@@ -41,7 +41,7 @@ extension MatrixRustSDK.RecoveryState {
     }
 }
 
-extension MatrixRustSDK.EncryptionState {
+public extension MatrixRustSDK.EncryptionState {
     var asModel: Models.EncryptionState {
         switch self {
         case .notEncrypted:
@@ -155,7 +155,7 @@ public extension MatrixRustSDK.Timestamp {
     }
 }
 
-extension MatrixRustSDK.VirtualTimelineItem {
+public extension MatrixRustSDK.VirtualTimelineItem {
     var asModel: Models.VirtualTimelineItem {
         switch self {
         case let .dateDivider(ts: ts):
@@ -168,7 +168,7 @@ extension MatrixRustSDK.VirtualTimelineItem {
     }
 }
 
-extension MatrixRustSDK.ProfileDetails {
+public extension MatrixRustSDK.ProfileDetails {
     var asModel: Models.ProfileDetails {
         switch self {
         case .unavailable:
@@ -183,7 +183,7 @@ extension MatrixRustSDK.ProfileDetails {
     }
 }
 
-extension MatrixRustSDK.QueueWedgeError {
+public extension MatrixRustSDK.QueueWedgeError {
     /// User-readable cause for a failed send. Mapped exhaustively so a new
     /// SDK case breaks the build rather than shipping an unlabeled failure.
     var userMessage: String {
@@ -260,7 +260,7 @@ extension MatrixRustSDK.EventTimelineItem: @retroactive Identifiable {
     }
 }
 
-extension MatrixRustSDK.TimelineItem {
+public extension MatrixRustSDK.TimelineItem {
     /// Maps this SDK timeline item to a platform-neutral row model.
     ///
     /// The mapping is total and returns a row for every item. An item that is
@@ -294,7 +294,7 @@ extension MatrixRustSDK.TimelineItem {
     }
 }
 
-extension MatrixRustSDK.MsgLikeContent {
+public extension MatrixRustSDK.MsgLikeContent {
     /// Coarse render shape of this message, used for view recycling (S-34).
     ///
     /// Cheap by construction: it reads the content enum the item already
@@ -320,7 +320,7 @@ extension MatrixRustSDK.MsgLikeContent {
     }
 }
 
-extension Models.UnableToDecryptCause {
+public extension Models.UnableToDecryptCause {
     /// Maps the SDK's UTD attribution onto the row layer's cause.
     ///
     /// One case per SDK case, so a new `UtdCause` fails this build instead of
@@ -599,7 +599,7 @@ extension MatrixRustSDK.OtherState: @retroactive CustomStringConvertible {
     }
 }
 
-extension MatrixRustSDK.EmbeddedEventDetails {
+public extension MatrixRustSDK.EmbeddedEventDetails {
     var message: String? {
         switch self {
         case .unavailable:
@@ -655,7 +655,7 @@ extension MatrixRustSDK.SessionVerificationEmoji: Models.SessionVerificationEmoj
     }
 }
 
-extension MatrixRustSDK.SessionVerificationData {
+public extension MatrixRustSDK.SessionVerificationData {
     var asModel: Models.SessionVerificationData<MatrixRustSDK.SessionVerificationEmoji> {
         switch self {
         case let .emojis(emojis, indices):

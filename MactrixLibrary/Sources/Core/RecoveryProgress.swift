@@ -19,8 +19,8 @@ import SwiftUI
 /// This type deliberately does not persist the recovery key anywhere. It is
 /// held in memory only, for as long as the sheet showing it is open.
 @MainActor @Observable
-final class RecoveryProgress {
-    enum Phase: Equatable {
+public final class RecoveryProgress {
+    public enum Phase: Equatable {
         case idle
         /// Enabling. `detail` is a human-readable stage from the SDK.
         case enabling(detail: String)
@@ -31,11 +31,13 @@ final class RecoveryProgress {
         case failed(String)
     }
 
-    private(set) var phase: Phase = .idle
+    public private(set) var phase: Phase = .idle
+
+    public init() {}
 
     /// True while an operation is in flight, so views can disable their entry
     /// points rather than allowing a second concurrent attempt.
-    var isBusy: Bool {
+    public var isBusy: Bool {
         switch phase {
         case .enabling, .recovering: true
         case .idle, .showingKey, .recovered, .failed: false
@@ -48,7 +50,7 @@ final class RecoveryProgress {
     /// never logged and never written to disk: `enableRecovery` returns it
     /// exactly once, and only `resetRecoveryKey` can issue another — which
     /// invalidates the one the user may already have saved.
-    var pendingRecoveryKey: String? {
+    public var pendingRecoveryKey: String? {
         if case let .showingKey(key) = phase {
             key
         } else { nil }
@@ -59,7 +61,7 @@ final class RecoveryProgress {
     /// `waitForBackupsToUpload` is true so that "done" means the backup is
     /// actually populated. Reporting success before the room keys have
     /// uploaded would promise a recovery that does not yet exist.
-    func enable(using encryption: Encryption) async {
+    public func enable(using encryption: Encryption) async {
         guard !isBusy else { return }
         phase = .enabling(detail: "Starting…")
 
@@ -84,7 +86,7 @@ final class RecoveryProgress {
     }
 
     /// Unlocks existing secret storage with a recovery key.
-    func recover(with recoveryKey: String, using encryption: Encryption) async {
+    public func recover(with recoveryKey: String, using encryption: Encryption) async {
         guard !isBusy else { return }
         let trimmed = recoveryKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -103,11 +105,11 @@ final class RecoveryProgress {
     }
 
     /// Drops the key from memory once the user confirms they have saved it.
-    func acknowledgeKey() {
+    public func acknowledgeKey() {
         phase = .idle
     }
 
-    func dismissError() {
+    public func dismissError() {
         if case .failed = phase { phase = .idle }
     }
 }
