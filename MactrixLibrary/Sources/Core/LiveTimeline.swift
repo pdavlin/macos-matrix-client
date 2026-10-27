@@ -232,11 +232,11 @@ public final class LiveTimeline {
 /// between two view updates, and by then the array indices in an earlier
 /// change no longer address the items that change inserted. Carrying the
 /// payload keeps every entry self-contained.
-struct TimelineDisplayUpdate {
-    let change: TimelineDisplayChange
+public struct TimelineDisplayUpdate {
+    public let change: TimelineDisplayChange
     /// Inserted or replacement items, in display order. Empty for removals
     /// and resets.
-    let items: [TimelineItem]
+    public let items: [TimelineItem]
 }
 
 extension LiveTimeline {
@@ -247,13 +247,13 @@ extension LiveTimeline {
     /// container consumes a batch rather than one change. A caller that has
     /// never drained gets the whole history, which is why a fresh container
     /// rebuilds from `displayItems` and drains before its first update.
-    func drainDisplayChanges() -> [TimelineDisplayUpdate] {
+    public func drainDisplayChanges() -> [TimelineDisplayUpdate] {
         defer { pendingDisplayChanges.removeAll(keepingCapacity: true) }
         return pendingDisplayChanges
     }
 
     /// Drops queued changes and forces the next consumer to rebuild.
-    func invalidateDisplayChanges() {
+    public func invalidateDisplayChanges() {
         pendingDisplayChanges = [TimelineDisplayUpdate(change: .reset, items: [])]
     }
 

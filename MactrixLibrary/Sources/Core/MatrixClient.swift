@@ -4,26 +4,27 @@ import MatrixRustSDK
 import OSLog
 import Security
 import SwiftUI
+import Tokens
 import UI
 import UniformTypeIdentifiers
 import Utils
 
 @MainActor @Observable
-class MatrixClient {
-    let storeID: String
-    let storePassphrase: String
-    var client: ClientProtocol!
+public class MatrixClient {
+    public let storeID: String
+    public let storePassphrase: String
+    public var client: ClientProtocol!
 
-    var rooms: [SidebarRoom] = []
+    public var rooms: [SidebarRoom] = []
 
-    var spaceService: LiveSpaceService? // optional, not IUO: reset() nils it before AppState detaches the client (MATRIX-51)
+    public var spaceService: LiveSpaceService? // optional, not IUO: reset() nils it before AppState detaches the client (MATRIX-51)
 
     private var clientDelegateHandle: TaskHandle?
-    var authenticationFailed: Bool = false
+    public var authenticationFailed: Bool = false
 
-    let notifications: MatrixNotifications = .init()
+    public let notifications: MatrixNotifications = .init()
 
-    init(userSession: UserSession) async throws {
+    public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase
 
@@ -37,7 +38,7 @@ class MatrixClient {
         await installUtdHook()
     }
 
-    init(storeID: String, storePassphrase: String, client: ClientProtocol) async {
+    public init(storeID: String, storePassphrase: String, client: ClientProtocol) async {
         self.storeID = storeID
         self.storePassphrase = storePassphrase
         self.client = client
@@ -64,11 +65,11 @@ class MatrixClient {
         }
     }
 
-    func userSession() throws -> UserSession {
+    public func userSession() throws -> UserSession {
         return try UserSession(session: client.session(), storeID: storeID, storePassphrase: storePassphrase)
     }
 
-    static func clientBuilder(homeServer: String, storeId: String, storePassphrase: String) -> ClientBuilder {
+    public static func clientBuilder(homeServer: String, storeId: String, storePassphrase: String) -> ClientBuilder {
         let sqliteConfig = SqliteStoreBuilder(
             dataPath: URL.sessionData(for: storeId).path(percentEncoded: false),
             cachePath: URL.sessionCaches(for: storeId).path(percentEncoded: false)
@@ -84,15 +85,15 @@ class MatrixClient {
             .userAgent(userAgent: "Mactrix macOS")
     }
 
-    struct SecureRandomBytesError: LocalizedError {
-        let code: Int32
+    public struct SecureRandomBytesError: LocalizedError {
+        public let code: Int32
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             "Failed to generate secure bytes with status code \(code)"
         }
     }
 
-    static func generateStorePassphrase() throws -> String {
+    public static func generateStorePassphrase() throws -> String {
         var result = [UInt8](repeating: UInt8.random(in: 0 ..< UInt8.max), count: 32)
         let status = unsafe SecRandomCopyBytes(kSecRandomDefault, result.count, &result)
         if status != errSecSuccess {
@@ -102,7 +103,7 @@ class MatrixClient {
         return Data(result).base64EncodedString()
     }
 
-    static func loginDetails(homeServer: String) async throws -> HomeserverLogin {
+    public static func loginDetails(homeServer: String) async throws -> HomeserverLogin {
         let storeID = UUID().uuidString
         let storePassphrase = try Self.generateStorePassphrase()
 
@@ -112,7 +113,7 @@ class MatrixClient {
         return HomeserverLogin(storeID: storeID, storePassphrase: storePassphrase, unauthenticatedClient: client, loginDetails: details)
     }
 
-    static func attemptRestore() async throws -> MatrixClient? {
+    public static func attemptRestore() async throws -> MatrixClient? {
         guard let userSession = try UserSession.loadUserFromKeychain() else { return nil }
 
         // Probe the store BEFORE building the client. `ClientBuilder` creates
@@ -156,7 +157,7 @@ class MatrixClient {
     /// sibling of the live store is an orphan, and no login flow is in
     /// progress. Never call this with a store the SDK just created — see
     /// `attemptRestore`.
-    static func removeOrphanedStores(keeping storeID: String) {
+    public static func removeOrphanedStores(keeping storeID: String) {
         let parents = [
             URL.sessionData(for: storeID).deletingLastPathComponent(),
             URL.sessionCaches(for: storeID).deletingLastPathComponent(),
@@ -173,7 +174,7 @@ class MatrixClient {
         }
     }
 
-    func reset() async throws {
+    public func reset() async throws {
         Logger.matrixClient.debug("matrix client sign out")
 
         // Tear down the sync machinery BEFORE logout. Every handle below keeps
@@ -219,12 +220,12 @@ class MatrixClient {
         Logger.matrixClient.debug("matrix client sign out complete")
     }
 
-    var syncService: SyncService?
-    var syncState: SyncServiceState = .terminated
-    var roomListService: RoomListService?
-    var roomListServiceState: RoomListServiceState?
-    var showRoomSyncIndicator: RoomListServiceSyncIndicator?
-    var ignoredUserIds: [String] = []
+    public var syncService: SyncService?
+    public var syncState: SyncServiceState = .terminated
+    public var roomListService: RoomListService?
+    public var roomListServiceState: RoomListServiceState?
+    public var showRoomSyncIndicator: RoomListServiceSyncIndicator?
+    public var ignoredUserIds: [String] = []
 
     @ObservationIgnored private var roomEntriesTask: Task<Void, Never>?
     @ObservationIgnored fileprivate var roomListEntriesHandle: RoomListEntriesWithDynamicAdaptersResult?
@@ -236,25 +237,25 @@ class MatrixClient {
     @ObservationIgnored fileprivate var ignoredUsersHandle: TaskHandle?
 
     /// The latest session verification request received by another client
-    var sessionVerificationRequest: SessionVerificationRequestDetails?
-    var sessionVerificationData: SessionVerificationData?
-    var verificationState: VerificationState?
+    public var sessionVerificationRequest: SessionVerificationRequestDetails?
+    public var sessionVerificationData: SessionVerificationData?
+    public var verificationState: VerificationState?
 
     /// S-24: `UserIdentity.hasVerificationViolation()` for the account's own user.
-    var hasIdentityViolation: Bool = false
+    public var hasIdentityViolation: Bool = false
     /// S-24: `UserIdentity.wasPreviouslyVerified()` for the account's own user.
-    var wasPreviouslyVerified: Bool = false
+    public var wasPreviouslyVerified: Bool = false
 
     /// Whether secret storage exists on the server, and whether this device
     /// can read it. Drives the recovery UI — see `RecoveryProgress`.
     ///
     /// Reads `.unknown` until the first sync settles, so a view must treat
     /// `.unknown` as "not yet known" rather than "nothing to do".
-    var recoveryState: RecoveryState = .unknown
+    public var recoveryState: RecoveryState = .unknown
 
-    var notificationClient: NotificationClient?
+    public var notificationClient: NotificationClient?
 
-    func startSync() async throws {
+    public func startSync() async throws {
         let _syncService = try await client.syncService().withOfflineMode().finish()
         syncService = _syncService
 
@@ -299,15 +300,15 @@ class MatrixClient {
         Logger.matrixClient.info("Matrix sync started")
     }
 
-    func clearCache() async throws {
+    public func clearCache() async throws {
         try await client.clearCaches(syncService: syncService)
     }
 
-    func isUserIgnored(_ userId: String) -> Bool {
+    public func isUserIgnored(_ userId: String) -> Bool {
         ignoredUserIds.contains(userId)
     }
 
-    func declineVerificationRequest(request: SessionVerificationRequestDetails) async throws {
+    public func declineVerificationRequest(request: SessionVerificationRequestDetails) async throws {
         try await client.getSessionVerificationController().acknowledgeVerificationRequest(
             senderId: request.senderProfile.userId, flowId: request.flowId
         )
@@ -315,7 +316,7 @@ class MatrixClient {
         try await client.getSessionVerificationController().cancelVerification()
     }
 
-    func acceptVerificationRequest(request: SessionVerificationRequestDetails) async throws {
+    public func acceptVerificationRequest(request: SessionVerificationRequestDetails) async throws {
         try await client.getSessionVerificationController().acknowledgeVerificationRequest(
             senderId: request.senderProfile.userId, flowId: request.flowId
         )
@@ -323,17 +324,17 @@ class MatrixClient {
         try await client.getSessionVerificationController().acceptVerificationRequest()
     }
 
-    func requestDeviceVerification() async throws {
+    public func requestDeviceVerification() async throws {
         try await client.getSessionVerificationController().requestDeviceVerification()
     }
 }
 
-enum MatrixClientRestoreSessionError: Error {
+public enum MatrixClientRestoreSessionError: Error {
     case sessionNotFound, wrongUserId
 }
 
 extension MatrixClient: MatrixRustSDK.ClientSessionDelegate {
-    nonisolated func retrieveSessionFromKeychain(userId: String) throws -> MatrixRustSDK.Session {
+    public nonisolated func retrieveSessionFromKeychain(userId: String) throws -> MatrixRustSDK.Session {
         Logger.matrixClient.debug("client session delegate: retrieve session from keychain: \(userId, privacy: .sensitive)")
 
         let userSession = try UserSession.loadUserFromKeychain()
@@ -351,7 +352,7 @@ extension MatrixClient: MatrixRustSDK.ClientSessionDelegate {
         }
     }
 
-    nonisolated func saveSessionInKeychain(session: MatrixRustSDK.Session) {
+    public nonisolated func saveSessionInKeychain(session: MatrixRustSDK.Session) {
         Logger.matrixClient.debug("client session delegate: save session in keychain")
         do {
             try UserSession(session: session, storeID: storeID, storePassphrase: storePassphrase).saveUserToKeychain()
@@ -361,71 +362,35 @@ extension MatrixClient: MatrixRustSDK.ClientSessionDelegate {
     }
 }
 
-extension MatrixClient: UI.ImageLoader {
-    // In-memory cache of decoded NSImage objects. Purpose is rendering performance —
+public extension MatrixClient {
+    // In-memory cache of decoded image objects. Purpose is rendering performance —
     // keeping decoded bitmaps ready to display prevents flicker when scrolling back to
     // previously viewed images. This is distinct from the SDK-level media download cache
     // (see clearCaches / getMediaFile(useCache:)) which avoids re-fetching from the server.
     // Costs are tracked in decoded RGBA bytes (width × height × 4), not compressed sizes,
     // since a typical JPEG can be 20-50× larger once decoded.
-    static let imageCache: NSCache<NSString, NSImage> = {
-        let cache = NSCache<NSString, NSImage>()
+    static let imageCache: NSCache<NSString, PlatformImage> = {
+        let cache = NSCache<NSString, PlatformImage>()
         cache.totalCostLimit = 256 * 1024 * 1024 // 256MB decoded pixels
         return cache
     }()
 
     private static let imageCacheMaxObjectCost = 64 * 1024 * 1024 // 64MB per object (~8000x2000px RGBA)
 
-    static func setCachedImage(_ image: NSImage, forKey key: NSString) {
+    static func setCachedImage(_ image: PlatformImage, forKey key: NSString) {
         let cost = Int(image.size.width * image.size.height) * 4 // decoded RGBA bytes
         guard cost <= imageCacheMaxObjectCost else { return }
         imageCache.setObject(image, forKey: key, cost: cost)
     }
-
-    func cachedImage(matrixUrl: String) -> Image? {
-        guard let nsImage = Self.imageCache.object(forKey: NSString(string: matrixUrl)) else { return nil }
-        return Image(nsImage: nsImage)
-    }
-
-    func loadImage(matrixUrl: String, size: CGSize?) async throws -> Image? {
-        let cacheKey = if let size {
-            NSString(string: "\(matrixUrl)_\(Int(size.width))x\(Int(size.height))")
-        } else {
-            NSString(string: matrixUrl)
-        }
-        if let cached = Self.imageCache.object(forKey: cacheKey) {
-            return Image(nsImage: cached)
-        }
-
-        let mediaSource = try MediaSource.fromUrl(url: matrixUrl)
-
-        let imageData: Data
-        if let size {
-            let width = UInt64(size.width)
-            let height = UInt64(size.height)
-            imageData = try await client.getMediaThumbnail(mediaSource: mediaSource, width: width, height: height)
-        } else {
-            imageData = try await client.getMediaContent(mediaSource: mediaSource)
-        }
-
-        do {
-            let nsImage = try imageData.toOrientedImage(contentType: imageData.computeMimeType())
-            Self.setCachedImage(nsImage, forKey: cacheKey)
-            return Image(nsImage: nsImage)
-        } catch {
-            Logger.matrixClient.error("failed convert matrix media data to Image: \(error) \(imageData)")
-            throw error
-        }
-    }
 }
 
-extension MatrixClient {
+public extension MatrixClient {
     struct MatrixClientUserProfileActions: UserProfileActions {
-        let userId: String
-        let matrixClient: MatrixClient
-        let windowState: WindowState
+        public let userId: String
+        public let matrixClient: MatrixClient
+        public let windowState: WindowState
 
-        func sendMessage() async {
+        public func sendMessage() async {
             do {
                 if let room = try matrixClient.client.getDmRoom(userId: userId) {
                     windowState.selectedRoomId = room.id
@@ -443,9 +408,9 @@ extension MatrixClient {
             }
         }
 
-        func shareProfile() {}
+        public func shareProfile() {}
 
-        func ignoreUser() async {
+        public func ignoreUser() async {
             Logger.viewCycle.info("Ignore user \(userId)")
             do {
                 try await matrixClient.client.ignoreUser(userId: userId)
@@ -454,7 +419,7 @@ extension MatrixClient {
             }
         }
 
-        func unignoreUser() async {
+        public func unignoreUser() async {
             Logger.viewCycle.info("Unignore user \(userId)")
             do {
                 try await matrixClient.client.unignoreUser(userId: userId)
@@ -469,26 +434,26 @@ extension MatrixClient {
     }
 }
 
-extension MatrixClient {
+public extension MatrixClient {
     @MainActor
     struct MatrixClientRoomPreviewActions: @MainActor RoomPreviewActions {
-        let roomId: String
-        let matrixClient: MatrixClient
-        let windowState: WindowState
+        public let roomId: String
+        public let matrixClient: MatrixClient
+        public let windowState: WindowState
 
-        func joinRoom() async throws {
+        public func joinRoom() async throws {
             let room = try await matrixClient.client.joinRoomById(roomId: roomId)
             let timeline = LiveTimeline(room: LiveRoom(matrixRoom: room))
             windowState.selectedScreen = .joinedRoom(timeline: timeline)
         }
 
-        func knockRoom() async throws {
+        public func knockRoom() async throws {
             let room = try await matrixClient.client.knock(roomIdOrAlias: roomId, reason: nil, serverNames: ["matrix.org"])
             let timeline = LiveTimeline(room: LiveRoom(matrixRoom: room))
             windowState.selectedScreen = .joinedRoom(timeline: timeline)
         }
 
-        func visitRoom() {
+        public func visitRoom() {
             windowState.selectedRoomId = roomId
         }
     }

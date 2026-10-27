@@ -4,7 +4,7 @@ import OSLog
 import SwiftUI
 import Utils
 
-enum InspectorContent: Equatable {
+public enum InspectorContent: Equatable {
     case roomInfo
     case search
     case userInfo(userId: String)
@@ -13,7 +13,7 @@ enum InspectorContent: Equatable {
     case focusThread(threadTimeline: LiveTimeline)
 }
 
-enum SearchDirectResult {
+public enum SearchDirectResult {
     case lookingForRoom(alias: String), roomNotFound(alias: String)
     case resolvedRoomAlias(alias: String, resolvedRoom: MatrixRustSDK.ResolvedRoomAlias)
     case resolvedRoomId(roomPreview: MatrixRustSDK.RoomPreview)
@@ -21,7 +21,7 @@ enum SearchDirectResult {
     case resolvedUser(profile: MatrixRustSDK.UserProfile)
 }
 
-enum SelectedScreen {
+public enum SelectedScreen {
     case joinedRoom(timeline: LiveTimeline)
     case loadMatrixUrl(_ url: Utils.MatrixUriScheme)
     case previewRoom(_ room: RoomPreview)
@@ -31,24 +31,26 @@ enum SelectedScreen {
 }
 
 @MainActor @Observable
-final class WindowState {
-    var selectedScreen: SelectedScreen = .none
+public final class WindowState {
+    public var selectedScreen: SelectedScreen = .none
 
-    var selectedRoomId: String?
-    var inspectorVisible: Bool = false
+    public var selectedRoomId: String?
+    public var inspectorVisible: Bool = false
 
-    var inspectorContent: InspectorContent = .roomInfo
+    public var inspectorContent: InspectorContent = .roomInfo
 
-    var requestedVerification = false
+    public var requestedVerification = false
 
-    var searchQuery: String = ""
-    var searchTokens: [SearchToken] = []
-    var searchDirectResult: SearchDirectResult?
+    public var searchQuery: String = ""
+    public var searchTokens: [SearchToken] = []
+    public var searchDirectResult: SearchDirectResult?
 
     /// The collapsed/expanded states of the sections in the sidebar.
-    var sidebarSections = SidebarSectionCollapsibility()
+    public var sidebarSections = SidebarSectionCollapsibility()
 
-    var searchFocused: Binding<Bool> {
+    public init() {}
+
+    public var searchFocused: Binding<Bool> {
         Binding(
             get: { self.inspectorContent == .search },
             set: { setFocused in
@@ -64,7 +66,7 @@ final class WindowState {
         )
     }
 
-    func toggleInspector() {
+    public func toggleInspector() {
         if inspectorVisible {
             if inspectorContent == .roomInfo {
                 inspectorVisible = false
@@ -77,7 +79,7 @@ final class WindowState {
         }
     }
 
-    func focusMessage(eventId: String) {
+    public func focusMessage(eventId: String) {
         guard case let .joinedRoom(timeline: roomTimeline) = selectedScreen else {
             Logger.windowState.warning("focus message failed, no active timeline")
             return
@@ -94,14 +96,14 @@ final class WindowState {
         }
     }
 
-    func focusThread(rootEventId: String) {
+    public func focusThread(rootEventId: String) {
         guard case let .joinedRoom(timeline: roomTimeline) = selectedScreen else { return }
 
         inspectorVisible = true
         inspectorContent = .focusThread(threadTimeline: LiveTimeline(room: roomTimeline.room, focusThread: rootEventId))
     }
 
-    func showRoomThreads() {
+    public func showRoomThreads() {
         if inspectorVisible, inspectorContent == .roomThreads {
             inspectorVisible = false
         } else {
@@ -110,7 +112,7 @@ final class WindowState {
         }
     }
 
-    func showRoomPins() {
+    public func showRoomPins() {
         if inspectorVisible, inspectorContent == .roomPins {
             inspectorVisible = false
         } else {
@@ -119,7 +121,7 @@ final class WindowState {
         }
     }
 
-    func focusUser(userId: String) {
+    public func focusUser(userId: String) {
         if inspectorVisible, inspectorContent == .userInfo(userId: userId) {
             inspectorVisible = false
         } else {
@@ -130,25 +132,25 @@ final class WindowState {
 }
 
 extension WindowState: @MainActor RawRepresentable {
-    struct SceneStorageRepresentation: Codable {
-        let selectedRoomId: String?
-        let inspectorVisible: Bool
-        let sidebarSections: SidebarSectionCollapsibility
+    public struct SceneStorageRepresentation: Codable {
+        public let selectedRoomId: String?
+        public let inspectorVisible: Bool
+        public let sidebarSections: SidebarSectionCollapsibility
 
-        @MainActor init(windowState: WindowState) {
+        @MainActor public init(windowState: WindowState) {
             self.selectedRoomId = windowState.selectedRoomId
             self.inspectorVisible = windowState.inspectorVisible
             self.sidebarSections = windowState.sidebarSections
         }
 
-        @MainActor func restore(windowState: WindowState) {
+        @MainActor public func restore(windowState: WindowState) {
             windowState.selectedRoomId = selectedRoomId
             windowState.inspectorVisible = inspectorVisible
             windowState.sidebarSections = sidebarSections
         }
     }
 
-    convenience init?(rawValue: String) {
+    public convenience init?(rawValue: String) {
         guard
             let data = rawValue.data(using: .utf8),
             let decoded = try? JSONDecoder().decode(SceneStorageRepresentation.self, from: data)
@@ -162,7 +164,7 @@ extension WindowState: @MainActor RawRepresentable {
         Logger.windowState.info("WindowState recovered from storage: \(rawValue)")
     }
 
-    var rawValue: String {
+    public var rawValue: String {
         guard
             let data = try? JSONEncoder().encode(SceneStorageRepresentation(windowState: self)),
             let result = String(data: data, encoding: .utf8)
@@ -173,14 +175,14 @@ extension WindowState: @MainActor RawRepresentable {
         return result
     }
 
-    typealias RawValue = String
+    public typealias RawValue = String
 }
 
-enum SearchToken: Hashable, Identifiable {
+public enum SearchToken: Hashable, Identifiable {
     case users, rooms, spaces, messages
     case resolvedRoomAlias(alias: String, resolvedRoom: ResolvedRoomAlias)
     case resolvedRoomId(roomPreview: RoomPreview)
     case resolvedUser(profile: UserProfile)
 
-    var id: Self { self }
+    public var id: Self { self }
 }

@@ -1,13 +1,14 @@
 import Models
 import OSLog
 import SwiftUI
+import Tokens
 
 struct SmallBadgeModifier: ViewModifier {
     let color: Color
 
     func body(content: Content) -> some View {
         content
-            .foregroundStyle(color.mix(with: Color(NSColor(.primary)), by: 0.3))
+            .foregroundStyle(color.mix(with: Color(PlatformColor(.primary)), by: 0.3))
             .padding(.vertical, 5)
             .padding(.horizontal, 8)
             .background(

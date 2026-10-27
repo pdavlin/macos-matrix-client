@@ -18,16 +18,16 @@
 ///
 /// > Note: You do not need to create this structure yourself. Rather, you should use the collapsibility information
 /// > from ``WindowState/sidebarSections``.
-struct SidebarSectionCollapsibility: Codable, Equatable {
+public struct SidebarSectionCollapsibility: Codable, Equatable {
     /// Whether the favorites section is expanded.
-    var favorites = true
+    public var favorites = true
 
     /// Whether the direct messages section is expanded.
-    var directs = true
+    public var directs = true
 
     /// Whether the rooms section is expanded.
-    var rooms = true
+    public var rooms = true
 
     /// Whether the spaces section is expanded.
-    var spaces = true
+    public var spaces = true
 }

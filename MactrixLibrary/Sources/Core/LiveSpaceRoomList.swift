@@ -4,19 +4,19 @@ import MatrixRustSDK
 import OSLog
 
 @MainActor @Observable
-final class LiveSpaceRoomList {
-    let spaceService: LiveSpaceService
-    let spaceRoomList: SpaceRoomList
+public final class LiveSpaceRoomList {
+    public let spaceService: LiveSpaceService
+    public let spaceRoomList: SpaceRoomList
 
-    var space: SpaceRoom?
-    var rooms: [SidebarSpaceRoom] = []
-    var paginationState: SpaceRoomListPaginationState = .loading
+    public var space: SpaceRoom?
+    public var rooms: [SidebarSpaceRoom] = []
+    public var paginationState: SpaceRoomListPaginationState = .loading
 
     @ObservationIgnored fileprivate var spaceHandle: TaskHandle?
     @ObservationIgnored fileprivate var roomsHandle: TaskHandle?
     @ObservationIgnored fileprivate var paginateHandle: TaskHandle?
 
-    init(spaceService: LiveSpaceService, spaceRoomList: SpaceRoomList) {
+    public init(spaceService: LiveSpaceService, spaceRoomList: SpaceRoomList) {
         self.spaceService = spaceService
         self.spaceRoomList = spaceRoomList
 
@@ -94,7 +94,7 @@ final class LiveSpaceRoomList {
         }
     }
 
-    func loadChildRooms() async {
+    public func loadChildRooms() async {
         do {
             try await spaceRoomList.paginate()
         } catch {

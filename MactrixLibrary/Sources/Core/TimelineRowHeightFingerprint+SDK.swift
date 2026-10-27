@@ -21,7 +21,7 @@ extension MatrixRustSDK.MsgLikeContent {
     /// Cheap on purpose — it runs for every mapped item, including a 10k-row
     /// reset. Everything it reads is a stored property or a short SDK accessor;
     /// the one allocation is the pill array.
-    func heightFingerprint(event: MatrixRustSDK.EventTimelineItem) -> Models.TimelineRowHeightFingerprint {
+    public func heightFingerprint(event: MatrixRustSDK.EventTimelineItem) -> Models.TimelineRowHeightFingerprint {
         Models.TimelineRowHeightFingerprint(
             body: bodyGeometry,
             // Presence, not the target's id: `eventId()` is an FFI call per
@@ -73,7 +73,7 @@ extension MatrixRustSDK.MsgLikeContent {
     }
 }
 
-extension MatrixRustSDK.MessageContent {
+public extension MatrixRustSDK.MessageContent {
     /// The body branch `ChatMessageView.messageBody(_:)` takes, and the text it
     /// lays out (MATRIX-63).
     var bodyGeometry: Models.MessageBodyGeometry {
@@ -125,7 +125,7 @@ extension MatrixRustSDK.MessageContent {
     }
 }
 
-extension MatrixRustSDK.EventTimelineItem {
+public extension MatrixRustSDK.EventTimelineItem {
     /// The failure banner's message, or nil when the send did not fail.
     ///
     /// Reads `localSendState` rather than the mapped `sendState` so the mapping

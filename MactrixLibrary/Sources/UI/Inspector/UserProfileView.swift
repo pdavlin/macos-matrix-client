@@ -59,12 +59,12 @@ public struct UserProfileView<Profile: UserProfile>: View {
                 Button(action: { timelineActions?.jumpToReadReceipt() }) {
                     Label("Jump to read receipt", systemImage: "checkmark.circle")
                 }
-                .buttonStyle(.link)
+                .linkButtonStyle()
 
                 Button(action: { timelineActions?.mentionUser() }) {
                     Label("Mention", systemImage: "at")
                 }
-                .buttonStyle(.link)
+                .linkButtonStyle()
             }
             .disabled(timelineActions == nil)
 
@@ -79,13 +79,13 @@ public struct UserProfileView<Profile: UserProfile>: View {
                 } label: {
                     Label("Send message", systemImage: "envelope")
                 }
-                .buttonStyle(.link)
+                .linkButtonStyle()
                 .disabled(sendMessageLoading)
 
                 Button(action: { actions?.shareProfile() }) {
                     Label("Share profile", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.link)
+                .linkButtonStyle()
 
                 if !isUserIgnored {
                     Button {
@@ -97,7 +97,7 @@ public struct UserProfileView<Profile: UserProfile>: View {
                     } label: {
                         Label("Ignore user", systemImage: "person.slash")
                     }
-                    .buttonStyle(.link)
+                    .linkButtonStyle()
                     .foregroundStyle(.red)
                     .disabled(ignoreUserLoading)
                 } else {
@@ -110,7 +110,7 @@ public struct UserProfileView<Profile: UserProfile>: View {
                     } label: {
                         Label("Unignore user", systemImage: "person.slash.fill")
                     }
-                    .buttonStyle(.link)
+                    .linkButtonStyle()
                     .foregroundStyle(.red)
                     .disabled(ignoreUserLoading)
                 }

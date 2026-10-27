@@ -5,6 +5,11 @@ import SwiftUI
 import Tokens
 import UI
 
+// The timeline spike compiles this file without Core (see spike/GATE.md).
+#if canImport(Core)
+    import Core
+#endif
+
 /// The SwiftUI view one timeline row renders, both in the table and in the
 /// offscreen measurement host. One view for both, so a measured height is the
 /// height the row draws at.
