@@ -28,7 +28,7 @@ public struct VirtualItemView: View {
                 .overlay {
                     Text(formatDate(date))
                         .padding(.horizontal, DensityToken.dividerHorizontalPadding)
-                        .background(Color(NSColor.controlBackgroundColor))
+                        .background(Color(PlatformColor.controlBackgroundColor))
                 }
                 .frame(height: DensityToken.dividerHeight)
                 .padding(.horizontal, DensityToken.dividerHorizontalPadding)
@@ -38,7 +38,7 @@ public struct VirtualItemView: View {
                     Text("Read Marker")
                         .fontWeight(.medium)
                         .padding(.horizontal, DensityToken.dividerHorizontalPadding)
-                        .background(Color(NSColor.controlBackgroundColor))
+                        .background(Color(PlatformColor.controlBackgroundColor))
                 }
                 .frame(height: DensityToken.dividerHeight)
                 .padding(.horizontal, DensityToken.dividerHorizontalPadding)
@@ -49,7 +49,7 @@ public struct VirtualItemView: View {
                     Text("Start of conversation")
                         .fontWeight(.medium)
                         .padding(.horizontal, DensityToken.dividerHorizontalPadding)
-                        .background(Color(NSColor.controlBackgroundColor))
+                        .background(Color(PlatformColor.controlBackgroundColor))
                 }
                 .frame(height: DensityToken.dividerHeight)
                 .padding(.horizontal, DensityToken.dividerHorizontalPadding)
@@ -64,5 +64,5 @@ public struct VirtualItemView: View {
         VirtualItemView(item: .readMarker)
     }
     .frame(width: 400)
-    .background(Color(NSColor.controlBackgroundColor))
+    .background(Color(PlatformColor.controlBackgroundColor))
 }
