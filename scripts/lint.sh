@@ -25,7 +25,7 @@ if ! command -v swiftlint >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "==> swiftformat --lint"
+echo "==> swiftformat --lint ($(swiftformat --version))"
 swiftformat . --lint
 
 echo "==> swiftlint"
