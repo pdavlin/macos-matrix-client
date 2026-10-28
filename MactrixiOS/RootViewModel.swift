@@ -30,9 +30,12 @@ enum SessionStatus: Equatable {
 @MainActor @Observable
 final class RootViewModel {
     let appState: AppState
+    /// Restore, sign-in, and sync start (MATRIX-83).
+    let session: SessionLifecycle
 
     init(appState: AppState) {
         self.appState = appState
+        session = SessionLifecycle(appState: appState)
     }
 
     var status: SessionStatus {
