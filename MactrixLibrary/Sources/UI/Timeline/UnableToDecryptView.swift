@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 /// The body of a message the crypto layer could not decrypt.
 ///
@@ -53,5 +54,5 @@ public struct EditedMarker: View {
     }
     .frame(width: 400)
     .padding()
-    .background(Color(NSColor.controlBackgroundColor))
+    .background(Color(PlatformColor.controlBackgroundColor))
 }

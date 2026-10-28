@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "MactrixLibrary",
-    platforms: [.macOS("26.0")],
+    platforms: [.macOS("26.0"), .iOS("26.0")],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
@@ -19,10 +19,13 @@ let package = Package(
         .library(name: "Utils", targets: ["Utils"]),
         .library(name: "MessageFormatting", targets: ["MessageFormatting"]),
         .library(name: "Tokens", targets: ["Tokens"]),
+        .library(name: "Core", targets: ["Core"]),
     ],
     dependencies: [
         .package(url: "https://github.com/ZhgChgLi/ZMarkupParser.git", from: "1.12.0"),
-        // .package(url: "https://github.com/matrix-org/matrix-rust-components-swift", from: "25.10.27"),
+        // Same exact pin as Mactrix.xcodeproj. Bump both together, in an SDK story only.
+        .package(url: "https://github.com/matrix-org/matrix-rust-components-swift", exact: "26.04.01"),
+        .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "1.1.2"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing.git", exact: "1.19.4"),
     ],
     targets: [
@@ -59,5 +62,18 @@ let package = Package(
         ),
         .target(name: "Tokens"),
         .testTarget(name: "TokensTests", dependencies: ["Tokens"]),
+        // MATRIX-81: the non-UI app logic (client, session, live models), shared
+        // by the Mac app and the iOS app.
+        .target(
+            name: "Core",
+            dependencies: [
+                "Models",
+                "Tokens",
+                "UI",
+                "Utils",
+                .product(name: "MatrixRustSDK", package: "matrix-rust-components-swift"),
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
+            ]
+        ),
     ]
 )
