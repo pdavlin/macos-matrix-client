@@ -7,6 +7,14 @@ struct RootView: View {
     let model: RootViewModel
 
     var body: some View {
+        if let matrixClient = model.appState.matrixClient {
+            SignedInRoomNavigation(matrixClient: matrixClient)
+        } else {
+            signedOut
+        }
+    }
+
+    private var signedOut: some View {
         ContentUnavailableView {
             Label("Mactrix", systemImage: "bubble.left.and.bubble.right")
         } description: {
