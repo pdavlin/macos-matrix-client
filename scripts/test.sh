@@ -1,7 +1,7 @@
 #!/bin/bash
 # test.sh — run every test suite in the repo.
 #
-# Four suites, in order:
+# Five suites, in order:
 #   1. `swift test --package-path MactrixLibrary` — the local SPM package's
 #      unit tests.
 #   2. `swift test --package-path spike/TimelineSpike` — the timeline spike
@@ -13,6 +13,10 @@
 #      (exit 0) unless MATRIX_DEV_USER / MATRIX_DEV_PASSWORD are present in
 #      its environment; see MactrixIntegrationTests/LoginIntegrationTests.swift
 #      for how to supply them, both from Xcode and headlessly.
+#   5. `xcodebuild test -scheme MactrixiOS` — the iOS app's unit tests
+#      (MactrixiOSTests) on an iOS Simulator, code signing off. The device
+#      comes from scripts/ios-sim-destination.sh: "iPhone 17" when available,
+#      else the first available iPhone. Set IOS_SIM_DESTINATION to override.
 #
 # Exits non-zero if any suite fails.
 #
@@ -58,3 +62,13 @@ xcodebuild test \
     -scheme MactrixIntegrationTests \
     -destination "platform=macOS,arch=arm64" \
     -disableAutomaticPackageResolution
+
+ios_destination="$("$script_dir/ios-sim-destination.sh")"
+
+echo "==> xcodebuild test -scheme MactrixiOS (${ios_destination})"
+xcodebuild test \
+    -project Mactrix.xcodeproj \
+    -scheme MactrixiOS \
+    -destination "$ios_destination" \
+    -disableAutomaticPackageResolution \
+    CODE_SIGNING_ALLOWED=NO
