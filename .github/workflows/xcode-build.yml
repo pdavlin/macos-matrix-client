@@ -70,6 +70,38 @@ jobs:
             echo "::endgroup::"
             exit "$status"
           fi
+      # MATRIX-82: the iOS app target. Simulator builds need no signing, so
+      # CODE_SIGNING_ALLOWED=NO replaces the ad-hoc override used above.
+      - name: Build iOS (Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -scheme MactrixiOS \
+            -project Mactrix.xcodeproj \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee ios-build.log | xcbeautify --renderer github-actions || status=$?
+          if [ "${status:-0}" -ne 0 ]; then
+            echo "::group::Raw xcodebuild output (tail of ios-build.log)"
+            tail -n 200 ios-build.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
+      - name: Test iOS (Simulator)
+        run: |
+          set -o pipefail
+          destination="$(scripts/ios-sim-destination.sh)"
+          echo "Using destination: $destination"
+          xcodebuild test \
+            -scheme MactrixiOS \
+            -project Mactrix.xcodeproj \
+            -destination "$destination" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee ios-test.log | xcbeautify --renderer github-actions || status=$?
+          if [ "${status:-0}" -ne 0 ]; then
+            echo "::group::Raw xcodebuild output (tail of ios-test.log)"
+            tail -n 200 ios-test.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
       - name: Test MactrixLibrary (SPM)
         run: swift test --package-path MactrixLibrary
       - name: Test spike/TimelineSpike (SPM)
@@ -115,6 +147,8 @@ jobs:
           path: |
             build.log
             test.log
+            ios-build.log
+            ios-test.log
             archive.log
           if-no-files-found: ignore
 

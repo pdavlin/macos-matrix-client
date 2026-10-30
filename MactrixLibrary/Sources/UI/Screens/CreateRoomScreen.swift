@@ -62,7 +62,7 @@ public struct CreateRoomScreen: View {
                 .tag(RoomAccess.publicRoom)
                 .padding(.bottom, 8)
             }
-            .pickerStyle(.radioGroup)
+            .radioGroupPickerStyle()
             .padding(.bottom, 20)
 
             Picker("Visibility", selection: $params.visibility) {
@@ -84,7 +84,7 @@ public struct CreateRoomScreen: View {
                 .tag(RoomVisibility.published)
                 .padding(.bottom, 8)
             }
-            .pickerStyle(.radioGroup)
+            .radioGroupPickerStyle()
             .padding(.bottom, 20)
 
             Toggle("End to End Encryption", systemImage: "lock", isOn: $params.enableEncryption)

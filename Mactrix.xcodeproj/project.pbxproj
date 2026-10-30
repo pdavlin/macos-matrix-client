@@ -14,8 +14,13 @@
 		34913F702EC0F59F003034CB /* Models in Frameworks */ = {isa = PBXBuildFile; productRef = 34913F6F2EC0F59F003034CB /* Models */; };
 		349B041C2F5D77E80023FBF4 /* MessageFormatting in Frameworks */ = {isa = PBXBuildFile; productRef = 349B041B2F5D77E80023FBF4 /* MessageFormatting */; };
 		34B041D12F5D77E80023FBF5 /* Tokens in Frameworks */ = {isa = PBXBuildFile; productRef = 34B041D02F5D77E80023FBF4 /* Tokens */; };
+		C9B50FBC7E8EC3B912F08C09 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 9BBB0D54FBD94E74EEF373BB /* Core */; };
 		B9393FA0B4454B31B9584BE2 /* MatrixRustSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 9E8341FF3A5B47DB86B6CAB7 /* MatrixRustSDK */; };
 		CF40CA025F8D4BF4811A122F /* Models in Frameworks */ = {isa = PBXBuildFile; productRef = F05B489D466A471E87D79152 /* Models */; };
+		0216E5786616E86E02F4C34E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 62381878FCC1FBA465C7839C /* Core */; };
+		BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */ = {isa = PBXBuildFile; productRef = A978267D386D39F9E4AE464D /* UI */; };
+		15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */ = {isa = PBXBuildFile; productRef = 6BA24E6DC13E069421F63EF3 /* Tokens */; };
+		B65B9916608C19D69BE612A8 /* TimelineSpikeCore in Frameworks */ = {isa = PBXBuildFile; productRef = FEC96748486275A8B123B9A4 /* TimelineSpikeCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,12 +31,21 @@
 			remoteGlobalIDString = 343858412EB394590010922A;
 			remoteInfo = Mactrix;
 		};
+		FE04964FB357B7246236E0A9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3438583A2EB394590010922A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 65E75D14ED38EA29CC78B9E1;
+			remoteInfo = MactrixiOS;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		3409F6012EBFDB93009537B4 /* MactrixLibrary */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MactrixLibrary; sourceTree = "<group>"; };
 		343858422EB394590010922A /* Mactrix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mactrix.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		528828ED4BA147E4AEDA6499 /* MactrixIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MactrixIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1247813A66B739953A27BAFE /* Mactrix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mactrix.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MactrixiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,6 +72,16 @@
 			path = MactrixIntegrationTests;
 			sourceTree = "<group>";
 		};
+		E94142735D67F0EAE46A3FE0 /* MactrixiOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MactrixiOS;
+			sourceTree = "<group>";
+		};
+		C21FDC4A02FBA782C8A30507 /* MactrixiOSTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MactrixiOSTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,6 +105,25 @@
 				34913F702EC0F59F003034CB /* Models in Frameworks */,
 				348E99882F40ABC3009F57A9 /* AsyncAlgorithms in Frameworks */,
 				34B041D12F5D77E80023FBF5 /* Tokens in Frameworks */,
+				C9B50FBC7E8EC3B912F08C09 /* Core in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A7569A4E1EA49A3378F63FBC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0216E5786616E86E02F4C34E /* Core in Frameworks */,
+				BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */,
+				15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */,
+				B65B9916608C19D69BE612A8 /* TimelineSpikeCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A1633DDAAAA6B443F578534 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,6 +142,8 @@
 			children = (
 				343858442EB394590010922A /* Mactrix */,
 				9690B8140E7B4D7C88430C00 /* MactrixIntegrationTests */,
+				E94142735D67F0EAE46A3FE0 /* MactrixiOS */,
+				C21FDC4A02FBA782C8A30507 /* MactrixiOSTests */,
 				342480052EBF91B500C85D82 /* Frameworks */,
 				343858432EB394590010922A /* Products */,
 				3409F6012EBFDB93009537B4 /* MactrixLibrary */,
@@ -110,6 +155,8 @@
 			children = (
 				343858422EB394590010922A /* Mactrix.app */,
 				528828ED4BA147E4AEDA6499 /* MactrixIntegrationTests.xctest */,
+				1247813A66B739953A27BAFE /* Mactrix.app */,
+				2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -141,6 +188,7 @@
 				348E99872F40ABC3009F57A9 /* AsyncAlgorithms */,
 				349B041B2F5D77E80023FBF4 /* MessageFormatting */,
 				34B041D02F5D77E80023FBF4 /* Tokens */,
+				9BBB0D54FBD94E74EEF373BB /* Core */,
 			);
 			productName = Mactrix;
 			productReference = 343858422EB394590010922A /* Mactrix.app */;
@@ -171,6 +219,55 @@
 			productReference = 528828ED4BA147E4AEDA6499 /* MactrixIntegrationTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		65E75D14ED38EA29CC78B9E1 /* MactrixiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3080849AFD0F7C03CC752B2B /* Build configuration list for PBXNativeTarget "MactrixiOS" */;
+			buildPhases = (
+				33AF2D4C4EE91BC6F39B040A /* Sources */,
+				A7569A4E1EA49A3378F63FBC /* Frameworks */,
+				80297B31A5D54DF8EAF26CA8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E94142735D67F0EAE46A3FE0 /* MactrixiOS */,
+			);
+			name = MactrixiOS;
+			packageProductDependencies = (
+				62381878FCC1FBA465C7839C /* Core */,
+				A978267D386D39F9E4AE464D /* UI */,
+				6BA24E6DC13E069421F63EF3 /* Tokens */,
+				FEC96748486275A8B123B9A4 /* TimelineSpikeCore */,
+			);
+			productName = Mactrix;
+			productReference = 1247813A66B739953A27BAFE /* Mactrix.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A1E5E224993DB9E746ACF586 /* MactrixiOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9BA3057701AEED7A7151C7AE /* Build configuration list for PBXNativeTarget "MactrixiOSTests" */;
+			buildPhases = (
+				62FFFDFFC691BE04084F6E0F /* Sources */,
+				5A1633DDAAAA6B443F578534 /* Frameworks */,
+				AE9A35711101B3D340E00ADB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A043A24A500B90B46C34607D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C21FDC4A02FBA782C8A30507 /* MactrixiOSTests */,
+			);
+			name = MactrixiOSTests;
+			packageProductDependencies = (
+			);
+			productName = MactrixiOSTests;
+			productReference = 2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -188,6 +285,13 @@
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = 343858412EB394590010922A;
 					};
+					65E75D14ED38EA29CC78B9E1 = {
+						CreatedOnToolsVersion = 26.1;
+					};
+					A1E5E224993DB9E746ACF586 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = 65E75D14ED38EA29CC78B9E1;
+					};
 				};
 			};
 			buildConfigurationList = 3438583D2EB394590010922A /* Build configuration list for PBXProject "Mactrix" */;
@@ -203,6 +307,7 @@
 				342C624C2EB4DDE600E2426A /* XCRemoteSwiftPackageReference "matrix-rust-components-swift" */,
 				3409F4E82EBFD8D4009537B4 /* XCLocalSwiftPackageReference "MactrixLibrary" */,
 				348E99862F40ABC3009F57A9 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
+				09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 343858432EB394590010922A /* Products */;
@@ -211,6 +316,8 @@
 			targets = (
 				343858412EB394590010922A /* Mactrix */,
 				7AAD871F41E2456EBC229257 /* MactrixIntegrationTests */,
+				65E75D14ED38EA29CC78B9E1 /* MactrixiOS */,
+				A1E5E224993DB9E746ACF586 /* MactrixiOSTests */,
 			);
 		};
 /* End PBXProject section */
@@ -224,6 +331,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		437F223178B8426284F0D00B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		80297B31A5D54DF8EAF26CA8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AE9A35711101B3D340E00ADB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -247,6 +368,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		33AF2D4C4EE91BC6F39B040A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		62FFFDFFC691BE04084F6E0F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -254,6 +389,11 @@
 			isa = PBXTargetDependency;
 			target = 343858412EB394590010922A /* Mactrix */;
 			targetProxy = C4A7386755484B5F87228BA5 /* PBXContainerItemProxy */;
+		};
+		A043A24A500B90B46C34607D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 65E75D14ED38EA29CC78B9E1 /* MactrixiOS */;
+			targetProxy = FE04964FB357B7246236E0A9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -528,6 +668,134 @@
 			};
 			name = Debug;
 		};
+		B1A9050AD4F1E61FDA40D96D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Mactrix;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.ios;
+				PRODUCT_MODULE_NAME = MactrixiOS;
+				PRODUCT_NAME = Mactrix;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_STRICT_MEMORY_SAFETY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0E386A577AD3F6B22D78F5CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Mactrix;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.ios;
+				PRODUCT_MODULE_NAME = MactrixiOS;
+				PRODUCT_NAME = Mactrix;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_STRICT_MEMORY_SAFETY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		E43ED0BCBA7B58E7D3E2BAB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.ios.MactrixiOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mactrix.app/Mactrix";
+			};
+			name = Debug;
+		};
+		3C5D7EA74F546114A8DCA82D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.ios.MactrixiOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mactrix.app/Mactrix";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -558,12 +826,34 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		3080849AFD0F7C03CC752B2B /* Build configuration list for PBXNativeTarget "MactrixiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B1A9050AD4F1E61FDA40D96D /* Debug */,
+				0E386A577AD3F6B22D78F5CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9BA3057701AEED7A7151C7AE /* Build configuration list for PBXNativeTarget "MactrixiOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E43ED0BCBA7B58E7D3E2BAB8 /* Debug */,
+				3C5D7EA74F546114A8DCA82D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
 		3409F4E82EBFD8D4009537B4 /* XCLocalSwiftPackageReference "MactrixLibrary" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = MactrixLibrary;
+		};
+		09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = spike/TimelineSpike;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -621,10 +911,31 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = Tokens;
 		};
+		9BBB0D54FBD94E74EEF373BB /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core;
+		};
 		9E8341FF3A5B47DB86B6CAB7 /* MatrixRustSDK */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 342C624C2EB4DDE600E2426A /* XCRemoteSwiftPackageReference "matrix-rust-components-swift" */;
 			productName = MatrixRustSDK;
+		};
+		62381878FCC1FBA465C7839C /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core;
+		};
+		A978267D386D39F9E4AE464D /* UI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UI;
+		};
+		6BA24E6DC13E069421F63EF3 /* Tokens */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Tokens;
+		};
+		FEC96748486275A8B123B9A4 /* TimelineSpikeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */;
+			productName = TimelineSpikeCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
