@@ -465,14 +465,10 @@ public extension MatrixClient {
 
 private extension URL {
     static func sessionData(for sessionID: String) -> URL {
-        applicationSupportDirectory
-            .appending(component: applicationID)
-            .appending(component: sessionID)
+        SessionStorageLocation.roots.data.appending(component: sessionID)
     }
 
     static func sessionCaches(for sessionID: String) -> URL {
-        cachesDirectory
-            .appending(component: applicationID)
-            .appending(component: sessionID)
+        SessionStorageLocation.roots.caches.appending(component: sessionID)
     }
 }

@@ -1,5 +1,7 @@
 import Foundation
+import OSLog
 import Security
+import Utils
 
 public enum KeychainError: Error {
     case unexpectedStatus(OSStatus)
@@ -7,34 +9,62 @@ public enum KeychainError: Error {
 
 public struct AppKeychain {
     private let service: String
+    private let accessGroup: String?
+    private let platform: StoragePlatform
 
-    public init(service: String = Bundle.main.bundleIdentifier!) {
-        self.service = service
+    #if os(iOS)
+        public init(service: String = AppGroup.keychainService, accessGroup: String? = AppGroup.keychainAccessGroup) {
+            self.service = service
+            self.accessGroup = accessGroup
+            platform = .iOS
+        }
+    #else
+        public init(service: String = Bundle.main.bundleIdentifier!) {
+            self.service = service
+            accessGroup = nil
+            platform = .macOS
+        }
+    #endif
+
+    private func baseQuery(accessGroup: String?) -> [CFString: Any] {
+        KeychainItemQuery.base(service: service, accessGroup: accessGroup, platform: platform)
     }
 
-    private var baseQuery: [CFString: Any] {
-        [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: service,
-            /// S-27 decision: stay legacy. Data-protection mode is technically viable now
-            /// (team-signed, entitlements present), but the keychain ACL's designated
-            /// requirement anchors on `certificate leaf[subject.CN]`, not team ID,
-            /// so grants don't survive the ~7-day cert renewal on a free personal team.
-            /// Switching would add a login→data-protection migration for no net benefit.
-            /// Revisit with a paid-team cert or notarized distribution. See §11 2026-09-01.
-            kSecUseDataProtectionKeychain: false,
-        ]
+    /// Runs `body` with the base query. If the build has no entitlement for the
+    /// explicit access group (an unsigned simulator build), runs it again
+    /// without one.
+    private func withBaseQuery<T>(_ body: ([CFString: Any]) throws -> T) throws -> T {
+        do {
+            return try body(baseQuery(accessGroup: accessGroup))
+        } catch let KeychainError.unexpectedStatus(status) {
+            guard KeychainItemQuery.shouldRetryWithoutAccessGroup(status: status, accessGroup: accessGroup) else {
+                throw KeychainError.unexpectedStatus(status)
+            }
+            Logger.matrixClient.warning(
+                """
+                keychain: no entitlement for access group \(accessGroup ?? "", privacy: .public) \
+                (\(status)); using the default access group
+                """
+            )
+            return try body(baseQuery(accessGroup: nil))
+        }
     }
 
     /// Saves data for the given key, creating or updating the keychain item.
     public func save(_ data: Data, forKey key: String) throws {
+        try withBaseQuery { baseQuery in
+            try save(data, forKey: key, baseQuery: baseQuery)
+        }
+    }
+
+    private func save(_ data: Data, forKey key: String, baseQuery: [CFString: Any]) throws {
         var query = baseQuery
         query[kSecAttrAccount] = key
 
         let updateStatus = SecItemUpdate(query as CFDictionary, [kSecValueData: data] as CFDictionary)
         if updateStatus == errSecItemNotFound {
             query[kSecValueData] = data
-            query[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlocked
+            query[kSecAttrAccessible] = KeychainItemQuery.accessibility(platform: platform)
             let addStatus = SecItemAdd(query as CFDictionary, nil)
             guard addStatus == errSecSuccess else {
                 throw KeychainError.unexpectedStatus(addStatus)
@@ -49,6 +79,12 @@ public struct AppKeychain {
 
     /// Returns the data stored for the given key, or `nil` if no item exists.
     public func load(forKey key: String) throws -> Data? {
+        try withBaseQuery { baseQuery in
+            try load(forKey: key, baseQuery: baseQuery)
+        }
+    }
+
+    private func load(forKey key: String, baseQuery: [CFString: Any]) throws -> Data? {
         var query = baseQuery
         query[kSecAttrAccount] = key
         query[kSecReturnData] = true
@@ -65,9 +101,11 @@ public struct AppKeychain {
 
     /// Removes all keychain items stored under this service.
     public func removeAll() throws {
-        let status = SecItemDelete(baseQuery as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeychainError.unexpectedStatus(status)
+        try withBaseQuery { baseQuery in
+            let status = SecItemDelete(baseQuery as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw KeychainError.unexpectedStatus(status)
+            }
         }
     }
 }
