@@ -29,7 +29,6 @@ public class MatrixClient {
         storePassphrase = userSession.storePassphrase
 
         client = try await Self.clientBuilder(homeServer: userSession.homeserverURL, storeId: storeID, storePassphrase: storePassphrase)
-            // .enableOidcRefreshLock()
             .setSessionDelegate(sessionDelegate: self)
             .build()
 
@@ -69,20 +68,35 @@ public class MatrixClient {
         return try UserSession(session: client.session(), storeID: storeID, storePassphrase: storePassphrase)
     }
 
-    public static func clientBuilder(homeServer: String, storeId: String, storePassphrase: String) -> ClientBuilder {
+    /// The builder of every client. On iOS it sets the cross-process lock of
+    /// `process` (MATRIX-96). A multi-process client must have a session
+    /// delegate, or `build()` fails.
+    public static func clientBuilder(
+        homeServer: String,
+        storeId: String,
+        storePassphrase: String,
+        process: ClientProcess = .app
+    ) -> ClientBuilder {
         let sqliteConfig = SqliteStoreBuilder(
             dataPath: URL.sessionData(for: storeId).path(percentEncoded: false),
             cachePath: URL.sessionCaches(for: storeId).path(percentEncoded: false)
         )
         .passphrase(passphrase: storePassphrase)
 
-        return ClientBuilder()
+        let builder = ClientBuilder()
             .serverNameOrHomeserverUrl(serverNameOrUrl: homeServer)
             .sqliteStore(config: sqliteConfig)
             .slidingSyncVersionBuilder(versionBuilder: .discoverNative)
             .threadsEnabled(enabled: true, threadSubscriptions: true)
             .autoEnableCrossSigning(autoEnableCrossSigning: true)
             .userAgent(userAgent: "Mactrix macOS")
+
+        switch CrossProcessLockChoice.choice(for: process) {
+        case .sdkDefault:
+            return builder
+        case let .multiProcess(holderName):
+            return builder.crossProcessLockConfig(crossProcessLockConfig: .multiProcess(holderName: holderName))
+        }
     }
 
     public struct SecureRandomBytesError: LocalizedError {
@@ -107,7 +121,15 @@ public class MatrixClient {
         let storeID = UUID().uuidString
         let storePassphrase = try Self.generateStorePassphrase()
 
-        let client = try await Self.clientBuilder(homeServer: homeServer, storeId: storeID, storePassphrase: storePassphrase).build()
+        var builder = Self.clientBuilder(homeServer: homeServer, storeId: storeID, storePassphrase: storePassphrase)
+        if CrossProcessLockChoice.choice(for: .app).requiresSessionDelegate {
+            // This client becomes the app's client after sign-in. The delegate
+            // also saves the tokens that this client refreshes.
+            builder = builder.setSessionDelegate(
+                sessionDelegate: MatrixClientSessionDelegate(storeID: storeID, storePassphrase: storePassphrase)
+            )
+        }
+        let client = try await builder.build()
 
         let details = await client.homeserverLoginDetails()
         return HomeserverLogin(storeID: storeID, storePassphrase: storePassphrase, unauthenticatedClient: client, loginDetails: details)
