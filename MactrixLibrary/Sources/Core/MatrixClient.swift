@@ -82,7 +82,7 @@ public class MatrixClient {
             .slidingSyncVersionBuilder(versionBuilder: .discoverNative)
             .threadsEnabled(enabled: true, threadSubscriptions: true)
             .autoEnableCrossSigning(autoEnableCrossSigning: true)
-            .userAgent(userAgent: "Mactrix macOS")
+            .userAgent(userAgent: ClientIdentity.current.userAgent)
     }
 
     public struct SecureRandomBytesError: LocalizedError {
