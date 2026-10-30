@@ -211,8 +211,8 @@ public struct MessageEventBodyView<
         .padding(DensityToken.hoverActionsPadding)
         .background(
             RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
-                .fill(Color(NSColor.controlBackgroundColor))
-                .stroke(Color(NSColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
+                .fill(Color(PlatformColor.controlBackgroundColor))
+                .stroke(Color(PlatformColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
                 .shadow(color: .black.opacity(BubbleToken.hoverShadowOpacity), radius: BubbleToken.hoverShadowRadius)
         )
         .padding(.trailing, DensityToken.hoverActionsTrailingPadding)

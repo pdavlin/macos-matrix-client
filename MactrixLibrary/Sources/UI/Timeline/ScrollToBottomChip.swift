@@ -43,8 +43,8 @@ public struct ScrollToBottomChip: View {
             .padding(DensityToken.scrollChipPadding)
             .background(
                 Capsule()
-                    .fill(Color(NSColor.controlBackgroundColor))
-                    .stroke(Color(NSColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
+                    .fill(Color(PlatformColor.controlBackgroundColor))
+                    .stroke(Color(PlatformColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
                     .shadow(color: .black.opacity(BubbleToken.hoverShadowOpacity), radius: BubbleToken.hoverShadowRadius)
             )
         }
