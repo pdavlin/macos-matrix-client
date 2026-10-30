@@ -113,5 +113,5 @@ public extension EnvironmentValues {
         TypingIndicatorRow(names: ["John Doe", "Person"])
     }
     .frame(width: 400)
-    .background(Color(NSColor.controlBackgroundColor))
+    .background(Color(PlatformColor.controlBackgroundColor))
 }
