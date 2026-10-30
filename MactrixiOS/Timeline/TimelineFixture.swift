@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import UIKit
 
 extension View {
     /// DEBUG builds launched with `-TimelineFixture` show the timeline
@@ -20,52 +21,92 @@ extension View {
 }
 
 #if DEBUG
-    /// The container on a scripted feed: sender runs, day dividers, a read
-    /// marker, back-pagination, and a stream of arrivals, reaction re-tallies,
-    /// and edits that exercise the drain and the anchor.
+    /// The container and composer on a scripted feed: sender runs, day
+    /// dividers, a read marker, back-pagination, and a stream of arrivals,
+    /// reaction re-tallies, and edits that exercise the drain and the anchor.
+    /// The newest rows show the MATRIX-86 surfaces: a failed send, an HTML
+    /// body, a reply, and an image. `-TimelineFixtureReply` opens the
+    /// composer's reply preview at launch.
     struct TimelineFixtureScreen: View {
-        @State private var feed = TimelineFixtureFeed()
+        @State private var feed = TimelineFixtureFeed(
+            opensReply: ProcessInfo.processInfo.arguments.contains("-TimelineFixtureReply")
+        )
 
         var body: some View {
             NavigationStack {
-                TimelineContainer(feed: feed, timeline: nil, imageLoader: nil, ownUserId: "@me:fixture", showsReadReceipts: false)
-                    .navigationTitle("Timeline fixture")
-                    .navigationBarTitleDisplayMode(.inline)
+                ConversationLayout {
+                    TimelineContainer(
+                        feed: feed,
+                        timeline: nil,
+                        imageLoader: nil,
+                        ownUserId: TimelineFixtureFeed.ownUserId,
+                        showsReadReceipts: false,
+                        media: TimelineFixtureMediaLoader(),
+                        fallbackActions: feed
+                    )
+                } composer: {
+                    ComposerBar(target: feed, placeholder: "Message fixture")
+                }
+                .navigationTitle("Timeline fixture")
+                .navigationBarTitleDisplayMode(.inline)
             }
             .task { await feed.run() }
         }
     }
 
-    /// A fake event with its own body and reaction pills.
+    /// A fake event with its own body, reaction pills, and the optional
+    /// MATRIX-86 content: an HTML body, media, a quoted reply, a failed send.
     struct TimelineFixtureEvent: TimelineTextEvent {
         let sender: String
         let name: String
         let date: Date
         let body: String
         let reactionPills: [TimelineReactionPill]
+        var formattedBody: String?
+        var media: TimelineMedia?
+        var quotedReply: ComposerReply?
+        var sendFailure: String?
 
-        var isRemote: Bool { true }
+        var isRemote: Bool { sendFailure == nil }
         var senderProfileDetails: ProfileDetails {
             .ready(displayName: name, displayNameAmbiguous: false, avatarUrl: nil)
         }
 
-        var isOwn: Bool { sender == "@me:fixture" }
+        var isOwn: Bool { sender == TimelineFixtureFeed.ownUserId }
         var isEditable: Bool { false }
-        var sendState: LocalSendState? { nil }
+        var sendState: LocalSendState? {
+            sendFailure.map { .sendingFailed(message: $0, isRecoverable: true) }
+        }
+
         var localCreatedAt: UInt64? { nil }
         var userReadReceipts: [String: Receipt] { [:] }
-        var canBeRepliedTo: Bool { false }
+        var canBeRepliedTo: Bool { sendFailure == nil }
         var userId: String { sender }
         var displayName: String? { name }
         var avatarUrl: String? { nil }
+
+        /// True for a row that shows a MATRIX-86 surface. The scripted
+        /// stream leaves these alone, so a screenshot finds them as built.
+        var isShowcase: Bool {
+            formattedBody != nil || media != nil || quotedReply != nil || sendFailure != nil
+        }
 
         var row: TimelineRow {
             .message(
                 uniqueId: "fixture.\(date.timeIntervalSince1970)",
                 event: self,
-                kind: .text,
+                kind: media == nil ? .text : .media,
                 heightFingerprint: TimelineRowHeightFingerprint(
-                    body: MessageBodyGeometry(variant: "text", text: body),
+                    body: MessageBodyGeometry(
+                        variant: media == nil ? "text" : "image",
+                        text: media == nil ? body : "",
+                        formattedText: formattedBody,
+                        mediaWidth: media?.width,
+                        mediaHeight: media?.height,
+                        secondaryText: media?.caption
+                    ),
+                    hasReplyPreview: quotedReply != nil,
+                    sendFailureMessage: sendFailure,
                     senderName: name,
                     reactions: ReactionStripGeometry(
                         reactions: reactionPills.lazy.map { (key: $0.key, senderCount: $0.senders.count) },
@@ -76,22 +117,72 @@ extension View {
         }
 
         func with(body: String? = nil, reactionPills: [TimelineReactionPill]? = nil) -> TimelineFixtureEvent {
-            TimelineFixtureEvent(
+            var copy = TimelineFixtureEvent(
                 sender: sender,
                 name: name,
                 date: date,
                 body: body ?? self.body,
                 reactionPills: reactionPills ?? self.reactionPills
             )
+            copy.formattedBody = formattedBody
+            copy.media = media
+            copy.quotedReply = quotedReply
+            copy.sendFailure = sendFailure
+            return copy
+        }
+    }
+
+    /// Fixture media: a generated image, so the image row needs no account.
+    @MainActor
+    struct TimelineFixtureMediaLoader: TimelineMediaLoading {
+        static let image = TimelineMedia(
+            kind: .image,
+            filename: "fixture-sunset.png",
+            caption: "The view from the office",
+            mimeType: "image/png",
+            byteSize: 48000,
+            duration: nil,
+            width: 400,
+            height: 240,
+            source: nil,
+            previewSource: nil,
+            previewKey: "fixture://sunset"
+        )
+
+        func previewData(for _: TimelineMedia) async throws -> Data {
+            try await Task.sleep(for: .milliseconds(300))
+            return Self.pngData()
+        }
+
+        func download(_ media: TimelineMedia) async throws -> MediaViewerItem {
+            let url = FileManager.default.temporaryDirectory.appending(path: media.filename)
+            try Self.pngData().write(to: url)
+            return MediaViewerItem(url: url, kind: media.kind, title: media.filename, fileHandle: nil)
+        }
+
+        /// A 400 by 240 sky, sun, and sea.
+        private static func pngData() -> Data {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 240), format: format)
+            return renderer.pngData { context in
+                UIColor.systemOrange.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 400, height: 170))
+                UIColor.systemYellow.setFill()
+                context.cgContext.fillEllipse(in: CGRect(x: 160, y: 90, width: 80, height: 80))
+                UIColor.systemTeal.setFill()
+                context.fill(CGRect(x: 0, y: 170, width: 400, height: 70))
+            }
         }
     }
 
     @MainActor @Observable
     final class TimelineFixtureFeed: TimelineFeed {
+        nonisolated static let ownUserId = "@me:fixture"
         private static let senders: [(id: String, name: String)] = [
             ("@ada:fixture", "Ada Lovelace"),
             ("@bob:fixture", "Bob Kahn"),
-            ("@me:fixture", "Me"),
+            (ownUserId, "Me"),
         ]
         private static let bodies = [
             "Morning.",
@@ -124,9 +215,60 @@ extension View {
         private(set) var unseenArrivals = 0
         private(set) var scrollToBottomRequests = 0
 
-        init() {
+        /// The composer's reply target.
+        private(set) var reply: ComposerReply?
+
+        init(opensReply: Bool = false) {
             items = (0 ..< 30).map { _ in olderRow() }
             items.insert(.virtual(uniqueId: "fixture.readMarker", item: .readMarker), at: 6)
+            items.insert(contentsOf: showcaseRows(), at: 0)
+            if opensReply, let target = events.values.first(where: { $0.formattedBody != nil }) {
+                reply = Self.reply(to: target)
+            }
+        }
+
+        /// The MATRIX-86 surfaces, newest first: a failed send, an HTML body,
+        /// a reply, and an image.
+        private func showcaseRows() -> [TimelineRow] {
+            let base = Date.now
+            var image = TimelineFixtureEvent(
+                sender: "@bob:fixture",
+                name: "Bob Kahn",
+                date: base - 40,
+                body: "fixture-sunset.png",
+                reactionPills: []
+            )
+            image.media = TimelineFixtureMediaLoader.image
+            var reply = TimelineFixtureEvent(
+                sender: "@ada:fixture",
+                name: "Ada Lovelace",
+                date: base - 30,
+                body: "Looks great, ship it.",
+                reactionPills: []
+            )
+            reply.quotedReply = ComposerReply(id: "fixture.image", senderName: "Bob Kahn", preview: "The view from the office")
+            var html = TimelineFixtureEvent(
+                sender: "@bob:fixture",
+                name: "Bob Kahn",
+                date: base - 20,
+                body: "Release notes: italic, inline code, and a link.",
+                reactionPills: []
+            )
+            html.formattedBody = "<p><strong>Release notes</strong>: <em>italic</em>, <code>inline code</code>, "
+                + "and <a href=\"https://matrix.org\">a link</a>.</p><ul><li>First item</li><li>Second item</li></ul>"
+            var failed = TimelineFixtureEvent(
+                sender: Self.ownUserId,
+                name: "Me",
+                date: base - 10,
+                body: "This one did not make it.",
+                reactionPills: []
+            )
+            failed.sendFailure = "the server is unreachable"
+            return [failed, html, reply, image].map { remember($0) }
+        }
+
+        private static func reply(to event: TimelineFixtureEvent) -> ComposerReply {
+            ComposerReply(id: "fixture.\(event.date.timeIntervalSince1970)", senderName: event.name, preview: event.body)
         }
 
         var displayRows: [TimelineRow] { items }
@@ -236,8 +378,8 @@ extension View {
         }
 
         private func event(at index: Int) -> TimelineFixtureEvent? {
-            guard items.indices.contains(index) else { return nil }
-            return events[items[index].uniqueId]
+            guard items.indices.contains(index), let event = events[items[index].uniqueId], !event.isShowcase else { return nil }
+            return event
         }
 
         private func replace(at index: Int, with event: TimelineFixtureEvent) {
@@ -268,6 +410,10 @@ extension View {
             return remember(event)
         }
 
+        private func index(ofRow rowId: String) -> Int? {
+            items.firstIndex { $0.uniqueId == rowId }
+        }
+
         private func remember(_ event: TimelineFixtureEvent) -> TimelineRow {
             let row = event.row
             events[row.uniqueId] = event
@@ -277,6 +423,47 @@ extension View {
         private func record(_ change: TimelineDisplayChange, rows: [TimelineRow]) {
             pending.append(TimelineRowChange(change: change, rows: rows))
             generation += 1
+        }
+    }
+
+    extension TimelineFixtureFeed: ComposerTarget {
+        func cancelReply() {
+            reply = nil
+        }
+
+        /// Appends the message as the newest row, quoting the reply target.
+        func send(body: String) async throws {
+            var event = TimelineFixtureEvent(sender: Self.ownUserId, name: "Me", date: .now, body: body, reactionPills: [])
+            event.quotedReply = reply
+            let row = remember(event)
+            items.insert(row, at: 0)
+            record(.insert(index: 0, count: 1), rows: [row])
+            requestScrollToBottom()
+        }
+
+        func noteTyping() async {}
+    }
+
+    extension TimelineFixtureFeed: TimelineFallbackRowActions {
+        func reply(toRow rowId: String) {
+            guard let event = events[rowId] else { return }
+            reply = Self.reply(to: event)
+        }
+
+        /// The fixture's send succeeds on retry: the failure clears.
+        func retrySend(ofRow rowId: String) {
+            guard let index = index(ofRow: rowId), var event = events[rowId] else { return }
+            event.sendFailure = nil
+            let row = remember(event)
+            items[index] = row
+            record(.update(index: index), rows: [row])
+        }
+
+        func discardSend(ofRow rowId: String) {
+            guard let index = index(ofRow: rowId) else { return }
+            items.remove(at: index)
+            events[rowId] = nil
+            record(.remove(index: index, count: 1), rows: [])
         }
     }
 #endif

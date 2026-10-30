@@ -20,6 +20,7 @@
 		0216E5786616E86E02F4C34E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 62381878FCC1FBA465C7839C /* Core */; };
 		BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */ = {isa = PBXBuildFile; productRef = A978267D386D39F9E4AE464D /* UI */; };
 		15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */ = {isa = PBXBuildFile; productRef = 6BA24E6DC13E069421F63EF3 /* Tokens */; };
+		86C0A1E2F3B4C5D6E7F80901 /* MessageFormatting in Frameworks */ = {isa = PBXBuildFile; productRef = 86C0A1E2F3B4C5D6E7F80902 /* MessageFormatting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -115,6 +116,7 @@
 				0216E5786616E86E02F4C34E /* Core in Frameworks */,
 				BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */,
 				15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */,
+				86C0A1E2F3B4C5D6E7F80901 /* MessageFormatting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +239,7 @@
 				62381878FCC1FBA465C7839C /* Core */,
 				A978267D386D39F9E4AE464D /* UI */,
 				6BA24E6DC13E069421F63EF3 /* Tokens */,
+				86C0A1E2F3B4C5D6E7F80902 /* MessageFormatting */,
 			);
 			productName = Mactrix;
 			productReference = 1247813A66B739953A27BAFE /* Mactrix.app */;
@@ -675,6 +678,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Mactrix;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Mactrix saves images and videos from your conversations to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -715,6 +719,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Mactrix;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Mactrix saves images and videos from your conversations to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -923,6 +928,10 @@
 		6BA24E6DC13E069421F63EF3 /* Tokens */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Tokens;
+		};
+		86C0A1E2F3B4C5D6E7F80902 /* MessageFormatting */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MessageFormatting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
