@@ -1,7 +1,8 @@
 #!/bin/bash
-# build.sh — build the Mactrix app target.
+# build.sh — build the Mactrix app targets.
 #
-# Wraps `xcodebuild build` for scheme Mactrix, platform macOS, arch arm64.
+# Wraps `xcodebuild build` for scheme Mactrix (platform macOS, arch arm64),
+# then for scheme MactrixiOS (generic iOS Simulator, code signing off).
 # Resolves DEVELOPER_DIR in this order:
 #   1. an existing DEVELOPER_DIR in the environment (respected as-is)
 #   2. /Applications/Xcode-beta.app
@@ -45,8 +46,25 @@ xcodebuild_cmd=(
     -disableAutomaticPackageResolution
 )
 
-if command -v xcbeautify >/dev/null 2>&1; then
-    "${xcodebuild_cmd[@]}" | xcbeautify
-else
-    "${xcodebuild_cmd[@]}"
-fi
+ios_xcodebuild_cmd=(
+    xcodebuild build
+    -project Mactrix.xcodeproj
+    -scheme MactrixiOS
+    -destination "generic/platform=iOS Simulator"
+    -disableAutomaticPackageResolution
+    CODE_SIGNING_ALLOWED=NO
+)
+
+run_xcodebuild() {
+    if command -v xcbeautify >/dev/null 2>&1; then
+        "$@" | xcbeautify
+    else
+        "$@"
+    fi
+}
+
+echo "==> xcodebuild build -scheme Mactrix (macOS)"
+run_xcodebuild "${xcodebuild_cmd[@]}"
+
+echo "==> xcodebuild build -scheme MactrixiOS (iOS Simulator)"
+run_xcodebuild "${ios_xcodebuild_cmd[@]}"

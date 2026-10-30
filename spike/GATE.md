@@ -223,7 +223,7 @@ required a production edit.**
 
 | Shim | What it stands in for |
 | --- | --- |
-| `Sources/MatrixRustSDKShim`, module name `MatrixRustSDK` | the six SDK shapes the container names. Naming the target after the real module is what lets the container's own `import MatrixRustSDK` resolve here. |
+| `Sources/MatrixRustSDKShim`, aliased to `MatrixRustSDK` | the six SDK shapes the container names. `ProductionTimeline` passes `-module-alias MatrixRustSDK=MatrixRustSDKShim` (MATRIX-81; before that the target itself was named `MatrixRustSDK`), which is what lets the container's own `import MatrixRustSDK` resolve here. |
 | `ProductionTimeline/AppShims/LiveTimeline.swift` | the display order and the change queue, computed from the synthetic store instead of from a homeserver. |
 | `ProductionTimeline/AppShims/` (rest) | `AppState`, `WindowState`, the representable's coordinator, `ChatMessageView`, the loggers. |
 
