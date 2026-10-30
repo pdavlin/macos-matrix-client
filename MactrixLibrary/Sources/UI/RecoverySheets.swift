@@ -1,4 +1,8 @@
-import AppKit
+#if canImport(AppKit)
+    import AppKit
+#elseif canImport(UIKit)
+    import UIKit
+#endif
 import SwiftUI
 
 extension EnvironmentValues {
@@ -52,8 +56,12 @@ public struct RecoveryKeyDisplaySheet: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.12)))
 
             Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(recoveryKey, forType: .string)
+                #if canImport(AppKit)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(recoveryKey, forType: .string)
+                #elseif canImport(UIKit)
+                    UIPasteboard.general.string = recoveryKey
+                #endif
                 didCopy = true
             } label: {
                 Label(didCopy ? "Copied" : "Copy to clipboard", systemImage: didCopy ? "checkmark" : "doc.on.doc")
@@ -69,7 +77,7 @@ public struct RecoveryKeyDisplaySheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .sheetContentWidth(460)
     }
 }
 
@@ -116,6 +124,7 @@ public struct RecoveryKeyEntrySheet: View {
             TextField("Recovery key", text: $enteredKey, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.body, design: .monospaced))
+                .keyEntryTextTraits()
                 .lineLimit(2 ... 4)
                 .disabled(isBusy)
 
@@ -150,6 +159,6 @@ public struct RecoveryKeyEntrySheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .sheetContentWidth(460)
     }
 }
