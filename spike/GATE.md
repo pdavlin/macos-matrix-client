@@ -7,6 +7,9 @@ human at the window, and prints a pass or fail line per threshold.
 Read `SCENARIOS.md` first. This file says how to run the thing; that one says what the
 numbers mean.
 
+The iOS container has a gate of its own, on the same workload: see "iOS (MATRIX-87)" at the
+end of this file.
+
 ## Run it
 
 ```
@@ -454,3 +457,129 @@ for the first pinned-cadence baseline, not a claim made here.
 `ScenarioRunner.RunnerOptions.Scenario` lists them; `ScenarioRunner.run(_:)` drives them and
 `ScrollDriver` moves the viewport. Thresholds live at the top of `evaluate-gate.py`, as
 constants rather than comments, so changing one is a diff somebody reviews.
+
+## iOS (MATRIX-87)
+
+The iOS container (`MactrixiOS/Timeline`, MATRIX-85) has its own gate. It drives the
+production `TimelineCollectionController` through a fake `TimelineFeed` over the same 10k
+synthetic events: `TimelineSpikeCore` is linked, not copied, so the workload, the mutation
+and pagination drivers, the anchor probe, and the frame recorder are the Mac gate's own.
+The harness is DEBUG-only code in `MactrixiOS/Timeline/Gate/`. It runs two ways, with the
+same runner: the `TimelineGateTests` XCTest, and the app launched with `-TimelineGate`.
+
+### What a simulator can measure
+
+The simulator draws on the Mac's GPU at the Mac's speed, and its display link delivered
+60.0Hz against a 120Hz request. **Its frame times say nothing about a phone**, so simulator
+dumps carry `"frame": null` and no frame bar exists. Its wall times (cold load, width change)
+are recorded as upper bounds, never scored.
+
+What transfers is what the container decides, not what the clock says: anchor positions, the
+rows it measures, the layout passes it runs. Three simulator runs gave identical values for
+every one of those, down to each drift sample.
+
+Not everything that looks deterministic is. **Drain batching depends on the clock**: the drain
+spends a share of the frame (`TimelineDrainBudget`) at the measured cost per row, so a phone
+at 120Hz with a different row cost splits the same storm into different batches. The storm
+the simulator scores therefore waits for the container to go idle after each tick
+(`s2-quiesced`), which makes every count and position independent of drain timing. Frames per
+tick and the backlog are recorded, never barred. The Mac S2 semantics (ticks at 10Hz whatever
+the drain is doing) run as `s2-paced`, on a device only.
+
+### Scenarios and bars
+
+The viewport is pinned at 390×700pt, inside the portrait safe area of every current iPhone. A
+viewport under the status bar gave its cells a safe-area inset, and the scroll then ran 50
+layout passes in 5s instead of 3.
+
+| Scenario | What it does | Bar (simulator and device) | Baseline 2026-10-30, iPhone 17 Pro, iOS 27.0 |
+| --- | --- | --- | --- |
+| `cold-load` | first layout of 10k rows | rows measured ≤ rows | 10,000 of 10,000 |
+| `s1` | 5s sweep from the newest end (30s on a device) | rows measured = 0; layout passes ≤ 10 | 0; 3 |
+| `s2-quiesced` | 300 storm ticks (1,800 mutations), parked mid-timeline | anchor-hold worst ≤ 0.5pt; middle-row drift worst ≤ 423pt; rows measured per mutation ≤ 0.78; stalled ticks = 0 | 0.000pt; 282.0pt; 0.730; 0 |
+| `s4` | 20 prepends of 50, parked near the oldest end | samples = 20; drift worst ≤ 0.5pt; rows measured ≤ prepended + 20 | 20; 0.000pt; 1,010 |
+| `width-change` | 390→750pt (a rotation) and back, at 11k rows | rows measured ≤ rows, per pass | 11,000 and 11,000 |
+
+How the bars were set. MATRIX-66 has not settled a scoring policy in §11, so each bar follows
+one of the rules already on record:
+
+- **Structural invariants** for the counts: one measure per row per width, none while
+  scrolling, one per new row plus the seam row on a prepend. These need no baseline.
+- **The Mac's prepend bar** (0.0pt baseline, 0.5pt tolerance), which the iOS container meets
+  exactly: the flip puts a prepend beyond the viewport, so nothing moves.
+- **Baseline plus margin** (the MATRIX-60 option) for the two numbers that depend on the
+  workload's layout: middle-row drift (+50%) and measures per mutation (+0.05). Three runs were
+  identical, so the median of N is any one run.
+
+Two numbers need reading together. `anchorHold` is the movement of the container's own
+anchor row (the top-most visible row) across a tick, and it is exact by construction: the
+compensation holds it. The probe's middle-row drift is the Mac gate's metric, and it includes
+real content growth between the anchor and the tracked row, so a 282pt worst is not an
+anchoring error (SCENARIOS.md says the same of the Mac's S2).
+
+Recorded, not barred, in the simulator: cold load 4.7 to 5.1s (0.47 to 0.51ms a row), the
+width change 4.9 to 6.4s out and 4.9 to 7.9s back, in Debug builds. An optimized build of the
+same harness gave identical counts and a 4.2s cold load, so the cost sits in SwiftUI and
+UIKit, not in unoptimized app code. A phone will give its own number, but the shape stands: a
+rotation at 11k rows re-measures every row on the main thread, synchronously.
+
+Why the scroll counts layout passes: when a cell comes on screen, UIKit asks it for a
+preferred height (`_recomputePreferredAttributesForInvalidatedElementsIfNeeded`), and that
+re-runs the layout's `prepare()` even though `TimelineStackLayout` declines the new size. The
+heights UIKit computes there disagree with the measured ones on tall rows (148.7 against
+443.7pt), but a screenshot of the gate's viewport shows the measured heights drawn correctly.
+
+Dumps: `spike/results/ios/timeline-ios-production-<scenario>-<simulator|device>-<stamp>.json`.
+The shared blocks keep the Mac dump's field names and types; `environment` says simulator or
+device, and `ios` holds the counts above plus every drift sample.
+
+### Run it in the simulator
+
+```
+spike/run-ios-gate.sh                    # builds, makes a throwaway iPhone 17 Pro, runs, deletes it
+spike/run-ios-gate.sh --udid <UDID>      # an existing simulator, kept
+```
+
+Exit codes match the Mac gate: 0 pass, 1 a bar failed, 3 refused. The XCTest runs the same
+scenarios under `scripts/test.sh` and in CI, and attaches the dumps to the test result. On a
+Mac whose XCTest runner cannot start (`xcodebuild -checkFirstLaunchStatus` exits 69), the
+script is the way to run it.
+
+### The device pass (Patrick)
+
+**Do not run the device pass from Xcode's default Debug build. A `-Onone` build refuses to
+measure frames (exit 3), because the Mac gate measured debug SwiftUI at about 7× the release
+cost.** It needs a signing team; a personal team is enough for a phone of your own.
+
+1. Build optimized, with the frame-rate key a phone needs before it gives an app 120Hz
+   (`CADisableMinimumFrameDurationOnPhone`; the app does not ship it, see below):
+   ```
+   xcodebuild build -project Mactrix.xcodeproj -scheme MactrixiOS -configuration Debug \
+       -destination 'generic/platform=iOS' -derivedDataPath build/gate-device \
+       SWIFT_OPTIMIZATION_LEVEL=-O SWIFT_COMPILATION_MODE=wholemodule \
+       INFOPLIST_FILE=spike/ios/TimelineGate-Info.plist DEVELOPMENT_TEAM=<your team>
+   ```
+2. Install and run, with the phone unlocked, on a charger, with Low Power Mode off (it caps the
+   display at 60Hz):
+   ```
+   xcrun devicectl device install app --device <phone> build/gate-device/Build/Products/Debug-iphoneos/Mactrix.app
+   xcrun devicectl device process launch --console --terminate-existing --device <phone> \
+       io.davlin.matrixclient.ios -TimelineGate
+   ```
+3. Copy the dumps out:
+   ```
+   xcrun devicectl device copy from --device <phone> --domain-type appDataContainer \
+       --domain-identifier io.davlin.matrixclient.ios --source Documents/TimelineGate \
+       --destination spike/results/ios
+   ```
+
+On a device the run first spins the viewport for 2s at the pinned 120Hz and refuses (exit 3)
+if the display link delivered more than 5% off, as the Mac gate does. It then adds frame
+statistics to `s1` and runs `s2-paced`. No frame bar exists yet: the first device dumps are
+the baseline the frame bars get derived from, under whatever policy MATRIX-66 settles.
+
+**Open decision: the app does not ship `CADisableMinimumFrameDurationOnPhone`.** Without it
+an iPhone caps the app's own display links (the gate's and the drain's) at 60Hz; scrolling
+itself still runs at 120Hz. The device pass adds the key at build time, so its frame numbers
+describe a drain that ticks at 120Hz. Whether the shipping app should do the same is a
+product call, not a gate call.

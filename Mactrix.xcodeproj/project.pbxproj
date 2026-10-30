@@ -20,6 +20,7 @@
 		0216E5786616E86E02F4C34E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 62381878FCC1FBA465C7839C /* Core */; };
 		BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */ = {isa = PBXBuildFile; productRef = A978267D386D39F9E4AE464D /* UI */; };
 		15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */ = {isa = PBXBuildFile; productRef = 6BA24E6DC13E069421F63EF3 /* Tokens */; };
+		B65B9916608C19D69BE612A8 /* TimelineSpikeCore in Frameworks */ = {isa = PBXBuildFile; productRef = FEC96748486275A8B123B9A4 /* TimelineSpikeCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -115,6 +116,7 @@
 				0216E5786616E86E02F4C34E /* Core in Frameworks */,
 				BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */,
 				15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */,
+				B65B9916608C19D69BE612A8 /* TimelineSpikeCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +239,7 @@
 				62381878FCC1FBA465C7839C /* Core */,
 				A978267D386D39F9E4AE464D /* UI */,
 				6BA24E6DC13E069421F63EF3 /* Tokens */,
+				FEC96748486275A8B123B9A4 /* TimelineSpikeCore */,
 			);
 			productName = Mactrix;
 			productReference = 1247813A66B739953A27BAFE /* Mactrix.app */;
@@ -304,6 +307,7 @@
 				342C624C2EB4DDE600E2426A /* XCRemoteSwiftPackageReference "matrix-rust-components-swift" */,
 				3409F4E82EBFD8D4009537B4 /* XCLocalSwiftPackageReference "MactrixLibrary" */,
 				348E99862F40ABC3009F57A9 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
+				09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 343858432EB394590010922A /* Products */;
@@ -847,6 +851,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = MactrixLibrary;
 		};
+		09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = spike/TimelineSpike;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -923,6 +931,11 @@
 		6BA24E6DC13E069421F63EF3 /* Tokens */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Tokens;
+		};
+		FEC96748486275A8B123B9A4 /* TimelineSpikeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */;
+			productName = TimelineSpikeCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

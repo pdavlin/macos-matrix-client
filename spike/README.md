@@ -8,8 +8,10 @@ once the decision it supports lands in Contract §11.
 The M0 timeline harness (S-12). It gates the SwiftUI vs AppKit timeline decision (S-15,
 risk R-1).
 
-- **Standalone SPM package.** It is deliberately not a member of `Mactrix.xcodeproj`, so it
-  cannot conflict with parallel work on the app.
+- **Standalone SPM package.** No Mac target in `Mactrix.xcodeproj` links it. Since MATRIX-87
+  the project references it as a local package, so the iOS app's DEBUG timeline gate can link
+  `TimelineSpikeCore` (the platform-neutral workload, drivers, and probes). The package
+  declares iOS for that reason only; its AppKit files compile on macOS only.
 - **No matrix-rust-sdk, no Matrix code.** All data is synthetic. The question is list
   architecture, and the SDK would only add noise and build time.
 

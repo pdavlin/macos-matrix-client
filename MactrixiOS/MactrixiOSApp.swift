@@ -7,7 +7,7 @@ struct MactrixiOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(model: model).timelineFixtureOverride()
+            RootView(model: model).timelineFixtureOverride().timelineGateOverride()
         }
         .environment(model.appState)
     }

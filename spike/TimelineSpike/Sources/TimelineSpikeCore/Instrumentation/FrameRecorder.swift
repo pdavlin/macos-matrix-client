@@ -1,4 +1,6 @@
-import AppKit
+#if os(macOS)
+    import AppKit
+#endif
 import Foundation
 import QuartzCore
 
@@ -53,16 +55,30 @@ public final class FrameRecorder: NSObject {
         super.init()
     }
 
-    /// Attaches to a view. The view must already be in a window.
-    public func attach(to view: NSView) {
-        guard displayLink == nil else { return }
-        let link = view.displayLink(target: self, selector: #selector(handleTick(_:)))
-        link.add(to: .main, forMode: .common)
-        displayLink = link
-        applyPinnedRate()
-        lastTimestamp = nil
-        isRunning = true
-    }
+    #if os(macOS)
+        /// Attaches to a view. The view must already be in a window.
+        public func attach(to view: NSView) {
+            guard displayLink == nil else { return }
+            let link = view.displayLink(target: self, selector: #selector(handleTick(_:)))
+            link.add(to: .main, forMode: .common)
+            displayLink = link
+            applyPinnedRate()
+            lastTimestamp = nil
+            isRunning = true
+        }
+    #else
+        /// Attaches to the main screen's link (MATRIX-87, the iOS gate). UIKit has no
+        /// per-view link: an iOS `CADisplayLink` follows the screen the app runs on.
+        public func attach() {
+            guard displayLink == nil else { return }
+            let link = CADisplayLink(target: self, selector: #selector(handleTick(_:)))
+            link.add(to: .main, forMode: .common)
+            displayLink = link
+            applyPinnedRate()
+            lastTimestamp = nil
+            isRunning = true
+        }
+    #endif
 
     /// Puts `pinnedHertz` on the live link as a fixed range.
     ///

@@ -6,8 +6,13 @@ import PackageDescription
 // protocol that S-13 and S-14 must follow.
 let package = Package(
     name: "TimelineSpike",
+    // MATRIX-87: iOS is declared so the iOS timeline gate can link
+    // TimelineSpikeCore's platform-neutral workload, drivers and probes. The
+    // AppKit-only files in that target compile on macOS only. No other target
+    // here builds for iOS, and nothing builds them for it.
     platforms: [
-        .macOS("26.0")
+        .macOS("26.0"),
+        .iOS("26.0")
     ],
     products: [
         .executable(name: "TimelineSpikeApp", targets: ["TimelineSpikeApp"]),
