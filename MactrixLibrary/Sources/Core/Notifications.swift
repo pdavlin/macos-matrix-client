@@ -4,6 +4,10 @@ import UserNotifications
 
 // This class is Sendable because MatrixRustSDK.SyncNotificationListener requires it to be so
 @MainActor @Observable public final class MatrixNotifications: NSObject {
+    /// The `userInfo` key of the room id. The local notifications and the
+    /// MATRIX-89 Notification Service Extension both set it.
+    public nonisolated static let roomIDUserInfoKey = "roomId"
+
     public var selectedRoomId: String?
 
     public typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
@@ -29,7 +33,7 @@ import UserNotifications
 
 extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
     public func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        let roomId = response.notification.request.content.userInfo["roomId"] as? String
+        let roomId = response.notification.request.content.userInfo[Self.roomIDUserInfoKey] as? String
         Logger.notification.info("Notification delegate didReceive: \(roomId ?? "<no room id>")")
         selectedRoomId = roomId
     }
@@ -62,7 +66,7 @@ public extension MatrixNotifications {
         content.subtitle = notificationBody(for: notification)
         content.sound = UNNotificationSound.default
         content.interruptionLevel = .timeSensitive
-        content.userInfo = ["roomId": roomId]
+        content.userInfo = [Self.roomIDUserInfoKey: roomId]
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.01, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)

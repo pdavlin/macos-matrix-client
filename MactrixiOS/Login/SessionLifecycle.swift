@@ -26,6 +26,7 @@ final class SessionLifecycle {
 
     @ObservationIgnored private let restore: @MainActor () async throws -> MatrixClient?
     @ObservationIgnored private let startSync: @MainActor (MatrixClient) async throws -> Void
+    @ObservationIgnored private let registerForPush: @MainActor (MatrixClient) async -> Void
 
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "io.davlin.matrixclient.ios", category: "session")
 
@@ -33,14 +34,18 @@ final class SessionLifecycle {
     ///   - restore: loads the saved session. The default reads the keychain
     ///     through `MatrixClient.attemptRestore`, the same call the Mac app uses.
     ///   - startSync: starts the sync loop of a new client.
+    ///   - registerForPush: asks for notification permission and registers the
+    ///     APNs pusher (MATRIX-89). It does not start sync.
     init(
         appState: AppState,
         restore: @escaping @MainActor () async throws -> MatrixClient? = { try await MatrixClient.attemptRestore() },
-        startSync: @escaping @MainActor (MatrixClient) async throws -> Void = { try await $0.startSync() }
+        startSync: @escaping @MainActor (MatrixClient) async throws -> Void = { try await $0.startSync() },
+        registerForPush: @escaping @MainActor (MatrixClient) async -> Void = { await PushRegistration.shared.sessionDidStart($0) }
     ) {
         self.appState = appState
         self.restore = restore
         self.startSync = startSync
+        self.registerForPush = registerForPush
     }
 
     var phase: Phase {
@@ -64,7 +69,9 @@ final class SessionLifecycle {
         }
     }
 
-    /// Makes a client the app's session and starts its sync loop.
+    /// Makes a client the app's session, starts its sync loop, and registers
+    /// for push. The push registration does not block: it can wait on the
+    /// permission prompt.
     func attach(_ client: MatrixClient) async {
         appState.matrixClient = client
         do {
@@ -74,6 +81,7 @@ final class SessionLifecycle {
             // show and retry. Same handling as the Mac `MainView`.
             Self.logger.error("failed to start sync: \(String(describing: error), privacy: .public)")
         }
+        Task { await registerForPush(client) }
     }
 
     /// Call when `MatrixClient.authenticationFailed` becomes true. A full

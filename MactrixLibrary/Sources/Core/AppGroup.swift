@@ -32,6 +32,23 @@ public enum AppGroup {
     }
 }
 
+/// The push gateway of the iOS app (MATRIX-89). The Sygnal deployment
+/// (MATRIX-90) must match these values.
+public enum PushGateway {
+    /// The Sygnal notify endpoint that the homeserver posts to.
+    public static let url = "https://davlin-matrix.exe.xyz/_matrix/push/v1/notify"
+
+    /// The pusher `app_id`: the Sygnal app id. The APNs topic is the app's
+    /// bundle identifier, which has the same value.
+    public static let pusherAppID = "io.davlin.matrixclient.ios"
+
+    /// The pusher `default_payload`, a JSON string. See `PusherDefaultPayload`.
+    public static let defaultPayload = PusherDefaultPayload.json
+
+    /// The pusher `app_display_name`.
+    public static let appDisplayName = "Mactrix"
+}
+
 /// Where the SDK store of each session lives.
 public enum SessionStorageLocation {
     /// Resolves the store location now. On iOS, the first resolution logs the

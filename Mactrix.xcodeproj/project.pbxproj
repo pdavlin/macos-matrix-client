@@ -20,6 +20,9 @@
 		0216E5786616E86E02F4C34E /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 62381878FCC1FBA465C7839C /* Core */; };
 		BB84F3BF69A7F6D41A8C92EB /* UI in Frameworks */ = {isa = PBXBuildFile; productRef = A978267D386D39F9E4AE464D /* UI */; };
 		15D60EF44ADEE101A1E83689 /* Tokens in Frameworks */ = {isa = PBXBuildFile; productRef = 6BA24E6DC13E069421F63EF3 /* Tokens */; };
+		8E91A2C64D3B4F0A9C1E7B0C /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 8E91A2C64D3B4F0A9C1E7B0B /* Core */; };
+		8E91A2C64D3B4F0A9C1E7B0E /* Utils in Frameworks */ = {isa = PBXBuildFile; productRef = 8E91A2C64D3B4F0A9C1E7B0D /* Utils */; };
+		8E91A2C64D3B4F0A9C1E7B10 /* MactrixNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8E91A2C64D3B4F0A9C1E7B01 /* MactrixNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,7 +40,28 @@
 			remoteGlobalIDString = 65E75D14ED38EA29CC78B9E1;
 			remoteInfo = MactrixiOS;
 		};
+		8E91A2C64D3B4F0A9C1E7B11 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3438583A2EB394590010922A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8E91A2C64D3B4F0A9C1E7B02;
+			remoteInfo = MactrixNotificationService;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		8E91A2C64D3B4F0A9C1E7B0F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				8E91A2C64D3B4F0A9C1E7B10 /* MactrixNotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		3409F6012EBFDB93009537B4 /* MactrixLibrary */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MactrixLibrary; sourceTree = "<group>"; };
@@ -45,6 +69,7 @@
 		528828ED4BA147E4AEDA6499 /* MactrixIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MactrixIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1247813A66B739953A27BAFE /* Mactrix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mactrix.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MactrixiOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8E91A2C64D3B4F0A9C1E7B01 /* MactrixNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MactrixNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -61,6 +86,13 @@
 				Info.plist,
 			);
 			target = 65E75D14ED38EA29CC78B9E1 /* MactrixiOS */;
+		};
+		8E91A2C64D3B4F0A9C1E7B04 /* Exceptions for "MactrixNotificationService" folder in "MactrixNotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8E91A2C64D3B4F0A9C1E7B02 /* MactrixNotificationService */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -89,6 +121,14 @@
 		C21FDC4A02FBA782C8A30507 /* MactrixiOSTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MactrixiOSTests;
+			sourceTree = "<group>";
+		};
+		8E91A2C64D3B4F0A9C1E7B03 /* MactrixNotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8E91A2C64D3B4F0A9C1E7B04 /* Exceptions for "MactrixNotificationService" folder in "MactrixNotificationService" target */,
+			);
+			path = MactrixNotificationService;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -135,6 +175,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8E91A2C64D3B4F0A9C1E7B06 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8E91A2C64D3B4F0A9C1E7B0C /* Core in Frameworks */,
+				8E91A2C64D3B4F0A9C1E7B0E /* Utils in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -152,6 +201,7 @@
 				9690B8140E7B4D7C88430C00 /* MactrixIntegrationTests */,
 				E94142735D67F0EAE46A3FE0 /* MactrixiOS */,
 				C21FDC4A02FBA782C8A30507 /* MactrixiOSTests */,
+				8E91A2C64D3B4F0A9C1E7B03 /* MactrixNotificationService */,
 				342480052EBF91B500C85D82 /* Frameworks */,
 				343858432EB394590010922A /* Products */,
 				3409F6012EBFDB93009537B4 /* MactrixLibrary */,
@@ -165,6 +215,7 @@
 				528828ED4BA147E4AEDA6499 /* MactrixIntegrationTests.xctest */,
 				1247813A66B739953A27BAFE /* Mactrix.app */,
 				2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */,
+				8E91A2C64D3B4F0A9C1E7B01 /* MactrixNotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -234,10 +285,12 @@
 				33AF2D4C4EE91BC6F39B040A /* Sources */,
 				A7569A4E1EA49A3378F63FBC /* Frameworks */,
 				80297B31A5D54DF8EAF26CA8 /* Resources */,
+				8E91A2C64D3B4F0A9C1E7B0F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				8E91A2C64D3B4F0A9C1E7B12 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E94142735D67F0EAE46A3FE0 /* MactrixiOS */,
@@ -275,6 +328,30 @@
 			productReference = 2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		8E91A2C64D3B4F0A9C1E7B02 /* MactrixNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E91A2C64D3B4F0A9C1E7B08 /* Build configuration list for PBXNativeTarget "MactrixNotificationService" */;
+			buildPhases = (
+				8E91A2C64D3B4F0A9C1E7B05 /* Sources */,
+				8E91A2C64D3B4F0A9C1E7B06 /* Frameworks */,
+				8E91A2C64D3B4F0A9C1E7B07 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8E91A2C64D3B4F0A9C1E7B03 /* MactrixNotificationService */,
+			);
+			name = MactrixNotificationService;
+			packageProductDependencies = (
+				8E91A2C64D3B4F0A9C1E7B0B /* Core */,
+				8E91A2C64D3B4F0A9C1E7B0D /* Utils */,
+			);
+			productName = MactrixNotificationService;
+			productReference = 8E91A2C64D3B4F0A9C1E7B01 /* MactrixNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -298,6 +375,9 @@
 					A1E5E224993DB9E746ACF586 = {
 						CreatedOnToolsVersion = 26.1;
 						TestTargetID = 65E75D14ED38EA29CC78B9E1;
+					};
+					8E91A2C64D3B4F0A9C1E7B02 = {
+						CreatedOnToolsVersion = 26.1;
 					};
 				};
 			};
@@ -324,6 +404,7 @@
 				7AAD871F41E2456EBC229257 /* MactrixIntegrationTests */,
 				65E75D14ED38EA29CC78B9E1 /* MactrixiOS */,
 				A1E5E224993DB9E746ACF586 /* MactrixiOSTests */,
+				8E91A2C64D3B4F0A9C1E7B02 /* MactrixNotificationService */,
 			);
 		};
 /* End PBXProject section */
@@ -351,6 +432,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AE9A35711101B3D340E00ADB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8E91A2C64D3B4F0A9C1E7B07 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -388,6 +476,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8E91A2C64D3B4F0A9C1E7B05 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -400,6 +495,11 @@
 			isa = PBXTargetDependency;
 			target = 65E75D14ED38EA29CC78B9E1 /* MactrixiOS */;
 			targetProxy = FE04964FB357B7246236E0A9 /* PBXContainerItemProxy */;
+		};
+		8E91A2C64D3B4F0A9C1E7B12 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8E91A2C64D3B4F0A9C1E7B02 /* MactrixNotificationService */;
+			targetProxy = 8E91A2C64D3B4F0A9C1E7B11 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -806,6 +906,71 @@
 			};
 			name = Release;
 		};
+		8E91A2C64D3B4F0A9C1E7B09 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MactrixNotificationService/MactrixNotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MactrixNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mactrix Notifications";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.ios.notifications;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_STRICT_MEMORY_SAFETY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8E91A2C64D3B4F0A9C1E7B0A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MactrixNotificationService/MactrixNotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2BGS8RA3P5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MactrixNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mactrix Notifications";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.davlin.matrixclient.ios.notifications;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_STRICT_MEMORY_SAFETY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -850,6 +1015,15 @@
 			buildConfigurations = (
 				E43ED0BCBA7B58E7D3E2BAB8 /* Debug */,
 				3C5D7EA74F546114A8DCA82D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8E91A2C64D3B4F0A9C1E7B08 /* Build configuration list for PBXNativeTarget "MactrixNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8E91A2C64D3B4F0A9C1E7B09 /* Debug */,
+				8E91A2C64D3B4F0A9C1E7B0A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -937,6 +1111,14 @@
 		6BA24E6DC13E069421F63EF3 /* Tokens */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Tokens;
+		};
+		8E91A2C64D3B4F0A9C1E7B0B /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core;
+		};
+		8E91A2C64D3B4F0A9C1E7B0D /* Utils */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Utils;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -463,7 +463,8 @@ public extension MatrixClient {
     }
 }
 
-private extension URL {
+/// Internal, not private: `MatrixClient+Push` probes the store folder (MATRIX-89).
+extension URL {
     static func sessionData(for sessionID: String) -> URL {
         SessionStorageLocation.roots.data.appending(component: sessionID)
     }
