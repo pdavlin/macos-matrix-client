@@ -16,6 +16,7 @@
             let mutations: Int
             let fetches: Int
             let layoutPasses: Int
+            let rowRereads: Int
         }
 
         func beginScenario() -> ScenarioStart {
@@ -27,7 +28,8 @@
                 lookups: stats.lookups,
                 mutations: store.appliedMutationCount,
                 fetches: feed.fetchRequestCount,
-                layoutPasses: layoutProbe.passes
+                layoutPasses: layoutProbe.passes,
+                rowRereads: layoutProbe.rowRereads
             )
         }
 
@@ -53,6 +55,19 @@
         /// A steady sweep from the newest end (S1). Every height is cached,
         /// so scrolling must never measure a row. Frame times on a device.
         func runSweep() async -> TimelineGateReport {
+            await sweepReport("s1")
+        }
+
+        /// The S1 sweep with the viewport under the status bar, where every
+        /// cell near the top edge gets a safe-area inset (MATRIX-98). The
+        /// same bars as `s1`: before MATRIX-98 this read 50 layout passes.
+        func runStatusBarSweep() async -> TimelineGateReport {
+            placesViewportUnderStatusBar = true
+            defer { placesViewportUnderStatusBar = false }
+            return await sweepReport("s1-status-bar")
+        }
+
+        private func sweepReport(_ scenario: String) async -> TimelineGateReport {
             scroll(toOriginY: 0)
             await frames(10)
             let start = beginScenario()
@@ -61,13 +76,13 @@
             await frames(5)
             let remeasured = controller.heightCache.stats.misses - start.misses
             return report(
-                "s1",
+                scenario,
                 since: start,
                 measuresFrames: true,
                 verdicts: [
-                    TimelineGateVerdict("s1.remeasured", Double(remeasured), "==", 0),
+                    TimelineGateVerdict("\(scenario).remeasured", Double(remeasured), "==", 0),
                     TimelineGateVerdict(
-                        "s1.layoutPrepares",
+                        "\(scenario).layoutPrepares",
                         Double(layoutProbe.passes - start.layoutPasses),
                         "<=",
                         TimelineGateBars.scrollLayoutPrepares
@@ -207,16 +222,20 @@
 
         // MARK: - Width change
 
-        /// A rotation at the full timeline, and back: the synchronous full
-        /// re-measure MATRIX-85 listed. Scored on count (one pass per width
-        /// change, not the two the Mac paid before MATRIX-59); the time is a
-        /// simulator number and is recorded only.
+        /// A rotation at the full timeline, parked near the oldest end, and
+        /// back (MATRIX-98). The pass that changes the width measures only the
+        /// rows around the anchor; the drain measures the rest in its frame
+        /// budget, and the anchor holds through all of it. Scored on the
+        /// anchor and on count: at most one measure per row for the rotation,
+        /// none for the way back, whose width the cache still holds. The
+        /// longest main-thread block is a simulator number and is recorded
+        /// only.
         func runWidthChange() async -> TimelineGateReport {
             await frames(5)
             let start = beginScenario()
-            let rotate = layoutPass(to: CGSize(width: TimelineGatePlan.rotatedWidth, height: TimelineGatePlan.viewport.height))
+            let rotate = await widthChange(to: CGSize(width: TimelineGatePlan.rotatedWidth, height: TimelineGatePlan.viewport.height))
             await frames(5)
-            let restore = layoutPass(to: TimelineGatePlan.viewport)
+            let restore = await widthChange(to: TimelineGatePlan.viewport)
             await frames(5)
             return report(
                 "width-change",
@@ -224,8 +243,85 @@
                 passes: [rotate, restore],
                 verdicts: [
                     TimelineGateVerdict("width-change.rotate.remeasured", Double(rotate.remeasured), "<=", Double(rotate.rows)),
-                    TimelineGateVerdict("width-change.restore.remeasured", Double(restore.remeasured), "<=", Double(restore.rows)),
+                    TimelineGateVerdict("width-change.restore.remeasured", Double(restore.remeasured), "==", 0),
+                    TimelineGateVerdict("width-change.rotate.drained", rotate.drained == true ? 1 : 0, "==", 1),
+                    TimelineGateVerdict("width-change.restore.drained", restore.drained == true ? 1 : 0, "==", 1),
+                    TimelineGateVerdict(
+                        "width-change.rotate.anchorDriftWorst",
+                        rotate.anchorDrift?.worstPoints ?? .infinity,
+                        "<=",
+                        TimelineGateBars.widthChangeAnchorDriftWorstPoints
+                    ),
+                    TimelineGateVerdict(
+                        "width-change.restore.anchorDriftWorst",
+                        restore.anchorDrift?.worstPoints ?? .infinity,
+                        "<=",
+                        TimelineGateBars.widthChangeAnchorDriftWorstPoints
+                    ),
                 ]
+            )
+        }
+
+        /// Resizes the viewport the way a rotation does, then follows the
+        /// drain until every row is exact at the new width (MATRIX-98).
+        ///
+        /// Records the longest gap between two display-link callbacks from
+        /// the frame before the change to the end of the drain, which is the
+        /// longest the main thread was blocked, and the anchor row's movement
+        /// on screen at every frame of it.
+        func widthChange(to size: CGSize) async -> TimelineGateMeasurements.LayoutPass {
+            let collectionView = controller.collectionView
+            let fromWidth = collectionView.bounds.width
+            await nextFrame()
+            let anchor = anchorEdge()
+            let missesBefore = controller.heightCache.stats.misses
+            var previousFrame = CACurrentMediaTime()
+
+            let started = CACurrentMediaTime()
+            container.frame.size = size
+            collectionView.frame = container.bounds
+            collectionView.layoutIfNeeded()
+            let synchronousSeconds = CACurrentMediaTime() - started
+            let synchronousRemeasured = controller.heightCache.stats.misses - missesBefore
+
+            var drift = TimelineGateMeasurements.AnchorHold()
+            var longestBlock: CFTimeInterval = 0
+            var drainFrames = 0
+            var drained = false
+            // The first frame after the change always counts: the gap before
+            // it holds the pass that changed the width.
+            repeat {
+                if let anchor, let after = edge(ofRowId: anchor.rowId) {
+                    drift.record(Double(after - anchor.edge))
+                }
+                await nextFrame()
+                let now = CACurrentMediaTime()
+                longestBlock = max(longestBlock, now - previousFrame)
+                previousFrame = now
+                if !controller.hasDrainWork, controller.rowUpdateDisplayLink == nil {
+                    drained = true
+                } else {
+                    drainFrames += 1
+                }
+            } while !drained && drainFrames < TimelineGatePlan.widthDrainFrameCap
+            if let anchor, let after = edge(ofRowId: anchor.rowId) {
+                drift.record(Double(after - anchor.edge))
+            }
+            let seconds = CACurrentMediaTime() - started
+            let remeasured = controller.heightCache.stats.misses - missesBefore
+            return TimelineGateMeasurements.LayoutPass(
+                fromWidth: Double(fromWidth),
+                toWidth: Double(size.width),
+                rows: controller.rows.count,
+                remeasured: remeasured,
+                milliseconds: seconds * 1000,
+                microsecondsPerRemeasure: remeasured > 0 ? seconds * 1_000_000 / Double(remeasured) : 0,
+                synchronousRemeasured: synchronousRemeasured,
+                synchronousMilliseconds: synchronousSeconds * 1000,
+                drainFrames: drainFrames,
+                drained: drained,
+                longestBlockMilliseconds: longestBlock * 1000,
+                anchorDrift: anchor == nil ? nil : drift
             )
         }
 
@@ -281,6 +377,7 @@
                     drain: drain,
                     layoutPasses: passes,
                     layoutPrepares: layoutProbe.passes - start.layoutPasses,
+                    layoutRowRereads: layoutProbe.rowRereads - start.rowRereads,
                     fetchRequestCount: feed.fetchRequestCount - start.fetches
                 ),
                 verdicts: verdicts
