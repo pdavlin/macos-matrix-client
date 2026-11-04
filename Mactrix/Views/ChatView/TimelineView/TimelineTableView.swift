@@ -80,6 +80,9 @@ class TimelineViewController: NSViewController {
     /// (MATRIX-57). Keyed by row identity, because a structural change between
     /// the two renumbers the rows.
     var pendingRowUpdates = TimelineRowUpdateQueue<TimelineRow>()
+    /// Drops upload progress ticks that would not change what a media row
+    /// draws, before they reach the queue (MATRIX-107).
+    var uploadProgressThrottle = MediaUploadThrottle()
     /// Runs while the queue has work, invalidated the frame it empties.
     var rowUpdateDisplayLink: CADisplayLink?
     /// Set while a windowless drain is pending; there is no frame to pace

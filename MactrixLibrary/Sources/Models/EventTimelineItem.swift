@@ -33,11 +33,24 @@ public protocol EventTimelineItem: UserProfile {
     var date: Date { get }
     /// Send state of a local echo; `nil` for remote events.
     var sendState: LocalSendState? { get }
+    /// Upload state of a local echo that waits in the send queue or uploads
+    /// (MATRIX-107); `nil` for every other send state and for remote events.
+    ///
+    /// Read off the send state, so a text echo in the queue reports `.queued`
+    /// too. `TimelineRow.mediaUploadState` narrows it to media rows.
+    var mediaUploadState: MediaUploadState? { get }
     var localCreatedAt: UInt64? { get }
     var userReadReceipts: [String: Receipt] { get }
     // var origin: EventItemOrigin? { get }
     var canBeRepliedTo: Bool { get }
     // var lazyProvider: LazyTimelineItemProvider { get }
+}
+
+public extension EventTimelineItem {
+    /// No upload state. The SDK conformance in `Core` replaces this; fixtures
+    /// and the timeline spike's synthetic events have no send queue, so they
+    /// keep it.
+    var mediaUploadState: MediaUploadState? { nil }
 }
 
 public struct MockEventTimelineItem: EventTimelineItem {
