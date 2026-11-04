@@ -1,4 +1,8 @@
-import AppKit
+#if canImport(AppKit)
+    import AppKit
+#elseif canImport(UIKit)
+    import UIKit
+#endif
 import SwiftUI
 
 /// Colors, icons, and metrics for chat labels and the sidebar label rail
@@ -20,10 +24,16 @@ public enum LabelToken {
         public var color: Color {
             let light = light
             let dark = dark
-            return Color(nsColor: NSColor(name: nil) { appearance in
-                let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                return NSColor(rgb: isDark ? dark : light)
-            })
+            #if canImport(AppKit)
+                return Color(nsColor: NSColor(name: nil) { appearance in
+                    let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    return NSColor(rgb: isDark ? dark : light)
+                })
+            #else
+                return Color(uiColor: UIColor { traits in
+                    UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
+                })
+            #endif
         }
     }
 
@@ -191,14 +201,23 @@ public enum LabelToken {
     public static let sheetAvatarSize: CGFloat = 24
 }
 
-extension NSColor {
+extension PlatformColor {
     /// An opaque sRGB color from `0xRRGGBB`.
     convenience init(rgb: UInt32) {
-        self.init(
-            srgbRed: CGFloat((rgb >> 16) & 0xFF) / 255,
-            green: CGFloat((rgb >> 8) & 0xFF) / 255,
-            blue: CGFloat(rgb & 0xFF) / 255,
-            alpha: 1
-        )
+        #if canImport(AppKit)
+            self.init(
+                srgbRed: CGFloat((rgb >> 16) & 0xFF) / 255,
+                green: CGFloat((rgb >> 8) & 0xFF) / 255,
+                blue: CGFloat(rgb & 0xFF) / 255,
+                alpha: 1
+            )
+        #else
+            self.init(
+                red: CGFloat((rgb >> 16) & 0xFF) / 255,
+                green: CGFloat((rgb >> 8) & 0xFF) / 255,
+                blue: CGFloat(rgb & 0xFF) / 255,
+                alpha: 1
+            )
+        #endif
     }
 }

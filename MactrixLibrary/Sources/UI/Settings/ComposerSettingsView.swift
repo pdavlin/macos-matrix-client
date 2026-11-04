@@ -32,7 +32,7 @@ public struct ComposerSettingsView: View {
                         .tag(mode)
                 }
             }
-            .pickerStyle(.radioGroup)
+            .radioGroupPickerStyle()
         }
     }
 

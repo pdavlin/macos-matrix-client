@@ -1,5 +1,6 @@
 import Models
 import SwiftUI
+import Tokens
 
 /// A person's avatar in a fixed circular slot, with a monogram fallback.
 ///
@@ -211,7 +212,7 @@ struct NewChatEncryptionConfirm: View {
         .frame(width: 320)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(nsColor: .windowBackgroundColor))
+                .fill(Color(PlatformColor.windowBackgroundColor))
                 .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
         )
     }

@@ -54,15 +54,27 @@ public enum SenderColorToken {
     /// An appearance-aware color: AppKit resolves the provider against the
     /// appearance of whatever draws it, so one value serves light and dark.
     private static func color(for swatch: Swatch) -> Color {
-        Color(nsColor: NSColor(name: NSColor.Name("sender.\(swatch.name)")) { appearance in
-            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            let components = isDark ? swatch.dark : swatch.light
-            return NSColor(
-                srgbRed: CGFloat(components.red) / 255,
-                green: CGFloat(components.green) / 255,
-                blue: CGFloat(components.blue) / 255,
-                alpha: 1
-            )
-        })
+        #if canImport(AppKit)
+            Color(nsColor: NSColor(name: NSColor.Name("sender.\(swatch.name)")) { appearance in
+                let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                let components = isDark ? swatch.dark : swatch.light
+                return NSColor(
+                    srgbRed: CGFloat(components.red) / 255,
+                    green: CGFloat(components.green) / 255,
+                    blue: CGFloat(components.blue) / 255,
+                    alpha: 1
+                )
+            })
+        #else
+            Color(uiColor: UIColor { traits in
+                let components = traits.userInterfaceStyle == .dark ? swatch.dark : swatch.light
+                return UIColor(
+                    red: CGFloat(components.red) / 255,
+                    green: CGFloat(components.green) / 255,
+                    blue: CGFloat(components.blue) / 255,
+                    alpha: 1
+                )
+            })
+        #endif
     }
 }

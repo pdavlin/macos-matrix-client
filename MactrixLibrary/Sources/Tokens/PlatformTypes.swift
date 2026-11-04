@@ -26,5 +26,11 @@
 
         /// AppKit's `separatorColor`.
         static var separatorColor: UIColor { .separator }
+
+        /// AppKit's `windowBackgroundColor`.
+        static var windowBackgroundColor: UIColor { .systemBackground }
+
+        /// AppKit's `textBackgroundColor`.
+        static var textBackgroundColor: UIColor { .systemBackground }
     }
 #endif

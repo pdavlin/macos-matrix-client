@@ -1,6 +1,7 @@
 import Models
 import OSLog
 import SwiftUI
+import Tokens
 
 /// The work the New Chat screen hands back to the app (MATRIX-75).
 ///
@@ -184,7 +185,7 @@ public struct NewChatScreen: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(Color(PlatformColor.textBackgroundColor))
         .overlay {
             if draft.isConfirmingEncryption {
                 encryptionConfirmOverlay
