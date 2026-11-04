@@ -7,7 +7,7 @@ import UI
 import UIKit
 
 /// The iOS timeline for one joined room (MATRIX-85). The single entry point
-/// the room list's detail placeholder swaps for.
+/// the room list's detail opens, through `LiveRoomScreen` (MATRIX-102).
 ///
 /// It owns the room's `LiveTimeline`, created once on first appearance: a
 /// timeline configures an SDK timeline when it is created, so it must not be

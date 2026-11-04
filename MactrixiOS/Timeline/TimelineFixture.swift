@@ -34,23 +34,35 @@ extension View {
 
         var body: some View {
             NavigationStack {
-                ConversationLayout {
-                    TimelineContainer(
-                        feed: feed,
-                        timeline: nil,
-                        imageLoader: nil,
-                        ownUserId: TimelineFixtureFeed.ownUserId,
-                        showsReadReceipts: false,
-                        media: TimelineFixtureMediaLoader(),
-                        fallbackActions: feed
-                    )
-                } composer: {
-                    ComposerBar(target: feed, placeholder: "Message fixture")
-                }
-                .navigationTitle("Timeline fixture")
-                .navigationBarTitleDisplayMode(.inline)
+                TimelineFixtureConversation(feed: feed)
+                    .navigationTitle("Timeline fixture")
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .task { await feed.run() }
+        }
+    }
+
+    /// The timeline container and composer over a fixture feed: the fixture
+    /// twin of a live room's detail screen. The fixture screen shows it at
+    /// launch; the room navigation tests open it as a room's detail
+    /// (MATRIX-102).
+    struct TimelineFixtureConversation: View {
+        let feed: TimelineFixtureFeed
+
+        var body: some View {
+            ConversationLayout {
+                TimelineContainer(
+                    feed: feed,
+                    timeline: nil,
+                    imageLoader: nil,
+                    ownUserId: TimelineFixtureFeed.ownUserId,
+                    showsReadReceipts: false,
+                    media: TimelineFixtureMediaLoader(),
+                    fallbackActions: feed
+                )
+            } composer: {
+                ComposerBar(target: feed, placeholder: "Message fixture")
+            }
         }
     }
 
