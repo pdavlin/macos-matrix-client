@@ -17,6 +17,18 @@ struct InspectorUserInfo: View {
         appState.matrixClient?.ignoredUserIds.contains(userId) == true
     }
 
+    /// The "Timeline" actions when a joined room is selected: "Mention"
+    /// inserts a chip in that room's composer (MATRIX-105). The chip shows the
+    /// member's room display name, else the global profile name.
+    var timelineActions: ComposerMentionTimelineActions? {
+        guard case let .joinedRoom(timeline: timeline) = windowState.selectedScreen else { return nil }
+        let roomName = timeline.room.members.first { $0.userId == userId }?.displayName
+        return ComposerMentionTimelineActions(
+            timeline: timeline,
+            target: MentionTarget(userId: userId, displayName: roomName ?? profile?.displayName)
+        )
+    }
+
     @ViewBuilder
     var content: some View {
         if let profile {
@@ -24,7 +36,7 @@ struct InspectorUserInfo: View {
                 profile: profile,
                 isUserIgnored: isUserIgnored,
                 actions: appState.matrixClient?.userProfileActions(forUserId: userId, windowState: windowState),
-                timelineActions: nil,
+                timelineActions: timelineActions,
                 imageLoader: appState.matrixClient
             )
         } else {

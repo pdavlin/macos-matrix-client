@@ -176,6 +176,40 @@ after another, not in parallel.
 - **B5 — Forwarding.** D-4. The quick switcher from C1 picks the target room.
 - **B6 — Message-range selection and copy.** D-2.
 
+#### Adding a message action (from MATRIX-108, PR #79)
+
+1. Add the case to `MessageAction`. The compiler then lists every switch.
+2. Add its rule in `MessageActionModel.availability(of:for:)`. Use
+   `subject.isOwn` for edit and redact.
+3. Put it in `MessageActionModel.order(on:for:)` for each surface it shows on.
+4. Give it a section. Add `.modify` (edit, forward) after `.respond`, and
+   `.destructive` (redact) last, in `MessageActionSection`.
+5. Add a title and icon in `UI.MessageActionPresentation`.
+6. Handle it in `ChatMessageView.perform(_:)`. Use an SDK call from
+   `docs/ffi/` (see CLAUDE.md rule 5).
+7. Add unit tests in `MessageActionModelTests` for own, other, local echo,
+   redacted, and media messages.
+
+B4 replaces `MessageActionModel.quickReactionKeys` with the SDK recent emoji
+and fills the `.openReactionPicker` case in `perform(_:)`.
+
+B6 makes a selected message the Edit-menu target before a hovered one. Do this
+in `MessageActionTargetSlot`.
+
+#### Rules that are easy to break
+
+- Media actions (`isMediaAction`) run in the media view, because it holds the
+  downloaded file, the Quick Look binding, and the inline player. The row menu
+  and the Edit menu leave them out.
+- Reply in Thread and the picker show in the hover row only. Threads are
+  deferred (contract §11).
+- The hover bar has a minimum height, so its buttons never change the row
+  height (MATRIX-63).
+- `MessageActionTargetSlot` publishes `editMenuItems` only when they change.
+  Do not make the target itself observable: hover moves across rows while
+  the timeline scrolls, and each change rebuilds the menu bar.
+- iOS rows return no `actionSubject`, so they keep their own menu.
+
 ### Cluster C — Menus, switcher, windows (after #56, #57, and #60 merge)
 
 - **C1 — ⌘K quick switcher.** D-7a, rooms and people.

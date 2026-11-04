@@ -68,6 +68,7 @@ extension TimelineCollectionController {
     private func applyReset() {
         rows = feed.displayRows
         heightCache.invalidateAll()
+        clearWidthPlaceholders()
         rowRevisions.removeAll()
         senderHeaders.removeAll()
         // Every row is rebuilt from the source of truth, which already holds
@@ -121,6 +122,7 @@ extension TimelineCollectionController {
             heightCache.invalidate(rowId: id)
             rowRevisions[id] = nil
             senderHeaders.remove(id)
+            widthPlaceholders[id] = nil
         }
         // A re-inserted identity must not inherit a payload queued against
         // the copy that left.

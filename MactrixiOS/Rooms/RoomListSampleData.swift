@@ -84,14 +84,20 @@
     }
 
     #Preview("iPhone list") {
-        RoomNavigationShell(rooms: SampleRoomListItem.all, isLoading: false, imageLoader: nil, usesStack: true)
+        RoomNavigationShell(rooms: SampleRoomListItem.all, isLoading: false, imageLoader: nil, usesStack: true) { _ in
+            TimelineFixtureConversation(feed: TimelineFixtureFeed())
+        }
     }
 
     #Preview("iPad split") {
-        RoomNavigationShell(rooms: SampleRoomListItem.all, isLoading: false, imageLoader: nil, usesStack: false)
+        RoomNavigationShell(rooms: SampleRoomListItem.all, isLoading: false, imageLoader: nil, usesStack: false) { _ in
+            TimelineFixtureConversation(feed: TimelineFixtureFeed())
+        }
     }
 
     #Preview("Loading") {
-        RoomNavigationShell(rooms: [SampleRoomListItem](), isLoading: true, imageLoader: nil, usesStack: true)
+        RoomNavigationShell(rooms: [SampleRoomListItem](), isLoading: true, imageLoader: nil, usesStack: true) { _ in
+            TimelineFixtureConversation(feed: TimelineFixtureFeed())
+        }
     }
 #endif
