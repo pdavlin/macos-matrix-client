@@ -28,6 +28,8 @@ enum SelectedScreen {
     case previewRoom(_ room: MatrixRustSDK.RoomPreview)
     case user(profile: MatrixRustSDK.UserProfile)
     case newRoom
+    /// The Beeper-style new chat draft in the detail pane (MATRIX-75).
+    case newChat(mode: NewChatMode)
     case none
 }
 
