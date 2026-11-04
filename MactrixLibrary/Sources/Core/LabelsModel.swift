@@ -13,19 +13,19 @@ import OSLog
 /// run one at a time; `ChatLabelEchoGate` covers the gap between a write and
 /// its sync echo, when the store still holds the old document.
 @MainActor @Observable
-final class LabelsModel {
+public final class LabelsModel {
     /// The labels to show. Empty until the first read, and when the stored
     /// event cannot be read.
-    private(set) var document = ChatLabelDocument()
+    public private(set) var document = ChatLabelDocument()
 
     /// False when the stored event could not be read or came from a newer
     /// schema: every write is refused so that data this build does not
     /// understand is not overwritten.
-    private(set) var isEditable = true
+    public private(set) var isEditable = true
 
     /// One live room per labelled room, so the rail badges follow unread
     /// counts whatever the chat list's filter holds.
-    private(set) var trackedRooms: [String: SidebarRoom] = [:]
+    public private(set) var trackedRooms: [String: SidebarRoom] = [:]
 
     @ObservationIgnored private let client: ClientProtocol
     @ObservationIgnored private let notifications: MatrixNotifications
@@ -40,7 +40,7 @@ final class LabelsModel {
     // MARK: Reading
 
     /// Re-reads the labels from the SDK's local store.
-    func refresh() async {
+    public func refresh() async {
         let result: ChatLabelReadResult
         do {
             result = try await ChatLabelDocument.read(client.accountData(eventType: ChatLabelDocument.eventType))
@@ -98,7 +98,7 @@ final class LabelsModel {
     // MARK: Derived state
 
     /// The rail badge of every label, from the tracked rooms' unread counts.
-    var badges: [String: ChatLabelBadge] {
+    public var badges: [String: ChatLabelBadge] {
         var unread: [String: ChatListUnread] = [:]
         for (roomId, room) in trackedRooms {
             guard let info = room.roomInfo else { continue }
@@ -119,7 +119,7 @@ final class LabelsModel {
     /// run in order, one at a time, each on the newest document, so a change
     /// should name labels by ID and state the value it wants (add, not
     /// toggle) to stay correct when another device wrote in between.
-    func mutate(_ change: @escaping (inout ChatLabelDocument) -> Void) {
+    public func mutate(_ change: @escaping (inout ChatLabelDocument) -> Void) {
         let previous = writeQueue
         writeQueue = Task { [weak self] in
             await previous?.value

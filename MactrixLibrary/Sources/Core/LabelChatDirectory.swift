@@ -11,8 +11,8 @@ import OSLog
 /// built from the room's synchronous accessors only: no room info
 /// subscription per row.
 @MainActor @Observable
-final class LabelChatDirectory {
-    private(set) var chats: [ChatListRowModel] = []
+public final class LabelChatDirectory {
+    public private(set) var chats: [ChatListRowModel] = []
 
     /// The sheet lists many more chats than the sidebar's first page.
     private static let pageSize: UInt32 = 1000
@@ -21,7 +21,9 @@ final class LabelChatDirectory {
     @ObservationIgnored private var handle: RoomListEntriesWithDynamicAdaptersResult?
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    func start(roomListService: RoomListService) async {
+    public init() {}
+
+    public func start(roomListService: RoomListService) async {
         guard handle == nil else { return }
         let listener = AsyncSDKListener<[RoomListEntriesUpdate]>()
         do {
@@ -43,7 +45,7 @@ final class LabelChatDirectory {
         }
     }
 
-    func stop() {
+    public func stop() {
         task?.cancel()
         task = nil
         handle?.entriesStream().cancel()

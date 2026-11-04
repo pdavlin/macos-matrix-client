@@ -22,7 +22,7 @@
 ///
 /// > Note: You do not need to create this structure yourself. Rather, you should use the collapsibility information
 /// > from ``WindowState/sidebarSections``.
-struct SidebarSectionCollapsibility: Codable, Equatable {
+public struct SidebarSectionCollapsibility: Codable, Equatable {
     /// Whether the spaces section is expanded.
-    var spaces = true
+    public var spaces = true
 }

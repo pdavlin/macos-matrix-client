@@ -1,3 +1,4 @@
+import Core
 import Foundation
 @testable import Mactrix
 import MatrixRustSDK

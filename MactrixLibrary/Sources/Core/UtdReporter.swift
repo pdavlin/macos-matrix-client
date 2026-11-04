@@ -20,8 +20,8 @@ import OSLog
 /// ```
 /// log show --last 30m --predicate 'subsystem == "io.davlin.matrixclient" AND category == "utd"'
 /// ```
-final class UtdReporter: UnableToDecryptDelegate {
-    func onUtd(info: UnableToDecryptInfo) {
+public final class UtdReporter: UnableToDecryptDelegate {
+    public func onUtd(info: UnableToDecryptInfo) {
         // Every field logged here is a diagnostic identifier, not a secret: an
         // event ID, a cause discriminant, two durations, a trust flag, and
         // server names. They are marked public so the records stay readable in

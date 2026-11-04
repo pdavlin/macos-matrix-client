@@ -4,10 +4,12 @@ import Models
 import OSLog
 
 @MainActor @Observable
-final class AppState {
-    var matrixClient: MatrixClient?
+public final class AppState {
+    public var matrixClient: MatrixClient?
 
-    func reset() async throws {
+    public init() {}
+
+    public func reset() async throws {
         do {
             try await matrixClient?.reset()
         } catch {

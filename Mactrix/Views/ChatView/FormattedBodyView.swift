@@ -1,3 +1,4 @@
+import Core
 import MatrixRustSDK
 import MessageFormatting
 import SwiftUI
@@ -9,7 +10,7 @@ struct FormattedBodyView: View {
     let rawBody: String
     let htmlBody: String?
 
-    init(messageContent: some MessageContent) {
+    init(messageContent: some Core.MessageContent) {
         self.rawBody = messageContent.body
 
         if let formatted = messageContent.formatted, formatted.format == .html {

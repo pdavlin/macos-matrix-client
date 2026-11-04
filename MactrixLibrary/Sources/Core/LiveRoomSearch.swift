@@ -4,14 +4,14 @@ import MatrixRustSDK
 import OSLog
 
 @MainActor @Observable
-class LiveRoomSearch {
-    let roomDirectorySearch: RoomDirectorySearchProtocol
+public class LiveRoomSearch {
+    public let roomDirectorySearch: RoomDirectorySearchProtocol
 
     @ObservationIgnored fileprivate var resultsHandle: TaskHandle?
 
-    var rooms: [RoomDescription] = []
+    public var rooms: [RoomDescription] = []
 
-    init(roomDirectorySearch: RoomDirectorySearchProtocol) async {
+    public init(roomDirectorySearch: RoomDirectorySearchProtocol) async {
         self.roomDirectorySearch = roomDirectorySearch
         await listenToRoomResults()
     }
@@ -61,7 +61,7 @@ class LiveRoomSearch {
         }
     }
 
-    func search(query: String?) async throws {
+    public func search(query: String?) async throws {
         try await roomDirectorySearch.search(filter: query, batchSize: 100, viaServerName: nil)
     }
 }

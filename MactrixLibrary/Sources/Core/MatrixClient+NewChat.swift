@@ -10,11 +10,11 @@ import Utils
 /// lookup, the DM lookup, room creation, and the join. The decisions between
 /// them live in `Models` (`NewChatStartPlan`) and `Utils`
 /// (`MatrixJoinTarget`), where they are unit-tested.
-extension MatrixClient {
+public extension MatrixClient {
     struct UnrecognizedRoomAddress: LocalizedError {
-        let address: String
+        public let address: String
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             "Not a room address or Matrix link: \(address)"
         }
     }

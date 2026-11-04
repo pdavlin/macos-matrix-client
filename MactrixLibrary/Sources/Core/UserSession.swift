@@ -8,17 +8,17 @@ import UI
 import UniformTypeIdentifiers
 import Utils
 
-struct UserSession: Codable {
-    let accessToken: String
-    let refreshToken: String?
-    let userID: String
-    let deviceID: String
-    let homeserverURL: String
-    let oidcData: String?
-    let storeID: String
-    let storePassphrase: String
+public struct UserSession: Codable {
+    public let accessToken: String
+    public let refreshToken: String?
+    public let userID: String
+    public let deviceID: String
+    public let homeserverURL: String
+    public let oidcData: String?
+    public let storeID: String
+    public let storePassphrase: String
 
-    init(session: Session, storeID: String, storePassphrase: String) {
+    public init(session: Session, storeID: String, storePassphrase: String) {
         accessToken = session.accessToken
         refreshToken = session.refreshToken
         userID = session.userId
@@ -29,7 +29,7 @@ struct UserSession: Codable {
         self.storePassphrase = storePassphrase
     }
 
-    var session: Session {
+    public var session: Session {
         Session(accessToken: accessToken,
                 refreshToken: refreshToken,
                 userId: userID,
@@ -41,12 +41,12 @@ struct UserSession: Codable {
 
     fileprivate static var keychainKey: String { "UserSession" }
 
-    func saveUserToKeychain() throws {
+    public func saveUserToKeychain() throws {
         let keychainData = try JSONEncoder().encode(self)
         try AppKeychain().save(keychainData, forKey: Self.keychainKey)
     }
 
-    static func loadUserFromKeychain() throws -> Self? {
+    public static func loadUserFromKeychain() throws -> Self? {
         Logger.matrixClient.debug("Load user from keychain")
         if let keychainData = try AppKeychain().load(forKey: keychainKey) {
             return try JSONDecoder().decode(Self.self, from: keychainData)

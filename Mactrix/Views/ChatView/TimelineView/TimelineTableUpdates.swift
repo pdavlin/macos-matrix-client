@@ -5,6 +5,11 @@ import OSLog
 import SwiftUI
 import UI
 
+// The timeline spike compiles this file without Core (see spike/GATE.md).
+#if canImport(Core)
+    import Core
+#endif
+
 // MARK: - Diff-driven updates
 
 extension TimelineViewController {

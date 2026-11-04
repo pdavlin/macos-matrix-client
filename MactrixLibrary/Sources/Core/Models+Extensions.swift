@@ -2,7 +2,7 @@ import Foundation
 import MatrixRustSDK
 import Models
 
-extension Models.CreateRoomParams {
+public extension Models.CreateRoomParams {
     var asMatrixRequest: MatrixRustSDK.CreateRoomParameters {
         let preset: RoomPreset = switch access {
         case .privateRoom:

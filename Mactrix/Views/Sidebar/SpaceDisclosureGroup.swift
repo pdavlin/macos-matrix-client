@@ -1,3 +1,4 @@
+import Core
 import MatrixRustSDK
 import OSLog
 import SwiftUI

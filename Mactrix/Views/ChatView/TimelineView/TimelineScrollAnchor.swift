@@ -3,6 +3,11 @@ import Models
 import OSLog
 import Utils
 
+// The timeline spike compiles this file without Core (see spike/GATE.md).
+#if canImport(Core)
+    import Core
+#endif
+
 /// Scroll geometry for the timeline: row-height invalidation, the pagination
 /// trigger, and the measured-delta compensation that holds visible content
 /// still when a structural update changes the document around it (S-33).

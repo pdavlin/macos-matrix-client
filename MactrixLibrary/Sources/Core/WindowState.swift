@@ -5,7 +5,7 @@ import OSLog
 import SwiftUI
 import Utils
 
-enum InspectorContent: Equatable {
+public enum InspectorContent: Equatable {
     case roomInfo
     case search
     case userInfo(userId: String)
@@ -14,7 +14,7 @@ enum InspectorContent: Equatable {
     case focusThread(threadTimeline: LiveTimeline)
 }
 
-enum SearchDirectResult {
+public enum SearchDirectResult {
     case lookingForRoom(alias: String), roomNotFound(alias: String)
     case resolvedRoomAlias(alias: String, resolvedRoom: MatrixRustSDK.ResolvedRoomAlias)
     case resolvedRoomId(roomPreview: MatrixRustSDK.RoomPreview)
@@ -22,7 +22,7 @@ enum SearchDirectResult {
     case resolvedUser(profile: MatrixRustSDK.UserProfile)
 }
 
-enum SelectedScreen {
+public enum SelectedScreen {
     case joinedRoom(timeline: LiveTimeline)
     case loadMatrixUrl(_ url: Utils.MatrixUriScheme)
     case previewRoom(_ room: MatrixRustSDK.RoomPreview)
@@ -34,35 +34,37 @@ enum SelectedScreen {
 }
 
 @MainActor @Observable
-final class WindowState {
-    var selectedScreen: SelectedScreen = .none
+public final class WindowState {
+    public var selectedScreen: SelectedScreen = .none
 
-    var selectedRoomId: String?
-    var inspectorVisible: Bool = false
+    public var selectedRoomId: String?
+    public var inspectorVisible: Bool = false
 
-    var inspectorContent: InspectorContent = .roomInfo
+    public var inspectorContent: InspectorContent = .roomInfo
 
-    var requestedVerification = false
+    public var requestedVerification = false
 
-    var searchQuery: String = ""
-    var searchTokens: [SearchToken] = []
-    var searchDirectResult: SearchDirectResult?
+    public var searchQuery: String = ""
+    public var searchTokens: [SearchToken] = []
+    public var searchDirectResult: SearchDirectResult?
 
     /// The collapsed/expanded states of the sections in the sidebar.
-    var sidebarSections = SidebarSectionCollapsibility()
+    public var sidebarSections = SidebarSectionCollapsibility()
 
     /// The sidebar chat-list filter (MATRIX-67). Restored per window.
-    var chatListFilter: ChatListFilter = .inbox
+    public var chatListFilter: ChatListFilter = .inbox
 
     /// The label selected in the sidebar rail (MATRIX-77), or nil for the
     /// Inbox. Restored per window. An ID the labels do not hold (yet, or any
     /// more) shows the Inbox.
-    var selectedLabelId: String?
+    public var selectedLabelId: String?
 
     /// The label sheet to show, if any (MATRIX-77). Not restored.
-    var labelEditor: LabelEditorRequest?
+    public var labelEditor: LabelEditorRequest?
 
-    var searchFocused: Binding<Bool> {
+    public init() {}
+
+    public var searchFocused: Binding<Bool> {
         Binding(
             get: { self.inspectorContent == .search },
             set: { setFocused in
@@ -78,7 +80,7 @@ final class WindowState {
         )
     }
 
-    func toggleInspector() {
+    public func toggleInspector() {
         if inspectorVisible {
             if inspectorContent == .roomInfo {
                 inspectorVisible = false
@@ -91,7 +93,7 @@ final class WindowState {
         }
     }
 
-    func focusMessage(eventId: String) {
+    public func focusMessage(eventId: String) {
         guard case let .joinedRoom(timeline: roomTimeline) = selectedScreen else {
             Logger.windowState.warning("focus message failed, no active timeline")
             return
@@ -108,14 +110,14 @@ final class WindowState {
         }
     }
 
-    func focusThread(rootEventId: String) {
+    public func focusThread(rootEventId: String) {
         guard case let .joinedRoom(timeline: roomTimeline) = selectedScreen else { return }
 
         inspectorVisible = true
         inspectorContent = .focusThread(threadTimeline: LiveTimeline(room: roomTimeline.room, focusThread: rootEventId))
     }
 
-    func showRoomThreads() {
+    public func showRoomThreads() {
         if inspectorVisible, inspectorContent == .roomThreads {
             inspectorVisible = false
         } else {
@@ -124,7 +126,7 @@ final class WindowState {
         }
     }
 
-    func showRoomPins() {
+    public func showRoomPins() {
         if inspectorVisible, inspectorContent == .roomPins {
             inspectorVisible = false
         } else {
@@ -133,7 +135,7 @@ final class WindowState {
         }
     }
 
-    func focusUser(userId: String) {
+    public func focusUser(userId: String) {
         if inspectorVisible, inspectorContent == .userInfo(userId: userId) {
             inspectorVisible = false
         } else {
@@ -144,17 +146,17 @@ final class WindowState {
 }
 
 extension WindowState: @MainActor RawRepresentable {
-    struct SceneStorageRepresentation: Codable {
-        let selectedRoomId: String?
-        let inspectorVisible: Bool
-        let sidebarSections: SidebarSectionCollapsibility
+    public struct SceneStorageRepresentation: Codable {
+        public let selectedRoomId: String?
+        public let inspectorVisible: Bool
+        public let sidebarSections: SidebarSectionCollapsibility
         /// Optional so a window saved before MATRIX-67, which has no filter,
         /// still decodes; it restores as the inbox.
-        let chatListFilter: ChatListFilter?
+        public let chatListFilter: ChatListFilter?
         /// MATRIX-77. Optional, so older windows restore with the Inbox.
-        let selectedLabelId: String?
+        public let selectedLabelId: String?
 
-        @MainActor init(windowState: WindowState) {
+        @MainActor public init(windowState: WindowState) {
             self.selectedRoomId = windowState.selectedRoomId
             self.inspectorVisible = windowState.inspectorVisible
             self.sidebarSections = windowState.sidebarSections
@@ -162,7 +164,7 @@ extension WindowState: @MainActor RawRepresentable {
             self.selectedLabelId = windowState.selectedLabelId
         }
 
-        @MainActor func restore(windowState: WindowState) {
+        @MainActor public func restore(windowState: WindowState) {
             windowState.selectedRoomId = selectedRoomId
             windowState.inspectorVisible = inspectorVisible
             windowState.sidebarSections = sidebarSections
@@ -171,7 +173,7 @@ extension WindowState: @MainActor RawRepresentable {
         }
     }
 
-    convenience init?(rawValue: String) {
+    public convenience init?(rawValue: String) {
         guard
             let data = rawValue.data(using: .utf8),
             let decoded = try? JSONDecoder().decode(SceneStorageRepresentation.self, from: data)
@@ -185,7 +187,7 @@ extension WindowState: @MainActor RawRepresentable {
         Logger.windowState.info("WindowState recovered from storage: \(rawValue)")
     }
 
-    var rawValue: String {
+    public var rawValue: String {
         guard
             let data = try? JSONEncoder().encode(SceneStorageRepresentation(windowState: self)),
             let result = String(data: data, encoding: .utf8)
@@ -196,17 +198,17 @@ extension WindowState: @MainActor RawRepresentable {
         return result
     }
 
-    typealias RawValue = String
+    public typealias RawValue = String
 }
 
 /// A request to open the label sheet (MATRIX-77).
-enum LabelEditorRequest: Identifiable, Equatable {
+public enum LabelEditorRequest: Identifiable, Equatable {
     /// Create a label, with `roomId` checked when the sheet opens from a
     /// chat's context menu.
     case create(preselectedRoomId: String?)
     case edit(labelId: String)
 
-    var id: String {
+    public var id: String {
         switch self {
         case let .create(roomId): "create:\(roomId ?? "")"
         case let .edit(labelId): "edit:\(labelId)"
@@ -214,11 +216,11 @@ enum LabelEditorRequest: Identifiable, Equatable {
     }
 }
 
-enum SearchToken: Hashable, Identifiable {
+public enum SearchToken: Hashable, Identifiable {
     case users, rooms, spaces, messages
     case resolvedRoomAlias(alias: String, resolvedRoom: ResolvedRoomAlias)
     case resolvedRoomId(roomPreview: MatrixRustSDK.RoomPreview)
     case resolvedUser(profile: MatrixRustSDK.UserProfile)
 
-    var id: Self { self }
+    public var id: Self { self }
 }

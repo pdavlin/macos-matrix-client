@@ -1,6 +1,33 @@
 {
-  "originHash" : "1076d5eaa389b2123e13f67cecf2956de02c80d835b2fd0e48d0762adbbf756d",
+  "originHash" : "673daa49e259a432fdff42353124fccfbd9880b95f3dc93122e954fb464568e0",
   "pins" : [
+    {
+      "identity" : "matrix-rust-components-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/matrix-org/matrix-rust-components-swift",
+      "state" : {
+        "revision" : "2916f3f9cc2aea86ba3a820cb6a8389e13e0284a",
+        "version" : "26.4.1"
+      }
+    },
+    {
+      "identity" : "swift-async-algorithms",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-async-algorithms.git",
+      "state" : {
+        "revision" : "13713a4ffdee8abd929f92568ee9462a46ae26e0",
+        "version" : "1.1.7"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections.git",
+      "state" : {
+        "revision" : "f96b909e1a9e469620bc5037c1e24e00153f376f",
+        "version" : "1.7.5"
+      }
+    },
     {
       "identity" : "swift-custom-dump",
       "kind" : "remoteSourceControl",

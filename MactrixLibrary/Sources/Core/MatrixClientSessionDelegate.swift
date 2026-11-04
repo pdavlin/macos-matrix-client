@@ -6,16 +6,16 @@ import UI
 import UniformTypeIdentifiers
 import Utils
 
-final class MatrixClientSessionDelegate: MatrixRustSDK.ClientSessionDelegate {
-    let storeID: String
-    let storePassphrase: String
+public final class MatrixClientSessionDelegate: MatrixRustSDK.ClientSessionDelegate {
+    public let storeID: String
+    public let storePassphrase: String
 
-    init(storeID: String, storePassphrase: String) {
+    public init(storeID: String, storePassphrase: String) {
         self.storeID = storeID
         self.storePassphrase = storePassphrase
     }
 
-    func retrieveSessionFromKeychain(userId: String) throws -> MatrixRustSDK.Session {
+    public func retrieveSessionFromKeychain(userId: String) throws -> MatrixRustSDK.Session {
         Logger.matrixClient.debug("client session delegate: retrieve session from keychain: \(userId, privacy: .sensitive)")
 
         let userSession = try UserSession.loadUserFromKeychain()
@@ -33,7 +33,7 @@ final class MatrixClientSessionDelegate: MatrixRustSDK.ClientSessionDelegate {
         }
     }
 
-    func saveSessionInKeychain(session: MatrixRustSDK.Session) {
+    public func saveSessionInKeychain(session: MatrixRustSDK.Session) {
         Logger.matrixClient.debug("client session delegate: save session in keychain")
         do {
             try UserSession(session: session, storeID: storeID, storePassphrase: storePassphrase).saveUserToKeychain()
