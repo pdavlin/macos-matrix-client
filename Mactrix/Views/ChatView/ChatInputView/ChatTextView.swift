@@ -8,6 +8,7 @@ struct ChatTextView: NSViewRepresentable {
     typealias NSViewRepresentableType = NSTextView
 
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
+    @AppStorage(ComposerKeyDecision.SendMode.storageKey) var sendMode = ComposerKeyDecision.SendMode.defaultMode
 
     let text: Binding<String>
     let placeholder: String
@@ -18,6 +19,7 @@ struct ChatTextView: NSViewRepresentable {
         let textView = DynamicTextView()
 
         textView.onSubmit = onSubmit
+        textView.sendMode = sendMode
 
         textView.placeholderAttributedString = NSAttributedString(
             string: placeholder,
@@ -51,6 +53,7 @@ struct ChatTextView: NSViewRepresentable {
         context.coordinator.text = text
 
         textView.onSubmit = onSubmit
+        textView.sendMode = sendMode
 
         if textView.string != text.wrappedValue {
             textView.string = text.wrappedValue
@@ -123,6 +126,11 @@ class DynamicTextView: NSTextView {
 
     var onSubmit: (() -> Void)?
 
+    /// The user's Return-key send mode (Settings > Composer). Pushed in by
+    /// `ChatTextView` from `@AppStorage`, so a change in Settings applies to
+    /// open composers without a relaunch.
+    var sendMode: ComposerKeyDecision.SendMode = .defaultMode
+
     override var intrinsicContentSize: NSSize {
         guard let container = unsafe textContainer, let manager = unsafe layoutManager else {
             return .zero
@@ -150,10 +158,11 @@ class DynamicTextView: NSTextView {
         invalidateIntrinsicContentSize()
     }
 
-    /// Maps a key event onto the composer's Return-key policy (decision D-1:
-    /// Enter sends, Shift-Enter inserts a newline, Cmd-Enter also sends).
-    /// The rule itself lives in `Models.ComposerKeyDecision` so it is
-    /// unit-tested; this only translates the AppKit event.
+    /// Maps a key event onto the composer's Return-key policy for the current
+    /// `sendMode` (default D-1: Enter sends, Shift-Enter inserts a newline,
+    /// Cmd-Enter also sends). The rule itself lives in
+    /// `Models.ComposerKeyDecision` so it is unit-tested; this only
+    /// translates the AppKit event.
     private func sendAction(for event: NSEvent) -> ComposerKeyDecision.Action {
         let isReturnKey = event.specialKey == .enter || event.specialKey == .carriageReturn
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -162,7 +171,8 @@ class DynamicTextView: NSTextView {
             hasMarkedText: hasMarkedText(),
             shift: modifiers.contains(.shift),
             command: modifiers.contains(.command),
-            otherModifiers: !modifiers.subtracting([.shift, .command]).isEmpty
+            otherModifiers: !modifiers.subtracting([.shift, .command]).isEmpty,
+            mode: sendMode
         )
     }
 
@@ -183,8 +193,9 @@ class DynamicTextView: NSTextView {
             return
         }
 
-        // Passthrough: newline on Shift-Enter, IME composition commit, and
-        // every non-Return key.
+        // Passthrough: newline on Shift-Enter (and on Enter in
+        // `.commandEnterSends`), IME composition commit, and every
+        // non-Return key.
         super.keyDown(with: event)
     }
 }
