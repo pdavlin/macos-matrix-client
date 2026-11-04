@@ -1,0 +1,108 @@
+{
+  "configuration" : {
+    "driftSettleTicks" : 3,
+    "initialEventCount" : 10000,
+    "mutation" : {
+      "editShare" : 0.45,
+      "mutationsPerTick" : 6,
+      "onScreenBias" : 0.5,
+      "ticksPerSecond" : 10
+    },
+    "pagination" : {
+      "batchSize" : 50,
+      "isAutomatic" : false,
+      "minimumInterval" : 0.35,
+      "triggerDistance" : 600
+    },
+    "seed" : 6840123409045651498
+  },
+  "counters" : {
+    "appliedMutationCount" : 0,
+    "automaticPrependCount" : 0,
+    "discardedDriftSampleCount" : 0,
+    "loadedEventCount" : 10000,
+    "manualPrependCount" : 0,
+    "newestIndex" : 9999,
+    "oldestIndex" : 0,
+    "prependedEventCount" : 0
+  },
+  "environment" : {
+    "cadence" : {
+      "isHonored" : false,
+      "measuredHertz" : 60.00000001396984,
+      "quantumP50Milliseconds" : 16.666666662786156,
+      "requestedHertz" : 120,
+      "sampleCount" : 120
+    },
+    "contentSizeCategory" : "UICTContentSizeCategoryL",
+    "deviceModel" : "iPhone18,1",
+    "frameMetricsScored" : false,
+    "kind" : "simulator",
+    "maximumFramesPerSecond" : 60,
+    "optimized" : false,
+    "screenPointHeight" : 874,
+    "screenPointWidth" : 402,
+    "screenScale" : 3,
+    "systemVersion" : "27.0"
+  },
+  "generatedAt" : "2026-10-30T20:46:39Z",
+  "host" : {
+    "machineModel" : "iPhone18,1",
+    "operatingSystem" : "Version 27.0 (Build 24A5408d)",
+    "processorCount" : 15
+  },
+  "ios" : {
+    "cacheLookups" : 10000,
+    "driftSamples" : [
+
+    ],
+    "fetchRequestCount" : 0,
+    "layoutPasses" : [
+      {
+        "fromWidth" : 0,
+        "microsecondsPerRemeasure" : 467.9528833308723,
+        "milliseconds" : 4679.528833308723,
+        "remeasured" : 10000,
+        "rows" : 10000,
+        "toWidth" : 390
+      }
+    ],
+    "layoutPrepares" : 1,
+    "mutationsApplied" : 0,
+    "remeasureCount" : 10000,
+    "rowCount" : 10000
+  },
+  "mutationDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "prependDrift" : {
+    "count" : 0,
+    "recent" : [
+
+    ],
+    "stableCount" : 0,
+    "totalMagnitude" : 0,
+    "worstMagnitude" : 0
+  },
+  "rendererID" : "ios-production",
+  "rendererName" : "iOS Production Container",
+  "scenario" : "cold-load",
+  "timelineHeight" : 700,
+  "timelineWidth" : 390,
+  "verdicts" : [
+    {
+      "bar" : 10000,
+      "comparison" : "<=",
+      "metric" : "cold-load.remeasured",
+      "passed" : true,
+      "value" : 10000
+    }
+  ],
+  "workloadFingerprint" : "wl1-4246e7b15677d961"
+}

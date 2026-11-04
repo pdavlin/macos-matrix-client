@@ -1,4 +1,6 @@
-import AppKit
+#if os(macOS)
+    import AppKit
+#endif
 import Foundation
 
 /// Display cadence the automated gate pins every run to (MATRIX-64).
@@ -119,27 +121,29 @@ public struct DisplayIdentity: Sendable, Equatable, Codable {
         self.maximumFramesPerSecond = maximumFramesPerSecond
     }
 
-    /// The screen the harness window is on, or the main screen when no window is up yet.
-    @MainActor
-    public static func current() -> DisplayIdentity {
-        let window = NSApplication.shared.windows.first(where: { $0.isVisible })
-        guard let screen = window?.screen ?? NSScreen.main else {
+    #if os(macOS)
+        /// The screen the harness window is on, or the main screen when no window is up yet.
+        @MainActor
+        public static func current() -> DisplayIdentity {
+            let window = NSApplication.shared.windows.first(where: { $0.isVisible })
+            guard let screen = window?.screen ?? NSScreen.main else {
+                return DisplayIdentity(
+                    localizedName: "unknown",
+                    pointWidth: 0,
+                    pointHeight: 0,
+                    backingScaleFactor: 0,
+                    maximumFramesPerSecond: 0
+                )
+            }
             return DisplayIdentity(
-                localizedName: "unknown",
-                pointWidth: 0,
-                pointHeight: 0,
-                backingScaleFactor: 0,
-                maximumFramesPerSecond: 0
+                localizedName: screen.localizedName,
+                pointWidth: Double(screen.frame.width),
+                pointHeight: Double(screen.frame.height),
+                backingScaleFactor: Double(screen.backingScaleFactor),
+                maximumFramesPerSecond: screen.maximumFramesPerSecond
             )
         }
-        return DisplayIdentity(
-            localizedName: screen.localizedName,
-            pointWidth: Double(screen.frame.width),
-            pointHeight: Double(screen.frame.height),
-            backingScaleFactor: Double(screen.backingScaleFactor),
-            maximumFramesPerSecond: screen.maximumFramesPerSecond
-        )
-    }
+    #endif
 }
 
 /// Everything about the machine's presentation setup that moves the numbers in a dump.
@@ -160,11 +164,13 @@ public struct HarnessEnvironment: Sendable, Equatable, Codable {
         self.scrollerStyle = scrollerStyle
     }
 
-    /// The scroller style macOS is set to right now.
-    @MainActor
-    public static func currentScrollerStyle() -> String {
-        NSScroller.preferredScrollerStyle == .legacy ? "legacy" : "overlay"
-    }
+    #if os(macOS)
+        /// The scroller style macOS is set to right now.
+        @MainActor
+        public static func currentScrollerStyle() -> String {
+            NSScroller.preferredScrollerStyle == .legacy ? "legacy" : "overlay"
+        }
+    #endif
 
     /// A one-line form for the run log.
     ///
