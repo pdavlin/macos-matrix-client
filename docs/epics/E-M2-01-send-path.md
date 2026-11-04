@@ -87,7 +87,7 @@ edits `Commands.swift` and `WindowState`. #57 edits `WindowState`,
 | `UploadParameters` (`source`, `caption`, `formattedCaption`, `mentions`, `inReplyTo`, …) | 25400 |
 | `UploadSource` | 39986 |
 | `SendAttachmentJoinHandle.cancel()` / `join() async throws` | 12259 |
-| `EventSendState.notSentYet(progress: MediaUploadProgress?)` | 29010 |
+| `EventSendState.notSentYet(progress: MediaUploadProgress?)` | 29013 |
 | `MediaUploadProgress` (`index`, `progress: AbstractProgress`) | 20019 |
 | `RoomMessageEventContentWithoutRelation.withMentions(mentions:)` | 11389 |
 | `Mentions` (`userIds`, `room`) | 20091 |
