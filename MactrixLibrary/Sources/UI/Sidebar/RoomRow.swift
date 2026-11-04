@@ -133,7 +133,7 @@ public struct RoomRow: View {
                         Button("Join") {
                             joining = true
                         }
-                        .buttonStyle(.link)
+                        .linkButtonStyle()
                         .foregroundStyle(Color.accentColor)
                     }
                 }

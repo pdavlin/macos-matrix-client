@@ -132,14 +132,14 @@ struct ReadReciptsView<RoomMember: Models.RoomMember>: View {
                         .frame(width: DensityToken.receiptAvatarSize, height: DensityToken.receiptAvatarSize)
                         .clipShape(Circle())
                         .background(
-                            Circle().stroke(Color(NSColor.controlBackgroundColor), lineWidth: DensityToken.receiptAvatarStrokeWidth)
+                            Circle().stroke(Color(PlatformColor.controlBackgroundColor), lineWidth: DensityToken.receiptAvatarStrokeWidth)
                         )
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .pointerStyle(.link)
+        .linkPointerStyle()
         .help(readByTooltip(forUsers: users))
         .popover(isPresented: $showPopover) {
             readReceiptsPopover

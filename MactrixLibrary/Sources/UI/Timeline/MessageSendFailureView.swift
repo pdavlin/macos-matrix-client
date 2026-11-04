@@ -27,9 +27,9 @@ public struct MessageSendFailureView: View {
                 .foregroundStyle(.red)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Retry", action: retry)
-                .buttonStyle(.link)
+                .linkButtonStyle()
             Button("Discard", action: discard)
-                .buttonStyle(.link)
+                .linkButtonStyle()
         }
         .font(.system(size: typography.footnote))
         .padding(.top, DensityToken.sendFailureTopPadding)
