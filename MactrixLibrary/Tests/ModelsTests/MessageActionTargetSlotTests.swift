@@ -81,4 +81,16 @@ struct MessageActionTargetSlotTests {
         slot.offer(target("image", content: .image, recorder: recorder))
         #expect(slot.editMenuItems.first { $0.action == .copyText }?.isEnabled == false)
     }
+
+    /// MATRIX-111: the Edit menu's React submenu shows the target's quick
+    /// reactions, which come from the recent emoji.
+    @Test func editMenuUsesTheTargetsQuickReactions() {
+        let slot = MessageActionTargetSlot()
+        let subject = MessageActionSubject(
+            content: .text, isOwn: false, eventId: "$a", canBeRepliedTo: true, isPinned: false, copyableText: "body"
+        )
+        slot.offer(MessageActionTarget(key: "a", subject: subject, quickReactionKeys: ["😂", "🔥", "👀"]) { _ in })
+        let reactions: [MessageAction] = slot.editMenuItems.map(\.action).filter(\.isQuickReaction)
+        #expect(reactions == [.toggleReaction(key: "😂"), .toggleReaction(key: "🔥"), .toggleReaction(key: "👀")])
+    }
 }

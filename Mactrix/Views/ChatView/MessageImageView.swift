@@ -68,7 +68,7 @@ struct MessageImageView: View {
         .buttonStyle(.plain)
         .contextMenu {
             UI.MessageActionMenu(
-                items: MessageActionModel.items(for: rowActions.subject, on: .contextMenu),
+                items: rowActions.items(on: .contextMenu),
                 perform: performMenuAction
             )
         }

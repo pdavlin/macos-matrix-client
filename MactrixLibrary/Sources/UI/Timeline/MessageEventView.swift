@@ -46,6 +46,10 @@ public protocol MessageEventActions {
     /// right-click menu, and the hover row falls back to its pre-M2 buttons.
     var actionSubject: MessageActionSubject? { get }
 
+    /// The quick reactions of the hover row and the React submenu: the
+    /// account's top recent emoji (MATRIX-111, D-3).
+    var quickReactionKeys: [String] { get }
+
     /// Runs one action from the hover row or the right-click menu.
     func perform(_ action: MessageAction)
 }
@@ -55,6 +59,10 @@ public protocol MessageEventActions {
 public extension MessageEventActions {
     var actionSubject: MessageActionSubject? {
         nil
+    }
+
+    var quickReactionKeys: [String] {
+        MessageActionModel.defaultQuickReactionKeys
     }
 
     func perform(_ action: MessageAction) {
@@ -231,7 +239,7 @@ public struct MessageEventBodyView<
     /// The hover row's actions, from the shared action model (MATRIX-108).
     var hoverItems: [MessageActionItem] {
         let subject = actions.actionSubject ?? .hoverFallback(for: event)
-        return MessageActionModel.items(for: subject, on: .hoverRow)
+        return MessageActionModel.items(for: subject, on: .hoverRow, quickReactionKeys: actions.quickReactionKeys)
     }
 
     func hoverButton(for item: MessageActionItem) -> some View {
@@ -340,7 +348,8 @@ struct MessageRowContextMenu: ViewModifier {
         if let subject = actions.actionSubject {
             content.contextMenu {
                 MessageActionMenu(
-                    items: MessageActionModel.items(for: subject, on: .contextMenu).filter { !$0.action.isMediaAction },
+                    items: MessageActionModel.items(for: subject, on: .contextMenu, quickReactionKeys: actions.quickReactionKeys)
+                        .filter { !$0.action.isMediaAction },
                     perform: actions.perform
                 )
             }

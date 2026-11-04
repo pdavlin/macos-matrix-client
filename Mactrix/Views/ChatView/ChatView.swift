@@ -69,6 +69,11 @@ struct ChatJoinedRoom: View {
             .navigationTitle(room.room.displayName() ?? "Unknown room")
             .navigationSubtitle(toolbarSubtitle)
             .frame(minWidth: 250, minHeight: 200)
+            // MATRIX-111: the hover row's quick reactions are the recent
+            // emoji. One SDK read per session; later rooms return at once.
+            .task {
+                await appState.matrixClient?.loadRecentEmojisIfNeeded()
+            }
             .task(priority: .background) {
                 do {
                     try await Task.sleep(for: .seconds(2))

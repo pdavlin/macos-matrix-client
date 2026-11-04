@@ -25,6 +25,10 @@ public class MatrixClient {
 
     public let notifications: MatrixNotifications = .init()
 
+    /// The account's recent emoji for this session (MATRIX-111). See
+    /// `MatrixClient+RecentEmoji.swift`.
+    public let recentEmojis = RecentEmojiStore()
+
     public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase

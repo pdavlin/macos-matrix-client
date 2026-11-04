@@ -190,8 +190,10 @@ after another, not in parallel.
 7. Add unit tests in `MessageActionModelTests` for own, other, local echo,
    redacted, and media messages.
 
-B4 replaces `MessageActionModel.quickReactionKeys` with the SDK recent emoji
-and fills the `.openReactionPicker` case in `perform(_:)`.
+B4 (MATRIX-111) replaced the fixed quick reactions with the SDK recent emoji
+(`RecentEmojiStore` on `MatrixClient`) and filled the `.openReactionPicker`
+case in `perform(_:)`. The picker is `UI.ReactionPickerView`. Its emoji list
+is `UI/Resources/Emoji.txt`, made by `scripts/generate-emoji-data.py`.
 
 B6 makes a selected message the Edit-menu target before a hovered one. Do this
 in `MessageActionTargetSlot`.
@@ -201,8 +203,12 @@ in `MessageActionTargetSlot`.
 - Media actions (`isMediaAction`) run in the media view, because it holds the
   downloaded file, the Quick Look binding, and the inline player. The row menu
   and the Edit menu leave them out.
-- Reply in Thread and the picker show in the hover row only. Threads are
-  deferred (contract §11).
+- Reply in Thread shows in the hover row only. Threads are deferred
+  (contract §11). The reaction picker shows in the hover row and, as
+  "Add Reaction…", in the right-click menu and the Edit menu (MATRIX-111).
+- Quick reactions come from `quickReactionKeys` (the top recent emoji). Pass
+  them to `MessageActionModel.items(for:on:quickReactionKeys:)` on every
+  surface, or the surface falls back to the three default emoji.
 - The hover bar has a minimum height, so its buttons never change the row
   height (MATRIX-63).
 - `MessageActionTargetSlot` publishes `editMenuItems` only when they change.
