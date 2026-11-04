@@ -1,10 +1,12 @@
 import Core
 import MatrixRustSDK
+import MessageFormatting
 import Models
 import OSLog
 import SwiftUI
 import Tokens
 import UI
+import UIKit
 
 /// What every row view needs besides its row model (MATRIX-85).
 ///
@@ -19,6 +21,21 @@ struct TimelineRowContext {
     let showsReadReceipts: Bool
     let typography: TimelineTypography
     let retryPagination: () -> Void
+    /// Fetches previews and files for media rows (MATRIX-86).
+    var media: (any TimelineMediaLoading)?
+    /// Presents the full-screen viewer for a downloaded file.
+    var openMedia: (MediaViewerItem) -> Void = { _ in }
+    /// Actions for rows whose event is not an SDK event: the DEBUG fixture.
+    /// SDK rows act through the live timeline instead.
+    var fallbackActions: (any TimelineFallbackRowActions)?
+}
+
+/// Reply and send-failure actions for non-SDK rows, keyed by row id.
+@MainActor
+protocol TimelineFallbackRowActions {
+    func reply(toRow rowId: String)
+    func retrySend(ofRow rowId: String)
+    func discardSend(ofRow rowId: String)
 }
 
 /// The SwiftUI view one timeline row renders, in a cell and in the offscreen
@@ -41,11 +58,11 @@ struct TimelineRowContent: View {
     @ViewBuilder
     private var content: some View {
         switch row {
-        case let .message(_, event, _, _):
+        case let .message(uniqueId, event, _, _):
             if let event = event as? MatrixRustSDK.EventTimelineItem, case let .msgLike(content: msgLike) = event.content {
                 TimelineMessageRow(event: event, msgLike: msgLike, showsSenderHeader: showsSenderHeader, context: context)
             } else {
-                fallbackMessage(event)
+                fallbackMessage(event, rowId: uniqueId)
             }
         case let .state(_, event, name):
             if let event = event as? MatrixRustSDK.EventTimelineItem {
@@ -68,26 +85,55 @@ struct TimelineRowContent: View {
     }
 
     /// A message row whose event is not an SDK event: the DEBUG fixture. It
-    /// draws through the same shared header and body views as a real row.
+    /// draws through the same shared header, body, reply, media, and failure
+    /// views as a real row.
     ///
     /// Type-erased because the row holds its event as an existential; only
     /// fixture rows take this path.
-    private func fallbackMessage(_ event: some Models.EventTimelineItem) -> AnyView {
-        AnyView(VStack(spacing: 0) {
+    private func fallbackMessage(_ event: some Models.EventTimelineItem, rowId: String) -> AnyView {
+        let textEvent = event as? any TimelineTextEvent
+        let actions = context.fallbackActions
+        return AnyView(VStack(spacing: 0) {
             if showsSenderHeader {
                 UI.MessageEventProfileView(event: event, actions: TimelineNoActions(), imageLoader: nil)
             }
             UI.MessageEventBodyView(
                 event: event,
                 focused: false,
-                reactions: (event as? any TimelineTextEvent)?.reactionPills ?? [],
+                reactions: textEvent?.reactionPills ?? [],
                 actions: TimelineNoActions(),
                 ownUserID: context.ownUserId,
                 imageLoader: nil,
                 roomMembers: [MockRoomMember]()
             ) {
-                Text((event as? any TimelineTextEvent)?.body ?? "")
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 10) {
+                    if let quoted = textEvent?.quotedReply {
+                        UI.MessageReplyView(username: quoted.senderName, message: quoted.preview)
+                            .padding(.bottom, 10)
+                    }
+                    if let media = textEvent?.media {
+                        TimelineMediaView(media: media, context: context)
+                    } else {
+                        TimelineFormattedText(text: textEvent?.body ?? "", html: textEvent?.formattedBody)
+                    }
+                    if case let .sendingFailed(message, _) = event.sendState {
+                        UI.MessageSendFailureView(
+                            message: message,
+                            retry: { actions?.retrySend(ofRow: rowId) },
+                            discard: { actions?.discardSend(ofRow: rowId) }
+                        )
+                    }
+                }
+            }
+        }
+        .contextMenu {
+            if event.canBeRepliedTo {
+                Button("Reply", systemImage: "arrowshape.turn.up.left") {
+                    actions?.reply(toRow: rowId)
+                }
+            }
+            if let body = textEvent?.body, !body.isEmpty, textEvent?.media == nil {
+                TimelineCopyButton(text: body)
             }
         })
     }
@@ -97,6 +143,12 @@ struct TimelineRowContent: View {
 /// fixture conforms; SDK rows render from SDK content.
 protocol TimelineTextEvent: Models.EventTimelineItem {
     var body: String { get }
+    /// An HTML body, rendered instead of `body` as SDK text is.
+    var formattedBody: String? { get }
+    /// Media drawn instead of the text.
+    var media: TimelineMedia? { get }
+    /// The message this one replies to, as its preview draws it.
+    var quotedReply: ComposerReply? { get }
     var reactionPills: [TimelineReactionPill] { get }
 }
 
@@ -113,9 +165,8 @@ struct TimelineReactionPill: Models.Reaction {
     var id: String { key }
 }
 
-/// Message actions for the iOS read path. Reply sets the composer's target
-/// (MATRIX-86 reads `sendReplyTo`). Reactions, pins, and threads are outside
-/// the iOS fence (E-APP-05 §8), so those actions do nothing here.
+/// Message actions for rows that take none from the shared views. Reactions,
+/// pins, and threads are outside the iOS fence (E-APP-05 §8).
 struct TimelineNoActions: UI.MessageEventActions {
     func toggleReaction(key _: String) {}
     func reply() {}
@@ -125,7 +176,7 @@ struct TimelineNoActions: UI.MessageEventActions {
 }
 
 /// One SDK message row: the shared profile header and body views around an
-/// iOS message body.
+/// iOS message body, with the send-failure surface and the context menu.
 private struct TimelineMessageRow: View, UI.MessageEventActions {
     let event: MatrixRustSDK.EventTimelineItem
     let msgLike: MatrixRustSDK.MsgLikeContent
@@ -143,8 +194,55 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
     func pin() {}
     func focusUser() {}
 
+    /// Retries a failed local echo, as the Mac `ChatMessageView` does: a
+    /// recoverable failure disabled the room's send queue, so retry re-enables
+    /// it; an unrecoverable one wedged this event, so its send handle resends.
+    private func retrySend(isRecoverable: Bool) {
+        let event = event
+        let room = context.timeline?.room.room
+        Task {
+            if isRecoverable {
+                room?.enableSendQueue(enable: true)
+                Logger.timelineIOS.info("re-enabled send queue to retry \(event.eventOrTransactionId.id, privacy: .public)")
+                return
+            }
+            guard let handle = event.lazyProvider.getSendHandle() else {
+                Logger.timelineIOS.error("retrySend: no send handle for \(event.eventOrTransactionId.id, privacy: .public)")
+                return
+            }
+            do {
+                try await handle.tryResend()
+            } catch {
+                Logger.timelineIOS.error("failed to resend \(event.eventOrTransactionId.id, privacy: .public): \(error)")
+            }
+        }
+    }
+
+    /// Discards a failed local echo by aborting it in the send queue.
+    private func discardFailedSend() {
+        let event = event
+        Task {
+            guard let handle = event.lazyProvider.getSendHandle() else {
+                Logger.timelineIOS.error("discardFailedSend: no send handle for \(event.eventOrTransactionId.id, privacy: .public)")
+                return
+            }
+            do {
+                _ = try await handle.abort()
+            } catch {
+                Logger.timelineIOS.error("failed to abort \(event.eventOrTransactionId.id, privacy: .public): \(error)")
+            }
+        }
+    }
+
     private var isFocused: Bool {
         context.timeline?.focusedTimelineEventId == event.eventOrTransactionId
+    }
+
+    /// The plain text Copy puts on the pasteboard, or nil for media and
+    /// non-message rows.
+    private var copyableText: String? {
+        guard case let .message(content) = msgLike.kind, TimelineMedia(content.msgType) == nil else { return nil }
+        return content.body
     }
 
     var body: some View {
@@ -165,8 +263,25 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
                     if let replyTo = msgLike.inReplyTo {
                         replyPreview(replyTo)
                     }
-                    TimelineMessageBody(kind: msgLike.kind)
+                    TimelineMessageBody(kind: msgLike.kind, context: context)
+                    if case let .sendingFailed(message, isRecoverable) = event.sendState {
+                        UI.MessageSendFailureView(
+                            message: message,
+                            retry: { retrySend(isRecoverable: isRecoverable) },
+                            discard: { discardFailedSend() }
+                        )
+                    }
                 }
+            }
+        }
+        .contextMenu {
+            if event.canBeRepliedTo {
+                Button("Reply", systemImage: "arrowshape.turn.up.left") {
+                    reply()
+                }
+            }
+            if let copyableText {
+                TimelineCopyButton(text: copyableText)
             }
         }
     }
@@ -199,13 +314,46 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
     }
 }
 
-/// The body of an SDK message on iOS.
+/// The Copy action of a message's context menu.
+struct TimelineCopyButton: View {
+    let text: String
+
+    var body: some View {
+        Button("Copy", systemImage: "doc.on.doc") {
+            UIPasteboard.general.string = text
+        }
+    }
+}
+
+/// A text body: the HTML formatted body through `MessageFormatting` when the
+/// event has one, the raw body otherwise. The Mac `FormattedBodyView` rule:
+/// formatted is used when its format is HTML (MATRIX-86).
 ///
-/// Text renders as plain text: the formatted-HTML path (`MessageFormatting`)
-/// and the media views arrive with MATRIX-86. Media rows show a one-line
-/// label until then, so their height is stable and fingerprinted like text.
+/// Text is not selectable: a long press opens the message's context menu,
+/// which carries Copy. The formatted view keeps its own selection, so its
+/// links stay tappable.
+struct TimelineFormattedText: View {
+    let text: String
+    let html: String?
+
+    @Environment(\.timelineTypography) private var typography
+
+    var body: some View {
+        if let html {
+            AttributedTextView(attributedString: parseFormattedBody(html, baseFontSize: typography.base))
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// The body of an SDK message on iOS: formatted text, media, or a one-line
+/// label for kinds outside the M1 read path.
 private struct TimelineMessageBody: View {
     let kind: MatrixRustSDK.MsgLikeKind
+    let context: TimelineRowContext
 
     var body: some View {
         switch kind {
@@ -237,20 +385,19 @@ private struct TimelineMessageBody: View {
     private func messageType(_ type: MatrixRustSDK.MessageType) -> some View {
         switch type {
         case let .text(content):
-            wrapped(content.body)
+            TimelineFormattedText(
+                text: content.body,
+                html: content.formatted?.format == .html ? content.formatted?.body : nil
+            )
         case let .notice(content):
             wrapped(content.body)
                 .foregroundStyle(.secondary)
         case let .emote(content):
             wrapped("* \(content.body)")
-        case let .image(content):
-            label("Image", content.filename)
-        case let .video(content):
-            label("Video", content.filename)
-        case let .audio(content):
-            label("Audio", content.filename)
-        case let .file(content):
-            label("File", content.filename)
+        case .image, .video, .audio, .file:
+            if let media = TimelineMedia(type) {
+                TimelineMediaView(media: media, context: context)
+            }
         case let .gallery(content):
             label("Gallery", content.body)
         case let .location(content):
@@ -262,7 +409,6 @@ private struct TimelineMessageBody: View {
 
     private func wrapped(_ text: String) -> some View {
         Text(text.formatAsMarkdown)
-            .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
     }
 

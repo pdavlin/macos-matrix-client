@@ -51,21 +51,38 @@ private struct LiveTimelineContainer: View {
     let imageLoader: (any UI.ImageLoader)?
 
     @State private var feed: LiveTimelineFeed?
+    @State private var composerTarget: LiveComposerTarget?
 
     private var ownUserId: String {
         (try? appState.matrixClient?.userSession().userID) ?? ""
     }
 
+    private var mediaLoader: (any TimelineMediaLoading)? {
+        // `client` is nil until a session is restored, and again after sign out.
+        guard let client = appState.matrixClient?.client else { return nil }
+        return LiveMediaLoader(client: client)
+    }
+
     var body: some View {
         Group {
-            if let feed {
-                TimelineContainer(
-                    feed: feed,
-                    timeline: timeline,
-                    imageLoader: imageLoader,
-                    ownUserId: ownUserId,
-                    showsReadReceipts: timeline.room.roomInfo?.isDirect == true
-                )
+            if let feed, let composerTarget {
+                ConversationLayout {
+                    TimelineContainer(
+                        feed: feed,
+                        timeline: timeline,
+                        imageLoader: imageLoader,
+                        ownUserId: ownUserId,
+                        showsReadReceipts: timeline.room.roomInfo?.isDirect == true,
+                        media: mediaLoader
+                    )
+                } composer: {
+                    ComposerBar(
+                        target: composerTarget,
+                        placeholder: "Message \(timeline.room.displayName ?? "room")"
+                    )
+                    // A new room starts with an empty field.
+                    .id(ObjectIdentifier(composerTarget))
+                }
             } else {
                 Color(.systemBackground)
             }
@@ -73,6 +90,7 @@ private struct LiveTimelineContainer: View {
         .onAppear {
             if feed?.timeline !== timeline {
                 feed = LiveTimelineFeed(timeline: timeline)
+                composerTarget = LiveComposerTarget(timeline: timeline)
             }
         }
         .task(id: ReadKey(count: timeline.timelineItems.count, active: scenePhase == .active), priority: .background) {
@@ -112,6 +130,12 @@ struct TimelineContainer: View {
     let ownUserId: String
     /// D-3: receipts render in direct rooms only.
     let showsReadReceipts: Bool
+    var media: (any TimelineMediaLoading)?
+    var fallbackActions: (any TimelineFallbackRowActions)?
+
+    /// The file the full-screen viewer shows. Presented from here, not from
+    /// a cell: a cell is recycled or reconfigured at any update.
+    @State private var viewerItem: MediaViewerItem?
 
     @AppStorage(TypographyToken.fontSizeStorageKey) private var fontSize = TypographyToken.defaultBaseFontSize
 
@@ -128,7 +152,10 @@ struct TimelineContainer: View {
                 ownUserId: ownUserId,
                 showsReadReceipts: showsReadReceipts,
                 typography: typography,
-                retryPagination: { [feed] in feed.retryPagination() }
+                retryPagination: { [feed] in feed.retryPagination() },
+                media: media,
+                openMedia: { viewerItem = $0 },
+                fallbackActions: fallbackActions
             )
         )
         .overlay(alignment: .bottomTrailing) {
@@ -145,6 +172,26 @@ struct TimelineContainer: View {
             }
         }
         .background(Color(.systemBackground))
+        .fullScreenCover(item: $viewerItem) { item in
+            MediaViewerScreen(item: item)
+        }
+    }
+}
+
+/// The timeline above the composer (MATRIX-86).
+///
+/// The keyboard shrinks the stack from the bottom. The collection view is
+/// flipped, so its content offset is measured from the newest message, and a
+/// timeline at the bottom stays there as its height changes.
+struct ConversationLayout<TimelineContent: View, ComposerContent: View>: View {
+    @ViewBuilder let timeline: TimelineContent
+    @ViewBuilder let composer: ComposerContent
+
+    var body: some View {
+        VStack(spacing: 0) {
+            timeline
+            composer
+        }
     }
 }
 
