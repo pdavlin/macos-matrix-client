@@ -210,14 +210,14 @@ public enum MessageActionModel {
     /// - Returns: The actions in display order, each with its enabled state.
     public static func items(for subject: MessageActionSubject?, on surface: MessageActionSurface) -> [MessageActionItem] {
         order(on: surface, for: subject).compactMap { action in
-            let availability: Availability = subject.map { availability(of: action, for: $0) } ?? .unavailable
+            let state: Availability = subject.map { Self.availability(of: action, for: $0) } ?? .unavailable
             let shows = switch surface {
-            case .contextMenu: availability != .notApplicable
-            case .hoverRow: availability == .available
+            case .contextMenu: state != .notApplicable
+            case .hoverRow: state == .available
             case .editMenu: true
             }
             guard shows else { return nil }
-            return MessageActionItem(action: action, section: section(of: action), isEnabled: availability == .available)
+            return MessageActionItem(action: action, section: section(of: action), isEnabled: state == .available)
         }
     }
 
