@@ -3,6 +3,7 @@ import Foundation
 import MatrixRustSDK
 import OSLog
 import SwiftUI
+import Utils
 
 public struct HomeserverLogin: Sendable {
     public let storeID: String
@@ -25,7 +26,12 @@ public struct HomeserverLogin: Sendable {
     @MainActor
     public func loginPassword(homeServer _: String, username: String, password: String) async throws -> MatrixClient {
         // Login using password authentication.
-        try await unauthenticatedClient.login(username: username, password: password, initialDeviceName: "Mactrix", deviceId: nil)
+        try await unauthenticatedClient.login(
+            username: username,
+            password: password,
+            initialDeviceName: ClientIdentity.current.deviceDisplayName,
+            deviceId: nil
+        )
         return try await onSuccessfullLogin()
     }
 
