@@ -21,6 +21,7 @@ public enum MessageActionPresentation {
         case .quickLook: "Quick Look"
         case .playInline: "Play Inline"
         case .saveToDownloads: "Save to Downloads"
+        case .redact: "Delete…"
         }
     }
 
@@ -49,6 +50,7 @@ public enum MessageActionPresentation {
         case .quickLook: "eye"
         case .playInline: "play.rectangle"
         case .saveToDownloads: "arrow.down.circle"
+        case .redact: "trash"
         }
     }
 

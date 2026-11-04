@@ -12,15 +12,17 @@ struct MessageActionTargetSlotTests {
         _ key: String,
         content: MessageActionSubject.Content = .text,
         isPinned: Bool = false,
+        redactPermission: MessageRedactPermission = MessageRedactPermission(canRedactOwn: true, canRedactOther: false),
         recorder: Recorder
     ) -> MessageActionTarget {
         let subject = MessageActionSubject(
             content: content,
-            isOwn: false,
+            isOwn: true,
             eventId: "$\(key)",
             canBeRepliedTo: true,
             isPinned: isPinned,
-            copyableText: content == .text ? "body" : nil
+            copyableText: content == .text ? "body" : nil,
+            redactPermission: redactPermission
         )
         return MessageActionTarget(key: key, subject: subject) { action in
             recorder.performed[key, default: []].append(action)
@@ -69,7 +71,7 @@ struct MessageActionTargetSlotTests {
         // A local echo gets its event ID: the old key names the new target.
         slot.refresh(replacing: "a", with: target("a2", isPinned: true, recorder: recorder))
         #expect(slot.target?.key == "a2")
-        #expect(slot.editMenuItems.last?.action == .unpin)
+        #expect(slot.editMenuItems.contains { $0.action == .unpin })
     }
 
     @Test func editMenuItemsFollowTheTarget() {
@@ -80,5 +82,18 @@ struct MessageActionTargetSlotTests {
         #expect(allEnabled)
         slot.offer(target("image", content: .image, recorder: recorder))
         #expect(slot.editMenuItems.first { $0.action == .copyText }?.isEnabled == false)
+    }
+
+    /// MATRIX-110: when the power levels load, the row refreshes its target,
+    /// and the Edit menu's Delete item follows.
+    @Test func editMenuDeleteFollowsThePowerLevels() {
+        let slot = MessageActionTargetSlot()
+        let recorder = Recorder()
+        slot.offer(target("a", redactPermission: .none, recorder: recorder))
+        #expect(slot.editMenuItems.first { $0.action == .redact }?.isEnabled == false)
+        slot.refresh(replacing: "a", with: target("a", recorder: recorder))
+        #expect(slot.editMenuItems.first { $0.action == .redact }?.isEnabled == true)
+        slot.perform(.redact)
+        #expect(recorder.performed == ["a": [.redact]])
     }
 }

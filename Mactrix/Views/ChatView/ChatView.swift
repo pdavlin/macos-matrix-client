@@ -65,6 +65,27 @@ struct ChatJoinedRoom: View {
             .safeAreaInset(edge: .bottom, spacing: 8) {
                 ChatInputView(room: room.room, timeline: timeline, replyTo: $timeline.sendReplyTo)
             }
+            // Delete confirmation (MATRIX-110). The row or the Edit menu sets
+            // the request; the sheet hands the reason back to the timeline.
+            .sheet(item: $timeline.pendingRedaction) { request in
+                UI.MessageRedactionSheet(
+                    isOwn: request.isOwn,
+                    onDelete: { reason in timeline.confirmRedaction(request, reason: reason) },
+                    onCancel: { timeline.cancelRedaction() }
+                )
+            }
+            .alert(
+                "Could not delete the message",
+                isPresented: Binding(
+                    get: { timeline.redactionFailure != nil },
+                    set: { if !$0 { timeline.redactionFailure = nil } }
+                ),
+                presenting: timeline.redactionFailure
+            ) { _ in
+                Button("OK") { timeline.redactionFailure = nil }
+            } message: { failure in
+                Text(failure)
+            }
             .background(Color(NSColor.controlBackgroundColor))
             .navigationTitle(room.room.displayName() ?? "Unknown room")
             .navigationSubtitle(toolbarSubtitle)
