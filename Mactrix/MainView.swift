@@ -158,6 +158,8 @@ struct MainView: View {
         .focusedSceneValue(windowState)
         // Only a signed-in window offers ⌘K.
         .focusedSceneValue(\.quickSwitcherPresented, appState.matrixClient == nil ? nil : $showQuickSwitcher)
+        // ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ in the Go menu (MATRIX-115).
+        .modifier(GoNavigationPublisher(windowState: windowState))
     }
 
     func attemptLoadUserSession() async {

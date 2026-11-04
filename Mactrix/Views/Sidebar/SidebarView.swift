@@ -20,9 +20,20 @@ struct SidebarView: View {
     @Environment(WindowState.self) var windowState
     @Environment(\.appearsActive) private var appearsActive
 
-    /// Rooms in SDK order, without spaces: those live in the Spaces section.
-    private var chatRooms: [SidebarRoom] {
-        (appState.matrixClient?.rooms ?? []).filter { !$0.room.isSpace() }
+    /// The rooms a window's sidebar shows: the favourites grid, then the
+    /// chat list (MATRIX-115).
+    ///
+    /// The sidebar draws this and the Go menu's ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ walk it
+    /// (`GoNavigationPublisher`), so the two cannot disagree. Spaces are
+    /// left out: they live in the Spaces section.
+    static func visibleChatList(client: MatrixClient?, windowState: WindowState) -> VisibleChatList<SidebarRoom> {
+        let chatRooms = (client?.rooms ?? []).filter { !$0.room.isSpace() }
+        return .visible(
+            rooms: chatRooms,
+            labels: client?.labels?.document ?? ChatLabelDocument(),
+            selectedLabelId: windowState.selectedLabelId,
+            isFavourite: { $0.roomInfo?.isFavourite == true }
+        )
     }
 
     private var labels: LabelsModel? {
@@ -99,12 +110,10 @@ struct SidebarView: View {
 
     private var chatList: some View {
         @Bindable var windowState = windowState
-        let document = labelDocument
-        let hidden = selectedLabel == nil ? document.inboxHiddenRoomIds : []
-        let mutedByLabel = document.labelMutedRoomIds
-        let rooms = chatRooms.filter { !hidden.contains($0.id) }
-        let favorites = rooms.filter { $0.roomInfo?.isFavourite == true }
-        let inbox = rooms.filter { $0.roomInfo?.isFavourite != true }
+        let mutedByLabel = labelDocument.labelMutedRoomIds
+        let visible = Self.visibleChatList(client: appState.matrixClient, windowState: windowState)
+        let favorites = visible.favorites
+        let inbox = visible.list
         let now = Date.now
 
         return List(selection: $windowState.selectedRoomId) {
