@@ -64,7 +64,11 @@ public struct IdentityResetBanner: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This removes this session's data from this Mac. You will need to sign in again.")
+            #if os(macOS)
+                Text("This removes this session's data from this Mac. You will need to sign in again.")
+            #else
+                Text("This removes this session's data from this device. You will need to sign in again.")
+            #endif
         }
     }
 }

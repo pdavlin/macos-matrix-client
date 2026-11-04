@@ -77,7 +77,7 @@ public struct RecoveryKeyDisplaySheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .sheetContentWidth(460)
     }
 }
 
@@ -124,6 +124,7 @@ public struct RecoveryKeyEntrySheet: View {
             TextField("Recovery key", text: $enteredKey, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.body, design: .monospaced))
+                .keyEntryTextTraits()
                 .lineLimit(2 ... 4)
                 .disabled(isBusy)
 
@@ -163,6 +164,6 @@ public struct RecoveryKeyEntrySheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .sheetContentWidth(460)
     }
 }

@@ -7,11 +7,15 @@ struct RootView: View {
     let model: RootViewModel
 
     var body: some View {
-        ContentUnavailableView {
-            Label("Mactrix", systemImage: "bubble.left.and.bubble.right")
-        } description: {
-            Text(model.status.title)
-                .accessibilityIdentifier("sessionStatus")
+        // MATRIX-83: sign-in, restore, verification, and recovery wrap the
+        // signed-in content.
+        SessionGate(session: model.session) {
+            ContentUnavailableView {
+                Label("Mactrix", systemImage: "bubble.left.and.bubble.right")
+            } description: {
+                Text(model.status.title)
+                    .accessibilityIdentifier("sessionStatus")
+            }
         }
     }
 }

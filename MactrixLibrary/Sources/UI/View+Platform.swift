@@ -32,4 +32,27 @@ extension View {
             self
         #endif
     }
+
+    /// `.frame(width:)` on macOS, where a sheet sizes to its content. An iOS
+    /// sheet is as wide as the screen, so a fixed width wider than an iPhone
+    /// clips the content. iOS uses the width as a maximum instead.
+    func sheetContentWidth(_ width: CGFloat) -> some View {
+        #if os(macOS)
+            frame(width: width)
+        #else
+            frame(maxWidth: width)
+        #endif
+    }
+
+    /// Turns off auto-capitalization and autocorrection on iOS. Both change
+    /// the characters of a typed key, which then fails to match. macOS is
+    /// unchanged.
+    func keyEntryTextTraits() -> some View {
+        #if os(iOS)
+            textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        #else
+            self
+        #endif
+    }
 }
