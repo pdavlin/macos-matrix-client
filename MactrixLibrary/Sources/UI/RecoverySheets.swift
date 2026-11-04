@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 extension EnvironmentValues {
-    /// When true, busy-state views in this file show a determinate substitute
+    /// When true, busy-state views show a static, non-control substitute
     /// instead of an indeterminate spinner.
     ///
     /// An indeterminate `ProgressView` animates on its own timer, so a snapshot
@@ -129,11 +129,16 @@ public struct RecoveryKeyEntrySheet: View {
             HStack {
                 if isBusy {
                     if usesStaticProgressIndicators {
-                        // Snapshot-only: a determinate ring renders one fixed
-                        // frame, unlike the indeterminate spinner below.
-                        ProgressView(value: 0.5, total: 1.0)
-                            .progressViewStyle(.circular)
-                            .controlSize(.small)
+                        // Snapshot-only: a ring drawn with SwiftUI shapes, at
+                        // the small spinner's 16 pt. A determinate ProgressView
+                        // is still an AppKit control, and its track rendered in
+                        // one of two styles depending on process state
+                        // (MATRIX-101), so it could not give one fixed frame.
+                        Circle()
+                            .trim(from: 0, to: 0.5)
+                            .stroke(.secondary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 16, height: 16)
                     } else {
                         ProgressView()
                             .controlSize(.small)

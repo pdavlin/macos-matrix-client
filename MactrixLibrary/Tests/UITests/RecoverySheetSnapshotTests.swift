@@ -62,8 +62,9 @@ struct RecoverySheetSnapshotTests {
 
     /// The busy state shows an indeterminate spinner that animates on its own
     /// timer, so it never renders the same frame twice. `usesStaticProgressIndicators`
-    /// swaps in a determinate ring for this capture only; production never
-    /// sets it.
+    /// swaps in a SwiftUI-drawn ring for this capture only; production never
+    /// sets it. The ring must not be a `ProgressView`: even a determinate one
+    /// is an AppKit control whose track flipped between two styles (MATRIX-101).
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func keyEntryBusy() {
         assertSnapshot(
