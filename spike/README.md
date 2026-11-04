@@ -11,7 +11,8 @@ risk R-1).
 - **Standalone SPM package.** No Mac target in `Mactrix.xcodeproj` links it. Since MATRIX-87
   the project references it as a local package, so the iOS app's DEBUG timeline gate can link
   `TimelineSpikeCore` (the platform-neutral workload, drivers, and probes). The package
-  declares iOS for that reason only; its AppKit files compile on macOS only.
+  declares iOS for that reason only; its AppKit files compile on macOS only. Since MATRIX-98
+  only the Debug configuration links it (`OTHER_LDFLAGS`); Release builds it and leaves it out.
 - **No matrix-rust-sdk, no Matrix code.** All data is synthetic. The question is list
   architecture, and the SDK would only add noise and build time.
 
