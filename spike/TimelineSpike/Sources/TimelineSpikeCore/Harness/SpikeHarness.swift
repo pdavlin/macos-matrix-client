@@ -58,7 +58,7 @@ public final class SpikeHarness {
         probe.settleTicks = configuration.driftSettleTicks
         wirePagination()
         startHUDTimer()
-        frameRecorder.onTick = { [weak self] in
+        frameRecorder.addTickObserver { [weak self] _ in
             self?.probe.settle()
         }
     }
