@@ -28,6 +28,10 @@ public final class LiveTimeline {
     /// composer inserts the chip and sets it back to nil.
     public var pendingComposerMention: MentionTarget?
 
+    /// The media sends that run in the SDK, with their join handle cancels
+    /// (MATRIX-106). See `sendMedia(_:)` and `cancelMediaSend(localEcho:)`.
+    public let mediaSends = MediaSendTracker()
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline
