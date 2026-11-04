@@ -23,6 +23,10 @@ public final class LiveTimeline {
 
     public var sendReplyTo: MatrixRustSDK.EventTimelineItem?
 
+    /// The message the Edit menu acts on (MATRIX-108). Rows offer themselves
+    /// on hover; the menu commands read it through the window's timeline.
+    public let messageActionTarget = MessageActionTargetSlot()
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline
