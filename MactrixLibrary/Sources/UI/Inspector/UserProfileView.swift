@@ -9,9 +9,21 @@ public protocol UserProfileActions {
     func unignoreUser() async
 }
 
+@MainActor
 public protocol UserProfileTimelineActions {
+    /// Whether "Jump to read receipt" works. A conformer that has no read
+    /// receipt lookup returns false, so the button shows as disabled.
+    var canJumpToReadReceipt: Bool { get }
     func jumpToReadReceipt()
+    /// Inserts a mention chip for the profile's user in the room composer
+    /// (MATRIX-105).
     func mentionUser()
+}
+
+public extension UserProfileTimelineActions {
+    var canJumpToReadReceipt: Bool {
+        true
+    }
 }
 
 public struct UserProfileView<Profile: UserProfile>: View {
@@ -60,6 +72,7 @@ public struct UserProfileView<Profile: UserProfile>: View {
                     Label("Jump to read receipt", systemImage: "checkmark.circle")
                 }
                 .linkButtonStyle()
+                .disabled(timelineActions?.canJumpToReadReceipt == false)
 
                 Button(action: { timelineActions?.mentionUser() }) {
                     Label("Mention", systemImage: "at")
