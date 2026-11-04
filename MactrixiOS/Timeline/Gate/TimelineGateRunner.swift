@@ -10,10 +10,9 @@
     enum TimelineGatePlan {
         /// The timeline viewport every number is measured at. Heights are
         /// cached per width, so the width is an input to every count here.
-        /// It fits inside the portrait safe area of every current iPhone: a
-        /// viewport under the status bar or the home indicator gets its cells
-        /// a safe-area inset, and every cell then reports a preferred height
-        /// that disagrees with its measured one.
+        /// It fits inside the portrait safe area of every current iPhone.
+        /// `s1-status-bar` moves it under the status bar, where its cells get
+        /// a safe-area inset (MATRIX-98).
         static let viewport = CGSize(width: 390, height: 700)
         /// The width-change scenario's target: an iPhone rotated to landscape.
         static let rotatedWidth: CGFloat = 750
@@ -34,6 +33,9 @@
         /// Frames a quiesced wait gives the container before it counts the
         /// tick as stalled.
         static let quiesceFrameCap = 600
+        /// Frames a width change gives the drain to measure every row it left
+        /// with a placeholder: 11k rows at a few per frame (MATRIX-98).
+        static let widthDrainFrameCap = 12000
     }
 
     /// The bars the deterministic metrics are scored against (MATRIX-87).
@@ -66,12 +68,20 @@
         /// bar is the baseline plus 0.05. A container that stopped honoring
         /// fingerprints measures every mutated row and reads near 1.0.
         static let stormRemeasuresPerMutation = 0.78
-        /// Layout passes during a plain 5s scroll. Each pass walks every
-        /// row's cached height. UIKit's self-sizing check on a newly visible
-        /// cell runs some (3 in each of three runs, 2026-10-30), and when it
-        /// does is UIKit's timing, not the container's. The bar catches a pass
-        /// per cell or per frame: a viewport under a safe-area inset read 50.
+        /// Layout passes during a plain 5s scroll, inside the safe area
+        /// (`s1`) and under the status bar (`s1-status-bar`). Each pass walks
+        /// every row's cached height. Before MATRIX-98, UIKit's self-sizing
+        /// check on a newly visible cell ran 3 (inside) and 50 (under the
+        /// status bar). `TimelineCell` keeps the layout's frame and the
+        /// collection view no longer invalidates on a cell's size, so the
+        /// baseline is 0 in both. The bar is MATRIX-87's, unchanged: it
+        /// catches a pass per cell or per frame.
         static let scrollLayoutPrepares = 10.0
+        /// The anchor row across a width change, from the frame before it to
+        /// the last frame of the drain that measures the rows it left with
+        /// placeholders (MATRIX-98). The probe's half-point stability
+        /// threshold, as for the prepend bar.
+        static let widthChangeAnchorDriftWorstPoints = DriftAccumulator.stabilityThreshold
     }
 
     /// Drives the production `TimelineCollectionController` through the gate
@@ -114,6 +124,14 @@
         /// container is idle.
         var settlesProbe = true
         var driftSamples: [DriftSample] = []
+        /// Puts the viewport under the status bar, where cells get a
+        /// safe-area inset. The host reads it when it lays out (MATRIX-98).
+        var placesViewportUnderStatusBar = false {
+            didSet {
+                container.superview?.setNeedsLayout()
+                container.superview?.layoutIfNeeded()
+            }
+        }
 
         private var frameWaiters: [CheckedContinuation<Void, Never>] = []
         private var lastVisibleIDs: [EventID] = []
@@ -185,6 +203,7 @@
             }
 
             await reports.append(runSweep())
+            await reports.append(runStatusBarSweep())
             await reports.append(runQuiescedStorm())
             if environment.frameMetricsScored {
                 await reports.append(runPacedStorm())
@@ -347,9 +366,8 @@
 
         // MARK: - Layout passes
 
-        /// Resizes the viewport and runs the layout pass it causes, timed. A
-        /// width change re-measures every row synchronously: heights are
-        /// cached per width.
+        /// Resizes the viewport and runs the layout pass it causes, timed:
+        /// the cold load, which measures every row synchronously.
         func layoutPass(to size: CGSize) -> TimelineGateMeasurements.LayoutPass {
             let collectionView = controller.collectionView
             let fromWidth = collectionView.bounds.width
@@ -384,7 +402,7 @@
         func quiesce() async -> Quiescence {
             var wait = Quiescence()
             while wait.frames < TimelineGatePlan.quiesceFrameCap {
-                if !feed.hasPendingChanges, controller.pendingRowUpdates.isEmpty, controller.rowUpdateDisplayLink == nil {
+                if !feed.hasPendingChanges, !controller.hasDrainWork, controller.rowUpdateDisplayLink == nil {
                     wait.drained = true
                     return wait
                 }
@@ -409,16 +427,25 @@
     /// Counts the layout's `prepare()` passes (MATRIX-87).
     ///
     /// Stands between `TimelineStackLayout` and the controller, which the
-    /// layout asks for every row height once per pass. A pass walks the whole
-    /// timeline, so a plain scroll must never cause one.
+    /// layout asks for every row height in a full pass, and for single rows in
+    /// an incremental one (MATRIX-98). A full pass walks the whole timeline,
+    /// so a plain scroll must never cause one.
     @MainActor
     final class TimelineGateLayoutProbe: TimelineStackLayoutHeightSource {
         weak var source: TimelineStackLayoutHeightSource?
+        /// Full passes: every row read.
         private(set) var passes = 0
+        /// Rows read one at a time by incremental passes.
+        private(set) var rowRereads = 0
 
         func rowHeights(forWidth width: CGFloat) -> [CGFloat] {
             passes += 1
             return source?.rowHeights(forWidth: width) ?? []
+        }
+
+        func rowHeight(atRow row: Int, forWidth width: CGFloat) -> CGFloat {
+            rowRereads += 1
+            return source?.rowHeight(atRow: row, forWidth: width) ?? 1
         }
     }
 #endif

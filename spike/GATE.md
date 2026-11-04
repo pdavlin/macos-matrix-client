@@ -549,6 +549,10 @@ synthetic events: `TimelineSpikeCore` is linked, not copied, so the workload, th
 and pagination drivers, the anchor probe, and the frame recorder are the Mac gate's own.
 The harness is DEBUG-only code in `MactrixiOS/Timeline/Gate/`. It runs two ways, with the
 same runner: the `TimelineGateTests` XCTest, and the app launched with `-TimelineGate`.
+Only the Debug configuration links `TimelineSpikeCore` (MATRIX-98): the app target builds it
+as a target dependency and links its object through `OTHER_LDFLAGS` in Debug. A Release
+simulator build has no `TimelineSpikeCore` symbol (`nm` counted 3,189 before MATRIX-98, 0
+after).
 
 ### What a simulator can measure
 
@@ -571,23 +575,26 @@ the drain is doing) run as `s2-paced`, on a device only.
 
 ### Scenarios and bars
 
-The viewport is pinned at 390×700pt, inside the portrait safe area of every current iPhone. A
-viewport under the status bar gave its cells a safe-area inset, and the scroll then ran 50
-layout passes in 5s instead of 3.
+The viewport is pinned at 390×700pt, inside the portrait safe area of every current iPhone.
+`s1-status-bar` runs the same sweep with the viewport moved under the status bar, where the
+cells near the top edge get a safe-area inset. Before MATRIX-98 that read 50 layout passes in
+5s, against 3 inside the safe area.
 
-| Scenario | What it does | Bar (simulator and device) | Baseline 2026-10-30, iPhone 17 Pro, iOS 27.0 |
-| --- | --- | --- | --- |
-| `cold-load` | first layout of 10k rows | rows measured ≤ rows | 10,000 of 10,000 |
-| `s1` | 5s sweep from the newest end (30s on a device) | rows measured = 0; layout passes ≤ 10 | 0; 3 |
-| `s2-quiesced` | 300 storm ticks (1,800 mutations), parked mid-timeline | anchor-hold worst ≤ 0.5pt; middle-row drift worst ≤ 423pt; rows measured per mutation ≤ 0.78; stalled ticks = 0 | 0.000pt; 282.0pt; 0.730; 0 |
-| `s4` | 20 prepends of 50, parked near the oldest end | samples = 20; drift worst ≤ 0.5pt; rows measured ≤ prepended + 20 | 20; 0.000pt; 1,010 |
-| `width-change` | 390→750pt (a rotation) and back, at 11k rows | rows measured ≤ rows, per pass | 11,000 and 11,000 |
+| Scenario | What it does | Bar (simulator and device) | Baseline 2026-10-30 (MATRIX-98), iPhone 17 Pro, iOS 27.0 | MATRIX-87 baseline |
+| --- | --- | --- | --- | --- |
+| `cold-load` | first layout of 10k rows | rows measured ≤ rows | 10,000 of 10,000 | 10,000 of 10,000 |
+| `s1` | 5s sweep from the newest end (30s on a device) | rows measured = 0; full layout passes ≤ 10 | 0; 0 | 0; 3 |
+| `s1-status-bar` | `s1` with the viewport under the status bar | rows measured = 0; full layout passes ≤ 10 | 0; 0 | not run (50 by hand) |
+| `s2-quiesced` | 300 storm ticks (1,800 mutations), parked mid-timeline | anchor-hold worst ≤ 0.5pt; middle-row drift worst ≤ 423pt; rows measured per mutation ≤ 0.78; stalled ticks = 0 | 0.000pt; 282.0pt; 0.730; 0 | the same |
+| `s4` | 20 prepends of 50, parked near the oldest end | samples = 20; drift worst ≤ 0.5pt; rows measured ≤ prepended + 20 | 20; 0.000pt; 1,010 | the same |
+| `width-change` | 390→750pt (a rotation) and back, at 11k rows, parked near the oldest end, each followed until the drain is done | rotate: rows measured ≤ rows; back: rows measured = 0; both: drained inside the cap, anchor drift worst ≤ 0.5pt | 11,000 (12 in the pass); 0; 0.000pt and 0.000pt | 11,000 and 11,000, all in the pass |
 
 How the bars were set. MATRIX-66 has not settled a scoring policy in §11, so each bar follows
 one of the rules already on record:
 
 - **Structural invariants** for the counts: one measure per row per width, none while
-  scrolling, one per new row plus the seam row on a prepend. These need no baseline.
+  scrolling, one per new row plus the seam row on a prepend, none for a width the cache still
+  holds. These need no baseline.
 - **The Mac's prepend bar** (0.0pt baseline, 0.5pt tolerance), which the iOS container meets
   exactly: the flip puts a prepend beyond the viewport, so nothing moves.
 - **Baseline plus margin** (the MATRIX-60 option) for the two numbers that depend on the
@@ -600,17 +607,39 @@ compensation holds it. The probe's middle-row drift is the Mac gate's metric, an
 real content growth between the anchor and the tracked row, so a 282pt worst is not an
 anchoring error (SCENARIOS.md says the same of the Mac's S2).
 
-Recorded, not barred, in the simulator: cold load 4.7 to 5.1s (0.47 to 0.51ms a row), the
-width change 4.9 to 6.4s out and 4.9 to 7.9s back, in Debug builds. An optimized build of the
-same harness gave identical counts and a 4.2s cold load, so the cost sits in SwiftUI and
-UIKit, not in unoptimized app code. A phone will give its own number, but the shape stands: a
-rotation at 11k rows re-measures every row on the main thread, synchronously.
+Recorded, not barred, in the simulator, Debug builds (three runs each):
 
-Why the scroll counts layout passes: when a cell comes on screen, UIKit asks it for a
+| | MATRIX-87 | MATRIX-98 |
+| --- | --- | --- |
+| cold load | 4.7 to 5.1s (0.47 to 0.51ms a row) | 3.9 to 4.0s (0.39 to 0.40ms a row) |
+| rotation: longest main-thread block | 4.9 to 6.4s, one synchronous pass | 77ms (the pass: 12 rows, 51ms) |
+| rotation: until every row is exact | the same pass | 15.6 to 16.2s, 767 to 786 drain frames |
+| rotation back: longest block | 4.9 to 7.9s | 20ms, no measure |
+
+The MATRIX-98 column is the 2026-10-30 runs (`*-20261030-162*`), on a quiet host. The
+2026-11-04 runs after the rebase onto the integrated main (`*-20261104-14*`) gave the same
+counts and positions in every scenario, but ran with a host load average near 800 from other
+work: cold load 4.8 to 13.3s, rotation block 57 to 761ms, drain 22 to 37s. Those wall times
+measure the host, not the container.
+
+An optimized build of the MATRIX-87 harness gave identical counts and a 4.2s cold load, so the
+measure cost sits in SwiftUI and UIKit, not in unoptimized app code. A phone will give its own
+numbers. What MATRIX-98 changes is the shape: a rotation no longer measures every row before
+the next frame. The pass measures the rows around the anchor row (1.5 viewport heights each
+side), every other row keeps its old-width height as a placeholder, and the drain measures
+those in its frame budget (`TimelineDrainBudget`). The anchor holds through every batch, by
+the drain's measured-delta compensation. Rotating back is free because the cache keeps two
+widths. The longest block is a display-link gap, so it depends on the clock: recorded only.
+
+Why the scroll counts layout passes: when a cell came on screen, UIKit asked it for a
 preferred height (`_recomputePreferredAttributesForInvalidatedElementsIfNeeded`), and that
-re-runs the layout's `prepare()` even though `TimelineStackLayout` declines the new size. The
-heights UIKit computes there disagree with the measured ones on tall rows (148.7 against
-443.7pt), but a screenshot of the gate's viewport shows the measured heights drawn correctly.
+re-ran the layout's `prepare()` even though `TimelineStackLayout` declined the new size. The
+heights UIKit computed there disagreed with the measured ones on tall rows (148.7 against
+443.7pt). Since MATRIX-98 a `TimelineCell` returns the layout's attributes unchanged, the
+collection view does not invalidate on a cell's size (`selfSizingInvalidation = .disabled`),
+and an invalidation that names no rows keeps the geometry. A full pass now runs only for the
+first layout, a width change, a data-source change, or a full invalidation; a content change
+re-reads only the rows it changed (`layoutRowRereads` in the dump).
 
 Dumps: `spike/results/ios/timeline-ios-production-<scenario>-<simulator|device>-<stamp>.json`.
 The shared blocks keep the Mac dump's field names and types; `environment` says simulator or

@@ -208,11 +208,11 @@ extension Models.ChatListFilter {
     }
 }
 
-extension SidebarRoom {
+public extension SidebarRoom {
     /// The chat-list row for this room. `now` decides the timestamp bucket.
     /// `mutedByLabel` is MATRIX-77's label mute: every label that holds the
     /// room is muted.
-    public func chatListRow(now: Date = .now, mutedByLabel: Bool = false) -> Models.ChatListRowModel {
+    func chatListRow(now: Date = .now, mutedByLabel: Bool = false) -> Models.ChatListRowModel {
         let isDirect = roomInfo?.isDirect == true
         let preview = latestEvent?.preview(isDirect: isDirect)
         let unread = roomInfo.map { info in

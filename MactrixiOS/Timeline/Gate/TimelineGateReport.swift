@@ -90,15 +90,33 @@
             var stalledTicks = 0
         }
 
-        /// One synchronous full layout pass: the cold load, or a width change.
+        /// One layout pass at a new width: the cold load, or a width change
+        /// and the drain that follows it.
         struct LayoutPass: Codable {
             var fromWidth: Double
             var toWidth: Double
             var rows: Int
+            /// Rows measured, in the pass and the drain together.
             var remeasured: Int
-            /// Wall time of the pass. A simulator number: recorded, never barred.
+            /// Wall time of the pass and the drain. A simulator number:
+            /// recorded, never barred.
             var milliseconds: Double
             var microsecondsPerRemeasure: Double
+            /// Width change only (MATRIX-98): rows measured inside the pass
+            /// that changed the width, and its wall time.
+            var synchronousRemeasured: Int?
+            var synchronousMilliseconds: Double?
+            /// Frames the drain took to measure the rows the pass left with
+            /// placeholder heights, and whether it finished inside the cap.
+            var drainFrames: Int?
+            var drained: Bool?
+            /// The longest gap between two display-link callbacks from the
+            /// frame before the change to the end of the drain: the longest
+            /// main-thread block. Recorded, never barred.
+            var longestBlockMilliseconds: Double?
+            /// The anchor row's movement on screen at every frame of it. Nil
+            /// when the viewport sat at the newest end, which has no anchor.
+            var anchorDrift: AnchorHold?
         }
 
         var rowCount: Int
@@ -112,9 +130,11 @@
         var anchorHold: AnchorHold?
         var drain: Drain?
         var layoutPasses: [LayoutPass]
-        /// The layout's `prepare()` passes. Each one walks every row's cached
-        /// height, so their count is a cost the container controls.
+        /// The layout's full `prepare()` passes. Each one walks every row's
+        /// cached height, so their count is a cost the container controls.
         var layoutPrepares: Int
+        /// Rows incremental passes read one at a time (MATRIX-98).
+        var layoutRowRereads: Int
         var fetchRequestCount: Int
     }
 

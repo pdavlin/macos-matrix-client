@@ -15,6 +15,7 @@ struct MactrixApp: App {
         .environment(appState)
         .commands {
             AppCommands()
+            GoCommands()
             MessageCommands()
         }
         .onChange(of: windowState == nil, focusNotification)

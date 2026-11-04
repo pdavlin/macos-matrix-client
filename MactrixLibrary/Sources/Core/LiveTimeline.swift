@@ -23,6 +23,11 @@ public final class LiveTimeline {
 
     public var sendReplyTo: MatrixRustSDK.EventTimelineItem?
 
+    /// A mention that the composer for this timeline must insert as a chip
+    /// (MATRIX-105). The user profile "Mention" action sets it, and the
+    /// composer inserts the chip and sets it back to nil.
+    public var pendingComposerMention: MentionTarget?
+
     /// The message the Edit menu acts on (MATRIX-108). Rows offer themselves
     /// on hover; the menu commands read it through the window's timeline.
     public let messageActionTarget = MessageActionTargetSlot()

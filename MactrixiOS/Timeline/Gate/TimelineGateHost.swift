@@ -55,10 +55,12 @@ extension View {
             view.addSubview(runner.container)
         }
 
-        /// The viewport sits inside the safe area, as the app's timeline does.
+        /// The viewport sits inside the safe area, as the app's timeline does,
+        /// or under the status bar when a scenario asks (MATRIX-98).
         override func viewDidLayoutSubviews() {
             super.viewDidLayoutSubviews()
-            runner.container.frame.origin = CGPoint(x: view.safeAreaInsets.left, y: view.safeAreaInsets.top)
+            let top = runner.placesViewportUnderStatusBar ? 0 : view.safeAreaInsets.top
+            runner.container.frame.origin = CGPoint(x: view.safeAreaInsets.left, y: top)
         }
 
         override func viewDidAppear(_ animated: Bool) {
