@@ -8,14 +8,23 @@ struct RootView: View {
 
     var body: some View {
         // MATRIX-83: sign-in, restore, verification, and recovery wrap the
-        // signed-in content.
+        // signed-in content. MATRIX-84: the signed-in content is the room
+        // list navigation.
         SessionGate(session: model.session) {
-            ContentUnavailableView {
-                Label("Mactrix", systemImage: "bubble.left.and.bubble.right")
-            } description: {
-                Text(model.status.title)
-                    .accessibilityIdentifier("sessionStatus")
+            if let matrixClient = model.appState.matrixClient {
+                SignedInRoomNavigation(matrixClient: matrixClient)
+            } else {
+                signedOut
             }
+        }
+    }
+
+    private var signedOut: some View {
+        ContentUnavailableView {
+            Label("Mactrix", systemImage: "bubble.left.and.bubble.right")
+        } description: {
+            Text(model.status.title)
+                .accessibilityIdentifier("sessionStatus")
         }
     }
 }
