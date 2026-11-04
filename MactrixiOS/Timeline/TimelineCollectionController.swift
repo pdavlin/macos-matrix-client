@@ -24,7 +24,7 @@ final class TimelineCollectionController: NSObject {
     var rowContext: TimelineRowContext
 
     let layout = TimelineStackLayout()
-    let collectionView: UICollectionView
+    let collectionView: TimelineCollectionView
 
     var dataSource: UICollectionViewDiffableDataSource<Int, String>?
     /// The snapshot the collection view shows, mutated in place per change
@@ -43,8 +43,9 @@ final class TimelineCollectionController: NSObject {
     }
 
     /// Row heights keyed by (row id, width, cell tokens), invalidated by
-    /// content revision (S-32).
-    var heightCache = TimelineRowHeightCache<TimelineCellTokens>()
+    /// content revision (S-32). Two widths are kept, so rotating back costs
+    /// no measures (MATRIX-98).
+    var heightCache = TimelineWidthHeightCache<TimelineCellTokens>()
     /// Per-row content revision, bumped by a height-relevant content change.
     var rowRevisions: [String: Int] = [:]
     /// Per-row sender-header answer, keyed by identity so a renumbering
@@ -65,6 +66,16 @@ final class TimelineCollectionController: NSObject {
     var pendingFocus = false
     var focusScrollScheduled = false
 
+    /// The width of the last pass that read every row (MATRIX-98).
+    var laidOutWidth: CGFloat = 0
+    /// Rows a width change left unmeasured at `laidOutWidth`, with the height
+    /// each holds until the drain measures it: its height at the old width.
+    var widthPlaceholders: [String: CGFloat] = [:]
+    /// The same rows in drain order, the row nearest the viewport last.
+    var widthRemeasureQueue: [String] = []
+    /// The anchor a width change holds, restored after the pass.
+    var widthChangeAnchor: WidthChangeAnchor?
+
     /// Offscreen host for measurement. One view type for cells and
     /// measurement, so a measured height is the drawn height.
     private let measurementHost = UIHostingController(rootView: AnyView(EmptyView()))
@@ -72,7 +83,7 @@ final class TimelineCollectionController: NSObject {
     init(feed: TimelineFeed, rowContext: TimelineRowContext) {
         self.feed = feed
         self.rowContext = rowContext
-        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView = TimelineCollectionView(frame: .zero, collectionViewLayout: layout)
         // A request made before this container existed is not a request to
         // this container.
         handledScrollToBottomRequests = feed.scrollToBottomRequests
@@ -105,6 +116,12 @@ final class TimelineCollectionController: NSObject {
         // makes the newest end. The scroll-to-bottom chip owns that move.
         collectionView.scrollsToTop = false
         collectionView.delegate = self
+        // Heights come from the layout, never from a cell (MATRIX-98): a
+        // hosted cell's size invalidation would only re-run the layout.
+        collectionView.selfSizingInvalidation = .disabled
+        collectionView.didLayoutSubviews = { [weak self] in
+            self?.collectionViewDidLayout()
+        }
 
         let provider: UICollectionViewDiffableDataSource<Int, String>.CellProvider = { [weak self] collectionView, indexPath, _ in
             self?.cell(in: collectionView, at: indexPath) ?? UICollectionViewCell()
@@ -122,7 +139,7 @@ final class TimelineCollectionController: NSObject {
         guard rows.indices.contains(indexPath.item) else { return UICollectionViewCell() }
         let row = rows[indexPath.item]
         if !registeredReuseIds.contains(row.reuseId) {
-            collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: row.reuseId)
+            collectionView.register(TimelineCell.self, forCellWithReuseIdentifier: row.reuseId)
             registeredReuseIds.insert(row.reuseId)
         }
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: row.reuseId, for: indexPath)
@@ -210,6 +227,7 @@ final class TimelineCollectionController: NSObject {
             || old.ownUserId != rowContext.ownUserId
         else { return }
         heightCache.invalidateAll()
+        clearWidthPlaceholders()
         for indexPath in collectionView.indexPathsForVisibleItems {
             reconfigureVisibleCell(atRow: indexPath.item)
         }
@@ -220,7 +238,7 @@ final class TimelineCollectionController: NSObject {
 
     /// Measures one row offscreen at `width`: the source behind the cache,
     /// called only on a miss.
-    private func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
+    func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
         measurementHost.rootView = AnyView(rowView(for: row))
         return measurementHost.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
     }
@@ -240,19 +258,38 @@ struct TimelineCellTokens: Hashable {
 extension TimelineCollectionController: TimelineStackLayoutHeightSource {
     func rowHeights(forWidth width: CGFloat) -> [CGFloat] {
         guard width > 0 else { return Array(repeating: 1, count: rows.count) }
+        let previousWidth = laidOutWidth
+        laidOutWidth = width
+        if previousWidth > 0, previousWidth != width, !rows.isEmpty {
+            return heightsAcrossWidthChange(from: previousWidth, to: width)
+        }
         var heights: [CGFloat] = []
         heights.reserveCapacity(rows.count)
         for row in rows {
-            let height = heightCache.height(
-                for: row,
-                width: width,
-                tokens: cellTokens(for: row),
-                revision: rowRevisions[row.uniqueId] ?? 0
-            ) { row, width in
-                self.measureRowHeight(row, width: width)
-            }
-            heights.append(height)
+            heights.append(height(of: row, width: width))
         }
         return heights
+    }
+
+    func rowHeight(atRow row: Int, forWidth width: CGFloat) -> CGFloat {
+        guard width > 0, rows.indices.contains(row) else { return 1 }
+        return height(of: rows[row], width: width)
+    }
+
+    /// One row's height at `width`: the cached height, the placeholder a
+    /// width change left (MATRIX-98), or a measure.
+    func height(of row: TimelineRow, width: CGFloat) -> CGFloat {
+        let tokens = cellTokens(for: row)
+        let revision = rowRevisions[row.uniqueId] ?? 0
+        if !widthPlaceholders.isEmpty, let placeholder = widthPlaceholders[row.uniqueId] {
+            if let height = heightCache.validHeight(for: row, width: width, tokens: tokens, revision: revision) {
+                widthPlaceholders[row.uniqueId] = nil
+                return height
+            }
+            return placeholder
+        }
+        return heightCache.height(for: row, width: width, tokens: tokens, revision: revision) { row, width in
+            self.measureRowHeight(row, width: width)
+        }
     }
 }

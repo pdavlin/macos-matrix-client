@@ -15,6 +15,7 @@ struct MactrixApp: App {
         .environment(appState)
         .commands {
             AppCommands()
+            GoCommands()
         }
         .onChange(of: windowState == nil, focusNotification)
         .onChange(of: appState.matrixClient?.notifications.selectedRoomId == nil, focusNotification)

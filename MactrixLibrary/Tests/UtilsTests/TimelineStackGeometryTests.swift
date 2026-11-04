@@ -116,6 +116,32 @@ struct TimelineStackGeometryTests {
         #expect(origin == 142)
     }
 
+    // MARK: - Incremental rebuild (MATRIX-98)
+
+    @Test func replacingHeightsEqualsAFullRebuild() {
+        let heights: [CGFloat] = (0 ..< 500).map { CGFloat(20 + ($0 * 37) % 113) + 0.3 }
+        let geometry = TimelineStackGeometry(heights: heights)
+        let changes: [Int: CGFloat] = [499: 11.7, 120: 300.1, 121: 0.9, 380: 44]
+        var expected = heights
+        for (row, height) in changes {
+            expected[row] = height
+        }
+        #expect(geometry.replacingHeights(changes) == TimelineStackGeometry(heights: expected))
+    }
+
+    @Test func replacingHeightsKeepsOffsetsBeforeTheFirstChange() {
+        let geometry = TimelineStackGeometry(heights: [10, 20, 30, 40])
+        let replaced = geometry.replacingHeights([2: 5])
+        #expect(replaced.offsets == [0, 10, 30, 35])
+        #expect(replaced.contentHeight == 75)
+    }
+
+    @Test func replacingNothingOrRowsOutOfRangeIsANoOp() {
+        let geometry = TimelineStackGeometry(heights: [10, 20])
+        #expect(geometry.replacingHeights([:]) == geometry)
+        #expect(geometry.replacingHeights([2: 50, -1: 3]) == geometry)
+    }
+
     // MARK: - Scroll metrics
 
     @Test func bottomThresholdMatchesTheMacContainer() {
