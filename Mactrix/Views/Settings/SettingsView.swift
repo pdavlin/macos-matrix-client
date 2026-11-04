@@ -14,6 +14,9 @@ struct SettingsView: View {
             Tab("Composer", systemImage: "square.and.pencil") {
                 ComposerSettingsView()
             }
+            Tab("Notifications", systemImage: "bell.badge") {
+                NotificationSettingsView()
+            }
             Tab("Sessions", systemImage: "desktopcomputer.and.macbook") {
                 SessionsSettingsView()
             }
