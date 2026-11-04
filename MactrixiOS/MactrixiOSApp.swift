@@ -3,6 +3,8 @@ import SwiftUI
 
 @main
 struct MactrixiOSApp: App {
+    /// APNs registration callbacks (MATRIX-89).
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = RootViewModel(appState: AppState())
 
     init() {
