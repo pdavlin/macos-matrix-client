@@ -12,6 +12,8 @@ struct MainView: View {
     private var windowState: WindowState = .init()
 
     @State private var showWelcomeSheet: Bool = false
+    /// The ⌘K quick switcher (MATRIX-114), toggled from the Go menu.
+    @State private var showQuickSwitcher: Bool = false
 
     @ViewBuilder var details: some View {
         switch windowState.selectedScreen {
@@ -103,6 +105,10 @@ struct MainView: View {
                 })
             }
         })
+        .sheet(isPresented: $showQuickSwitcher) {
+            QuickSwitcherContainerView(openRoom: openRoom)
+                .environment(windowState)
+        }
         .onChange(of: appState.matrixClient == nil) { _, matrixClientIsNil in
             if matrixClientIsNil {
                 Logger.viewCycle.info("Matrix client is nil, present welcome sheet")
@@ -150,6 +156,8 @@ struct MainView: View {
         .modifier(SearchViewModifier())
         .environment(windowState)
         .focusedSceneValue(windowState)
+        // Only a signed-in window offers ⌘K.
+        .focusedSceneValue(\.quickSwitcherPresented, appState.matrixClient == nil ? nil : $showQuickSwitcher)
     }
 
     func attemptLoadUserSession() async {
