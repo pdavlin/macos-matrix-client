@@ -47,6 +47,25 @@ struct RoomContextMenu: View {
             Button {
                 Task {
                     do {
+                        Logger.viewCycle.info("mark room low priority: \(!roomInfo.isLowPriority)")
+                        try await room.room.setIsLowPriority(isLowPriority: !roomInfo.isLowPriority, tagOrder: nil)
+                    } catch {
+                        Logger.viewCycle.error("failed to mark room low priority: \(error)")
+                    }
+                }
+            } label: {
+                // Beeper's Archive maps here (MATRIX-67): the low-priority tag
+                // is the archive-like state the SDK exposes.
+                if roomInfo.isLowPriority {
+                    Label("Move to Inbox", systemImage: "tray.and.arrow.up")
+                } else {
+                    Label("Move to Low Priority", systemImage: "tray.and.arrow.down")
+                }
+            }
+
+            Button {
+                Task {
+                    do {
                         let permalink = try await room.room.matrixToPermalink()
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(permalink, forType: .string)
