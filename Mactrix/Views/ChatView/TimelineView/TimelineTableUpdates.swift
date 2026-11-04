@@ -35,6 +35,9 @@ extension TimelineViewController {
         var queuedRows = 0
         var didReset = false
 
+        batchRegroupIds.removeAll(keepingCapacity: true)
+        batchInsertedIds.removeAll(keepingCapacity: true)
+
         for update in updates {
             touchedRows += update.change.rowCount
             switch update.change {
@@ -50,10 +53,15 @@ extension TimelineViewController {
             }
         }
 
+        // Before the snapshot is applied: the inserted rows are about to be
+        // measured for the first time, and must be measured grouped.
+        let regroupedRows = regroupBatchRows()
+
         Logger.timelineTableView.info(
             """
             timeline update: \(updates.count) change(s) touching \(touchedRows) row(s) \
             of \(self.timelineRows.count) (structural: \(isStructural), reset: \(didReset)), \
+            \(regroupedRows.count) neighbour(s) regrouped, \
             \(self.pendingRowUpdates.count) row(s) queued for the drain
             """
         )
@@ -72,6 +80,15 @@ extension TimelineViewController {
                 context.allowsImplicitAnimation = false
 
                 dataSource?.apply(snapshot, animatingDifferences: false)
+
+                // Existing rows whose run the batch changed: a header gained or
+                // lost, a gap re-banded. Inside the same transaction and before
+                // the tile, so the S-33 restore measures the anchor against
+                // their new heights, not their old ones.
+                if !regroupedRows.isEmpty {
+                    tableView.reloadData(forRowIndexes: regroupedRows, columnIndexes: IndexSet(integer: 0))
+                    tableView.noteHeightOfRows(withIndexesChanged: regroupedRows)
+                }
 
                 guard let anchor else { return }
                 tableView.tile()
@@ -107,6 +124,9 @@ extension TimelineViewController {
 
     private func applyReset() {
         timelineRows = timeline.displayItems.map(\.row)
+        // Grouped before the rebuild below applies the snapshot, because that
+        // apply is what measures the rows.
+        TimelineRowRegrouping.regroupAll(&timelineRows, calendar: groupingCalendar)
         heightCache.invalidateAll()
         rowRevisions.removeAll()
         // Every row is rebuilt from the source of truth, which already carries
@@ -135,6 +155,15 @@ extension TimelineViewController {
         let rows = items.map(\.row)
         timelineRows.insert(contentsOf: rows, at: tableIndex)
 
+        // Each inserted row needs a grouping, and so does the row just newer
+        // than the block, whose predecessor is now the block's newest row. For
+        // a back-pagination batch that is the oldest row loaded before it.
+        for row in rows {
+            batchRegroupIds.append(row.uniqueId)
+            batchInsertedIds.insert(row.uniqueId)
+        }
+        noteRegroupOfSuccessor(ofTableIndex: tableIndex)
+
         let ids = rows.map { TimelineUniqueId(id: $0.uniqueId) }
         if let beforeId, snapshot.indexOfItem(TimelineUniqueId(id: beforeId)) != nil {
             snapshot.insertItems(ids, beforeItem: TimelineUniqueId(id: beforeId))
@@ -153,6 +182,10 @@ extension TimelineViewController {
         let removed = timelineRows[tableIndex ..< (tableIndex + count)]
         let removedIds = removed.map(\.uniqueId)
         timelineRows.removeSubrange(tableIndex ..< (tableIndex + count))
+        // The row just newer than the removed block now follows whatever was
+        // older than the block: removing a state event between two messages
+        // from one sender joins their runs.
+        noteRegroupOfSuccessor(ofTableIndex: tableIndex)
 
         for id in removedIds {
             heightCache.invalidate(rowId: id)
@@ -163,6 +196,48 @@ extension TimelineViewController {
         // inherit the payload queued against the copy that left.
         pendingRowUpdates.remove(uniqueIds: removedIds)
         deleteSnapshotItems(withIds: removedIds)
+    }
+
+    /// Records the row just newer than `tableIndex` for regrouping (MATRIX-68).
+    ///
+    /// Rows are newest first, so that row sits at `tableIndex - 1`. A typing
+    /// row there is skipped: it is not a message and has no grouping.
+    private func noteRegroupOfSuccessor(ofTableIndex tableIndex: Int) {
+        let successor = TimelineRowRegrouping.successorIndex(of: tableIndex)
+        guard successor >= leadingDecorationCount, successor < timelineRows.count else { return }
+        batchRegroupIds.append(timelineRows[successor].uniqueId)
+    }
+
+    /// Derives the grouping of every row this batch's structural changes
+    /// touched, and returns the rows that were already in the table and now
+    /// group differently (MATRIX-68).
+    ///
+    /// Proportional to the diff, like the rest of the batch (S-34): a change
+    /// can only move the grouping of the rows it inserted and of the one row
+    /// just newer than it, because a row's grouping reads only its
+    /// predecessor. Rows are resolved by identity here, after every change has
+    /// landed, so each one is grouped against its final neighbour.
+    ///
+    /// An inserted row is grouped and nothing more: it has no cached height
+    /// yet, and its first measure sees the grouping. An existing row whose
+    /// grouping changed gets a revision bump, the same invalidation an edit
+    /// gets, and the caller re-measures it.
+    private func regroupBatchRows() -> IndexSet {
+        defer {
+            batchRegroupIds.removeAll(keepingCapacity: true)
+            batchInsertedIds.removeAll(keepingCapacity: true)
+        }
+        var changed = IndexSet()
+        for id in batchRegroupIds {
+            // A later change in the batch may have removed it again.
+            guard let index = rowIndex(ofRowId: id),
+                  TimelineRowRegrouping.regroupRow(at: index, in: &timelineRows, calendar: groupingCalendar),
+                  !batchInsertedIds.contains(id)
+            else { continue }
+            rowRevisions[id, default: 0] += 1
+            changed.insert(index)
+        }
+        return changed
     }
 
     /// Queues one row's new content for the drain, and reports whether it was

@@ -112,6 +112,13 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
         return event.sender
     }
 
+    /// The sender's palette color (MATRIX-68). Own messages take no slot and
+    /// draw in the default text color.
+    var nameColor: Color {
+        guard !event.isOwn else { return .primary }
+        return SenderColorToken.color(atSlot: SenderColorHash.paletteIndex(forSenderId: event.sender))
+    }
+
     public var body: some View {
         // Profile icon and name
         Button(action: actions.focusUser) {
@@ -122,7 +129,7 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
                         .clipShape(Circle())
                 }.frame(width: DensityToken.leadingColumnWidth)
 
-                Username(userProfile: event)
+                Username(userProfile: event, color: nameColor)
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

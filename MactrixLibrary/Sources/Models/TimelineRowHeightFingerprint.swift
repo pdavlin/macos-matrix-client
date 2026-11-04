@@ -184,6 +184,15 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
     /// not a storm event, so the insurance costs one measure per sender.
     public let senderName: String
     public let reactions: ReactionStripGeometry
+    /// The row's place in its run (MATRIX-68): whether it draws the profile
+    /// header, and the gap above it. Both move the height.
+    ///
+    /// Unlike every other field, this one is not read off the row's own
+    /// content: it depends on the row before it. The mapping leaves it at
+    /// `.standalone` and the container derives it against the row's
+    /// neighbour, so a neighbour that changes reaches the height cache through
+    /// the same equality test as an edit does.
+    public let grouping: TimelineRowGrouping
 
     /// True when the row draws a reaction strip, which also picks the row's
     /// view-recycling pool (S-34).
@@ -195,7 +204,8 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
         hasThreadSummary: Bool = false,
         sendFailureMessage: String? = nil,
         senderName: String,
-        reactions: ReactionStripGeometry
+        reactions: ReactionStripGeometry,
+        grouping: TimelineRowGrouping = .standalone
     ) {
         self.body = body
         self.hasReplyPreview = hasReplyPreview
@@ -203,6 +213,20 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
         self.sendFailureMessage = sendFailureMessage
         self.senderName = senderName
         self.reactions = reactions
+        self.grouping = grouping
+    }
+
+    /// The same fingerprint with another grouping.
+    public func with(grouping: TimelineRowGrouping) -> TimelineRowHeightFingerprint {
+        TimelineRowHeightFingerprint(
+            body: body,
+            hasReplyPreview: hasReplyPreview,
+            hasThreadSummary: hasThreadSummary,
+            sendFailureMessage: sendFailureMessage,
+            senderName: senderName,
+            reactions: reactions,
+            grouping: grouping
+        )
     }
 
     /// Whether replacing `old` with `new` can be done without re-measuring.
