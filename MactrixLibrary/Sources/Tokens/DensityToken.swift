@@ -85,4 +85,22 @@ public enum DensityToken {
 
     /// Padding above the send-failure row, separating it from the message body.
     public static let sendFailureTopPadding: CGFloat = 4
+
+    /// Diameter of the upload progress ring on a media local echo (MATRIX-107).
+    public static let uploadRingDiameter: CGFloat = 14
+
+    /// Stroke width of the upload progress ring.
+    public static let uploadRingLineWidth: CGFloat = 2.5
+
+    /// Spacing between the ring, the percent label, and the cancel control.
+    public static let uploadBadgeSpacing: CGFloat = 5
+
+    /// Horizontal inner padding of the upload badge capsule.
+    public static let uploadBadgeHorizontalPadding: CGFloat = 7
+
+    /// Vertical inner padding of the upload badge capsule.
+    public static let uploadBadgeVerticalPadding: CGFloat = 3
+
+    /// Inset of the upload badge from the corner of the media it overlays.
+    public static let uploadBadgeInset: CGFloat = 6
 }
