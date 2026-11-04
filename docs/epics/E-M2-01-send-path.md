@@ -5,7 +5,7 @@
 | **Milestone** | M2 — Full send path + Mac platform integration (Contract §4) |
 | **Roadmap bullets** | All seven M2 bullets: authoring actions, media send, markdown and mentions, menus and shortcuts, context menus and selection, windows and restoration, Settings |
 | **Contract basis** | §4 M2, §5 order, 2026-09-01 M1 PRD (D-1, D-3), 2026-09-02 S-37 and S-38 rows, 2026-10-27 iOS amendment |
-| **Status** | Draft 2026-11-04 — decisions D-1…D-8 wait for Patrick. A1 (MATRIX-100) is in Review. The PRs that blocked Clusters B and C merged 2026-11-04 (main a9939c1). |
+| **Status** | Approved 2026-11-04 — Patrick resolved D-1…D-8 in session (§5). A1 (MATRIX-100) merged. Remaining stories seeded in Plane under MATRIX-99. |
 
 ## 1. Goal
 
@@ -99,61 +99,47 @@ Upload progress arrives on the local echo's send state, not on the join
 handle. The progress view therefore belongs in the timeline row, not in the
 composer.
 
-## 5. Decisions — open (Patrick)
+## 5. Decisions — resolved 2026-11-04 (Patrick, in session)
 
-**D-1 — Story order under the merge queue.**
-Recommendation: Cluster A (composer and media) starts now from main, because
-#60 does not move its files. Clusters B and C start only after #60 and the
-desktop PRs (#54–#57) merge. The other path stacks M2 branches on #60. That
-path works, but every new PR then waits on 13 unmerged iOS PRs.
-
-**D-2 — Selection across messages.**
-Native text selection across `NSHostingView` rows is not possible with the S-15
-container.
-- (a) Recommended: message-range selection. Click and Shift-click select whole
-  rows, and ⌘C copies a plain-text transcript ("Sender, time: body" per line).
-  Character selection inside one message stays as it is.
-- (b) A custom selection layer over the table. It is large, and it puts the
-  S-15 anchor and height guarantees at risk.
-- (c) Drop it from M2.
-
-**D-3 — Reaction picker.**
-- (a) Recommended: a popover with the SDK recent-emoji row
-  (`getRecentEmojis`), a search field, and a bundled emoji list with Unicode
-  CLDR names. Each reaction calls `addRecentEmoji`.
-- (b) The system Character Viewer. It inserts into a text field, and a reaction
-  has no text field, so it needs a hidden field. This is not reliable.
-
-**D-4 — Forwarding.**
-The SDK has no forward call, and building event content from another event is
-protocol logic.
-- (a) Recommended: forward text by sending the body again with
-  `messageEventContentFromMarkdown`. Forward media by downloading it through the
-  SDK media call and uploading it again with `sendImage`/`sendFile`. This costs
-  bandwidth, but every byte goes through SDK calls.
-- (b) Forward text only in M2.
-
-**D-5 — Enter setting.**
-Recommendation: Settings > Composer has "Enter sends (Shift-Enter for a new
-line)", the default, and "⌘Enter sends (Enter for a new line)". The value goes
-into `ComposerKeyDecision`, and its unit tests cover both modes.
-
-**D-6 — Mentions.**
-Recommendation: type "@" to get autocomplete over room members, with the SDK
-member list as the source. The composer inserts a `matrix.to` pill link in the
-markdown and sets `Mentions.userIds`. The bridges convert pills to native
-mentions. `@room` is out of M2.
-
-**D-7 — Quick switcher (⌘K).**
-Recommendation: a sheet with fuzzy match over the room list (name and alias),
-recent rooms first, and Return to open. ⌘1…9 open the first nine pinned
-favourites from #57. ⇧⌘] and ⇧⌘[ cycle through the visible chat list.
-
-**D-8 — More windows.**
-Recommendation: "Open in New Window" on the room context menu and ⌥-Return in
-the quick switcher, through `WindowGroup(for:)` with the room id. Each window
-restores its room through `@SceneStorage`. The app persists sidebar width and
-frames.
+- **D-1 — Story order:** settled by the 2026-11-04 integration merge (main
+  a9939c1). #54–#60 are in main, so every cluster can start. Stories that
+  edit the same files still run one after another (§7).
+- **D-2 — Selection across messages:** whole-message selection. Click and
+  Shift-click select whole messages, and ⌘C copies a plain-text transcript,
+  one line per message: "Sender, HH:MM: body". Character selection inside
+  one message stays as it is. No custom selection layer.
+- **D-3 — Reaction picker:** a custom popover. The SDK recent-emoji row
+  (`getRecentEmojis`) is on top, then a search field and a bundled emoji list
+  with Unicode CLDR names (English only). Every reaction calls
+  `addRecentEmoji`. The hover row shows the top recents, not three fixed emoji.
+- **D-4 — Forwarding:** text and media. Text is sent again as new content
+  with `messageEventContentFromMarkdown`. Media is downloaded through the SDK
+  media call and uploaded again with `sendImage`/`sendVideo`/`sendFile`. The
+  size shows before you confirm. No hand-built event content.
+- **D-5 — Enter setting:** built as MATRIX-100 (PR #72, merged).
+- **D-6 — Mentions:** "@" opens autocomplete over room members. A picked
+  mention is an atomic chip in the composer: one Backspace removes all of it,
+  and its text cannot be edited. The sent content has a `matrix.to` pill link
+  and `Mentions.userIds`. `@room` is out of M2.
+- **D-7a — ⌘K quick switcher:** rooms and people. Fuzzy match over room
+  names and aliases, recent rooms first. It also searches the user directory
+  through the same `searchUsers` path New Chat uses
+  (`Core/MatrixClient+NewChat.swift`). Picking a person opens the existing DM
+  or starts one through the New Chat start path. Local room results show at
+  once, and directory results add below them when they arrive.
+- **D-7b — ⌘1…⌘9:** favourites first, then the chat list. With F pinned
+  favourites (the grid from #57), ⌘1…⌘F open the favourites in grid order, and
+  ⌘(F+1)…⌘9 open the first rows of the visible chat list (favourites are not
+  in that list). Example: 3 favourites → ⌘1–⌘3 favourites, ⌘4 the first list
+  row, ⌘5 the second. With 9 or more favourites, all nine keys open
+  favourites. The list part uses the current filter and label, and it changes
+  when new messages reorder the list (accepted).
+- **D-7c — ⇧⌘] and ⇧⌘[:** next and previous room in the visible chat list,
+  with the current filter and label.
+- **D-8 — Room in a new window:** a single-room window: that room's timeline
+  and composer, no sidebar. "Open in New Window" on the room context menu and
+  ⌥-Return in the quick switcher. Restored on relaunch through
+  `@SceneStorage`. Window frames and the main window's sidebar width persist.
 
 ## 6. Stories
 
@@ -192,8 +178,8 @@ after another, not in parallel.
 
 ### Cluster C — Menus, switcher, windows (after #56, #57, and #60 merge)
 
-- **C1 — ⌘K quick switcher.** D-7.
-- **C2 — Go menu, ⌘1…9, ⇧⌘] and ⇧⌘[.** D-7.
+- **C1 — ⌘K quick switcher.** D-7a, rooms and people.
+- **C2 — Go menu, ⌘1…9, ⇧⌘] and ⇧⌘[.** D-7b, D-7c.
 - **C3 — Room in a new window, restoration, sidebar width.** D-8.
 
 ### Cluster D — Settings completion
