@@ -1,5 +1,6 @@
 import Core
 import MatrixRustSDK
+import OSLog
 import SwiftUI
 import UI
 
@@ -15,11 +16,17 @@ import UI
 /// points the Mac `ChatJoinedRoom` does: `.read` a second after the items
 /// change while the scene is active, `.fullyRead` when the room closes.
 ///
+/// Two seconds after the room shows, it is marked as recently visited, with
+/// the call and delay of the Mac `ChatJoinedRoom`. Closing the room within
+/// the delay cancels the sleep, and no call is made.
+///
 /// Both objects live in view state, so closing the room (a pop on iPhone, a
 /// new selection on iPad) releases them, and with them the SDK timeline and
 /// its listeners. This is how the Mac drops a room when its selected screen
 /// changes.
 struct LiveRoomScreen: View {
+    @Environment(AppState.self) private var appState
+
     let sidebarRoom: SidebarRoom
     let imageLoader: (any UI.ImageLoader)?
 
@@ -38,6 +45,18 @@ struct LiveRoomScreen: View {
         .onAppear {
             if room?.id != sidebarRoom.id {
                 room = LiveRoom(matrixRoom: sidebarRoom.room)
+            }
+        }
+        .task(priority: .background) {
+            let roomID = sidebarRoom.id
+            do {
+                try await Task.sleep(for: .seconds(2))
+                try await appState.matrixClient?.client.trackRecentlyVisitedRoom(room: roomID)
+                Logger.roomList.debug("marked room as recently visited: \(roomID)")
+            } catch is CancellationError {
+                /* sleep cancelled */
+            } catch {
+                Logger.roomList.error("failed to mark room as recently visited: \(error)")
             }
         }
     }
