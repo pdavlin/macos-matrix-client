@@ -5,7 +5,7 @@
 | **Milestone** | M2 — Full send path + Mac platform integration (Contract §4) |
 | **Roadmap bullets** | All seven M2 bullets: authoring actions, media send, markdown and mentions, menus and shortcuts, context menus and selection, windows and restoration, Settings |
 | **Contract basis** | §4 M2, §5 order, 2026-09-01 M1 PRD (D-1, D-3), 2026-09-02 S-37 and S-38 rows, 2026-10-27 iOS amendment |
-| **Status** | Draft 2026-11-04 — decisions D-1…D-8 wait for Patrick. Only story A1 (no open decision) may start before approval. |
+| **Status** | Draft 2026-11-04 — decisions D-1…D-8 wait for Patrick. A1 (MATRIX-100) is in Review. The PRs that blocked Clusters B and C merged 2026-11-04 (main a9939c1). |
 
 ## 1. Goal
 
