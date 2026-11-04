@@ -1,5 +1,6 @@
 import MatrixRustSDK
 import SwiftUI
+import UI
 
 struct SettingsView: View {
     var body: some View {
@@ -9,6 +10,9 @@ struct SettingsView: View {
             }
             Tab("Appearance", systemImage: "eye") {
                 AppearanceSettingsView()
+            }
+            Tab("Composer", systemImage: "square.and.pencil") {
+                ComposerSettingsView()
             }
             Tab("Sessions", systemImage: "desktopcomputer.and.macbook") {
                 SessionsSettingsView()
