@@ -3,6 +3,7 @@ import Models
 import OSLog
 import SwiftUI
 import Tokens
+import UI
 
 struct ChatTextView: NSViewRepresentable {
     typealias NSViewRepresentableType = NSTextView
@@ -10,16 +11,28 @@ struct ChatTextView: NSViewRepresentable {
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
     @AppStorage(ComposerKeyDecision.SendMode.storageKey) var sendMode = ComposerKeyDecision.SendMode.defaultMode
 
+    /// The composer content as draft text: typed text, and each mention chip
+    /// as a `matrix.to` pill link (`Models.MentionMarkdown`). The text view
+    /// shows the pills as chips.
     let text: Binding<String>
     let placeholder: String
     let disabled: Bool
+    /// Runs the "@" autocomplete and inserts chips (MATRIX-105).
+    let mentions: ComposerMentionController
     let onSubmit: () -> Void
 
     func makeNSView(context: Context) -> DynamicTextView {
-        let textView = DynamicTextView()
+        // TextKit 1 on purpose: the mention chip cell draws through
+        // NSLayoutManager, and `intrinsicContentSize` already uses it (an
+        // access that would switch a TextKit 2 view to TextKit 1 anyway).
+        let textView = DynamicTextView(usingTextLayoutManager: false)
 
         textView.onSubmit = onSubmit
         textView.sendMode = sendMode
+        textView.mentionKeyHandler = { [weak mentions] key in
+            mentions?.handle(key) ?? false
+        }
+        mentions.textView = textView
 
         textView.placeholderAttributedString = NSAttributedString(
             string: placeholder,
@@ -51,12 +64,30 @@ struct ChatTextView: NSViewRepresentable {
 
     func updateNSView(_ textView: DynamicTextView, context: Context) {
         context.coordinator.text = text
+        context.coordinator.mentions = mentions
 
         textView.onSubmit = onSubmit
         textView.sendMode = sendMode
+        textView.mentionKeyHandler = { [weak mentions] key in
+            mentions?.handle(key) ?? false
+        }
+        mentions.textView = textView
 
-        if textView.string != text.wrappedValue {
-            textView.string = text.wrappedValue
+        let currentFont = NSFont.systemFont(ofSize: CGFloat(fontSize))
+        if textView.font?.pointSize != currentFont.pointSize {
+            textView.font = currentFont
+            textView.invalidateIntrinsicContentSize()
+        }
+
+        // Rebuild only for a change from outside the text view (draft load,
+        // clear after send). The view's own edits set `lastText` first.
+        if text.wrappedValue != context.coordinator.lastText {
+            context.coordinator.lastText = text.wrappedValue
+            let segments = MentionMarkdown.segments(fromDraftText: text.wrappedValue)
+            unsafe textView.textStorage?.setAttributedString(
+                ComposerAttributedText.attributedString(for: segments, attributes: textView.baseTextAttributes)
+            )
+            textView.setSelectedRange(NSRange(location: (textView.string as NSString).length, length: 0))
             textView.invalidateIntrinsicContentSize()
         }
 
@@ -91,30 +122,38 @@ struct ChatTextView: NSViewRepresentable {
                 unsafe textView.window?.makeFirstResponder(nil)
             }
         }
-
-        let currentFont = NSFont.systemFont(ofSize: CGFloat(fontSize))
-        if textView.font?.pointSize != currentFont.pointSize {
-            textView.font = currentFont
-            textView.invalidateIntrinsicContentSize()
-        }
     }
 
     func makeCoordinator() -> Coordinator {
-        return Coordinator(text: text)
+        return Coordinator(text: text, mentions: mentions)
     }
 
     class Coordinator: NSObject, NSTextViewDelegate {
         var textView: NSTextView?
         var text: Binding<String>
+        var mentions: ComposerMentionController
 
-        init(text: Binding<String>) {
+        /// The draft text the text view shows. `updateNSView` compares the
+        /// binding with this, so it rebuilds the text only for an outside
+        /// change and never for the view's own edit.
+        var lastText = ""
+
+        init(text: Binding<String>, mentions: ComposerMentionController) {
             self.text = text
+            self.mentions = mentions
         }
 
         func textDidChange(_: Notification) {
-            guard let textView else { return }
+            guard let textView, let storage = unsafe textView.textStorage else { return }
 
-            text.wrappedValue = textView.string
+            let draftText = MentionMarkdown.draftText(for: ComposerAttributedText.segments(from: storage))
+            lastText = draftText
+            text.wrappedValue = draftText
+            mentions.refresh()
+        }
+
+        func textViewDidChangeSelection(_: Notification) {
+            mentions.refresh()
         }
     }
 }
@@ -130,6 +169,23 @@ class DynamicTextView: NSTextView {
     /// `ChatTextView` from `@AppStorage`, so a change in Settings applies to
     /// open composers without a relaunch.
     var sendMode: ComposerKeyDecision.SendMode = .defaultMode
+
+    /// Takes the popup keys (arrows, Return, Tab, Esc) while the mention
+    /// popup is open. Returns true if it used the key (MATRIX-105).
+    var mentionKeyHandler: ((MentionAutocompleteKey) -> Bool)?
+
+    /// The pasteboard type for composer content with chips: the draft text
+    /// (`MentionMarkdown.draftText(for:)`). Copy and paste inside the composer
+    /// keep chips through it. Other apps get plain text.
+    static let draftTextPasteboardType = NSPasteboard.PasteboardType("io.davlin.matrixclient.composer-draft-text")
+
+    /// The font and color for typed text and chips.
+    var baseTextAttributes: [NSAttributedString.Key: Any] {
+        [
+            .font: font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+            .foregroundColor: textColor ?? NSColor.textColor
+        ]
+    }
 
     override var intrinsicContentSize: NSSize {
         guard let container = unsafe textContainer, let manager = unsafe layoutManager else {
@@ -187,7 +243,34 @@ class DynamicTextView: NSTextView {
         return super.performKeyEquivalent(with: event)
     }
 
+    /// Maps a key event to a mention popup key. Only keys with no modifier
+    /// count, and never during IME composition.
+    private func mentionKey(for event: NSEvent) -> MentionAutocompleteKey? {
+        guard !hasMarkedText() else { return nil }
+        let modifiers = event.modifierFlags
+            .intersection(.deviceIndependentFlagsMask)
+            .subtracting([.numericPad, .function, .capsLock])
+        guard modifiers.isEmpty else { return nil }
+        switch event.specialKey {
+        case .upArrow:
+            return .up
+        case .downArrow:
+            return .down
+        case .enter, .carriageReturn, .tab:
+            return .confirm
+        default:
+            return event.keyCode == Self.escapeKeyCode ? .dismiss : nil
+        }
+    }
+
+    /// `kVK_Escape`.
+    private static let escapeKeyCode: UInt16 = 53
+
     override func keyDown(with event: NSEvent) {
+        if let key = mentionKey(for: event), mentionKeyHandler?(key) == true {
+            return
+        }
+
         if sendAction(for: event) == .send {
             onSubmit?()
             return
@@ -197,5 +280,43 @@ class DynamicTextView: NSTextView {
         // `.commandEnterSends`), IME composition commit, and every
         // non-Return key.
         super.keyDown(with: event)
+    }
+
+    // MARK: - Pasteboard (MATRIX-105)
+
+    /// Writes a selection that holds a chip as draft text (for this composer)
+    /// and plain text with "@name" (for other apps). A selection with no chip
+    /// uses the default behavior.
+    override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
+        let range = selectedRange()
+        guard range.length > 0, let storage = unsafe textStorage else {
+            return super.writeSelection(to: pboard, types: types)
+        }
+        let segments = ComposerAttributedText.segments(from: storage.attributedSubstring(from: range))
+        guard !MentionMarkdown.mentionedUserIds(in: segments).isEmpty else {
+            return super.writeSelection(to: pboard, types: types)
+        }
+        pboard.declareTypes([Self.draftTextPasteboardType, .string], owner: nil)
+        pboard.setString(MentionMarkdown.draftText(for: segments), forType: Self.draftTextPasteboardType)
+        pboard.setString(MentionMarkdown.plainText(for: segments), forType: .string)
+        return true
+    }
+
+    override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        [Self.draftTextPasteboardType] + super.readablePasteboardTypes
+    }
+
+    /// Pastes draft text from this composer with its chips. Other types use
+    /// the default behavior.
+    override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        guard type == Self.draftTextPasteboardType, let draftText = pboard.string(forType: type) else {
+            return super.readSelection(from: pboard, type: type)
+        }
+        let segments = MentionMarkdown.segments(fromDraftText: draftText)
+        insertText(
+            ComposerAttributedText.attributedString(for: segments, attributes: baseTextAttributes),
+            replacementRange: selectedRange()
+        )
+        return true
     }
 }

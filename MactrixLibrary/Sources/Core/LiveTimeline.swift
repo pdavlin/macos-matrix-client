@@ -23,6 +23,11 @@ public final class LiveTimeline {
 
     public var sendReplyTo: MatrixRustSDK.EventTimelineItem?
 
+    /// A mention that the composer for this timeline must insert as a chip
+    /// (MATRIX-105). The user profile "Mention" action sets it, and the
+    /// composer inserts the chip and sets it back to nil.
+    public var pendingComposerMention: MentionTarget?
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline
