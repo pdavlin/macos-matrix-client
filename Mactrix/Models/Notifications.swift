@@ -6,6 +6,10 @@ import UserNotifications
 @MainActor @Observable final class MatrixNotifications: NSObject {
     var selectedRoomId: String?
 
+    /// MATRIX-77: rooms whose every label is muted. Mactrix shows no
+    /// notification for them; push rules and other clients are untouched.
+    @ObservationIgnored var labelMutedRoomIds: Set<String> = []
+
     typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
 
     @ObservationIgnored private let notificationContinuation: AsyncStream<NotificationEvent>.Continuation
@@ -43,6 +47,11 @@ extension MatrixNotifications: MatrixRustSDK.SyncNotificationListener {
 
 extension MatrixNotifications {
     func sendNotification(notification: MatrixRustSDK.NotificationItem, roomId: String) async {
+        guard !labelMutedRoomIds.contains(roomId) else {
+            Logger.notification.debug("skipping notification from room \(roomId): muted by label")
+            return
+        }
+
         do {
             let success = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .badge, .sound])

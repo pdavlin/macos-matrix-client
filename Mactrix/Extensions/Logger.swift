@@ -20,4 +20,6 @@ extension Logger {
     static let notification = Logger(subsystem: subsystem, category: "notification")
 
     static let utd = Logger(subsystem: subsystem, category: "utd")
+
+    static let labels = Logger(subsystem: subsystem, category: "labels")
 }

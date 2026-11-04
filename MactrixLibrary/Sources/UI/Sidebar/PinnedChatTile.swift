@@ -61,7 +61,7 @@ public struct PinnedChatTile: View {
             .contentShape(tileShape)
         }
         .buttonStyle(.plain)
-        .help(model.title)
+        .help(model.helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.accessibilityLabel)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)

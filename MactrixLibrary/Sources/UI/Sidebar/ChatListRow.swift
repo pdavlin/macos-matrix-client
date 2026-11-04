@@ -94,7 +94,7 @@ public struct ChatListRow: View {
         .padding(.vertical, ChatListToken.rowVerticalPadding)
         .padding(.horizontal, ChatListToken.rowHorizontalPadding)
         .contentShape(Rectangle())
-        .help(model.title)
+        .help(model.helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.accessibilityLabel)
         .accessibilityValue(model.preview ?? "")
