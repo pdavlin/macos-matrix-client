@@ -44,7 +44,7 @@ final class TimelineGateTests: XCTestCase {
         XCTAssertNil(outcome.refusal)
         XCTAssertEqual(
             outcome.reports.map(\.scenario),
-            ["cold-load", "s1", "s2-quiesced", "s4", "width-change"]
+            ["cold-load", "s1", "s1-status-bar", "s2-quiesced", "s4", "width-change"]
         )
         for verdict in outcome.verdicts {
             XCTAssertTrue(verdict.passed, verdict.summaryLine)

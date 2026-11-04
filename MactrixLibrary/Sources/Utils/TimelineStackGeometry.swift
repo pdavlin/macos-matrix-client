@@ -35,7 +35,37 @@ public struct TimelineStackGeometry: Equatable, Sendable {
         contentHeight = running
     }
 
+    private init(heights: [CGFloat], offsets: [CGFloat], contentHeight: CGFloat) {
+        self.heights = heights
+        self.offsets = offsets
+        self.contentHeight = contentHeight
+    }
+
     public var rowCount: Int { heights.count }
+
+    /// The geometry with some rows' heights replaced, and every other height
+    /// kept (MATRIX-98).
+    ///
+    /// Offsets before the first changed row are reused, and the rest are
+    /// summed again from there. That is the same additions in the same order
+    /// as `init(heights:)`, so the result equals a full rebuild exactly. Rows
+    /// the geometry does not hold are ignored.
+    public func replacingHeights(_ changes: [Int: CGFloat]) -> TimelineStackGeometry {
+        let valid = changes.filter { heights.indices.contains($0.key) }
+        guard let first = valid.keys.min() else { return self }
+        var newHeights = heights
+        for (row, height) in valid {
+            newHeights[row] = height
+        }
+        var newOffsets = Array(offsets[..<first])
+        newOffsets.reserveCapacity(newHeights.count)
+        var running = offsets[first]
+        for height in newHeights[first...] {
+            newOffsets.append(running)
+            running += height
+        }
+        return TimelineStackGeometry(heights: newHeights, offsets: newOffsets, contentHeight: running)
+    }
 
     /// Distance of the row's leading edge from the document origin, or nil for
     /// an index the geometry does not hold.
