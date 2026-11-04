@@ -24,8 +24,8 @@ struct ClientIdentityTests {
     }
 
     @Test func everyPlatformHasADistinctDisplayName() {
-        let names = Set(ClientPlatform.allCases.map { ClientIdentity(platform: $0).deviceDisplayName })
+        let names = Set(ClientDevice.allCases.map { ClientIdentity(platform: $0).deviceDisplayName })
 
-        #expect(names.count == ClientPlatform.allCases.count)
+        #expect(names.count == ClientDevice.allCases.count)
     }
 }

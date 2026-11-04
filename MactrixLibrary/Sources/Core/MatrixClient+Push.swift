@@ -32,6 +32,8 @@ public extension MatrixClient {
     ///   sweep next to an empty store.
     /// - The session delegate is `MatrixClientSessionDelegate`, so a token
     ///   refresh in the extension goes to the shared keychain.
+    /// - The cross-process lock holder is the extension's (MATRIX-96), so the
+    ///   store locks and the OAuth refresh lock exclude the app process.
     /// - The notification client uses `.multipleProcesses`, because the app
     ///   process can hold the same store at the same time.
     static func notificationServiceClient() async throws -> NotificationServiceClient {
@@ -49,7 +51,8 @@ public extension MatrixClient {
         let client = try await clientBuilder(
             homeServer: userSession.homeserverURL,
             storeId: userSession.storeID,
-            storePassphrase: userSession.storePassphrase
+            storePassphrase: userSession.storePassphrase,
+            process: .notificationServiceExtension
         )
         .setSessionDelegate(sessionDelegate: sessionDelegate)
         .build()

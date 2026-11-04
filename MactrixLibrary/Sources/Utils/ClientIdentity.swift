@@ -1,5 +1,6 @@
-/// The platform the client runs on, as far as the homeserver device list cares.
-public enum ClientPlatform: Sendable, Equatable, CaseIterable {
+/// The kind of device the client runs on, as far as the homeserver device list
+/// cares. Not `ClientPlatform` (MATRIX-96), which names only the OS.
+public enum ClientDevice: Sendable, Equatable, CaseIterable {
     case macOS
     case iPhone
     case iPad
@@ -11,7 +12,7 @@ public struct ClientIdentity: Sendable, Equatable {
     public let deviceDisplayName: String
     public let userAgent: String
 
-    public init(platform: ClientPlatform) {
+    public init(platform: ClientDevice) {
         switch platform {
         case .macOS:
             deviceDisplayName = "Mactrix"
