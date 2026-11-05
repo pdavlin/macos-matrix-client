@@ -24,11 +24,9 @@ public struct TimelineGroups: Hashable {
                     groups[groups.count - 1] = .messages(messages: messages + [TimelineGroup.Message(id: item.uniqueId().id, event: event, content: content)], id: id, version: version)
                     return
                 }
-            } else {
-                if case let .stateChanges(events: events, id, _) = groups.last {
-                    groups[groups.count - 1] = .stateChanges(events: events + [TimelineGroup.Event(id: item.uniqueId().id, event: event)], id: id, version: version)
-                    return
-                }
+            } else if case let .stateChanges(events: events, id, _) = groups.last {
+                groups[groups.count - 1] = .stateChanges(events: events + [TimelineGroup.Event(id: item.uniqueId().id, event: event)], id: id, version: version)
+                return
             }
         }
 

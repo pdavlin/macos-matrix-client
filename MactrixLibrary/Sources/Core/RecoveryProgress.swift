@@ -53,7 +53,9 @@ public final class RecoveryProgress {
     public var pendingRecoveryKey: String? {
         if case let .showingKey(key) = phase {
             key
-        } else { nil }
+        } else {
+            nil
+        }
     }
 
     /// Creates secret storage and a new recovery key.

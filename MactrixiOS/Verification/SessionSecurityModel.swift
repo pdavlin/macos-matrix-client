@@ -83,13 +83,17 @@ final class SessionSecurityModel {
     var recoveryErrorMessage: String? {
         if case let .failed(message) = recovery.phase {
             message
-        } else { nil }
+        } else {
+            nil
+        }
     }
 
     var recoveryProgressDetail: String? {
         if case let .enabling(detail) = recovery.phase {
             detail
-        } else { nil }
+        } else {
+            nil
+        }
     }
 
     // MARK: Verification
