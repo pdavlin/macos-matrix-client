@@ -50,6 +50,11 @@ public final class LiveTimeline {
     /// (MATRIX-106). See `sendMedia(_:)` and `cancelMediaSend(localEcho:)`.
     public let mediaSends = MediaSendTracker()
 
+    /// The forward of a message from this timeline (MATRIX-112): the room
+    /// picker, the confirmation, and the send state. The room view shows
+    /// the sheets. See `requestForward(of:)` and `MatrixClient.forward`.
+    public let forwarding = LiveMessageForwardFlow()
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline

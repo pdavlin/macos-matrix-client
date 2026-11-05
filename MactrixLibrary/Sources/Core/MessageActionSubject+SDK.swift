@@ -35,8 +35,16 @@ public extension Models.MessageActionSubject {
             isPinned: eventId.map(pinnedEventIds.contains) ?? false,
             copyableText: copyableText,
             redactPermission: redactPermission,
-            isEditable: event.isEditable && MessageEditTarget.editableContent(of: msg.kind) != nil
+            isEditable: event.isEditable && MessageEditTarget.editableContent(of: msg.kind) != nil,
+            isForwardable: Self.isForwardable(msg.kind)
         )
+    }
+
+    /// Whether the content forwards (MATRIX-112). The event ID rule is in
+    /// the action model, so a local echo shows Forward disabled.
+    private static func isForwardable(_ kind: MatrixRustSDK.MsgLikeKind) -> Bool {
+        guard case let .message(message) = kind else { return false }
+        return Models.MessageForwardContent.decide(for: message.msgType) != nil
     }
 
     private static func content(of kind: MatrixRustSDK.MsgLikeKind) -> (Content, String?) {

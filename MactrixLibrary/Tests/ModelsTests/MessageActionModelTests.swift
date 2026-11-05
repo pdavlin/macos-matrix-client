@@ -16,7 +16,8 @@ struct MessageActionModelTests {
         isPinned: Bool = false,
         copyableText: String? = "hello",
         redactPermission: MessageRedactPermission = .none,
-        isEditable: Bool = false
+        isEditable: Bool = false,
+        isForwardable: Bool = false
     ) -> MessageActionSubject {
         MessageActionSubject(
             content: content,
@@ -26,7 +27,8 @@ struct MessageActionModelTests {
             isPinned: isPinned,
             copyableText: copyableText,
             redactPermission: redactPermission,
-            isEditable: isEditable
+            isEditable: isEditable,
+            isForwardable: isForwardable
         )
     }
 
@@ -149,15 +151,16 @@ struct MessageActionModelTests {
 
     @Test func editMenuKeepsOneShapeAcrossMessages() {
         let text = actions(subject(), on: .editMenu)
-        #expect(text == [.reply] + Self.react + [.edit, .copyText, .copyLink, .pin, .redact])
+        #expect(text == [.reply] + Self.react + [.edit, .forward, .copyText, .copyLink, .pin, .redact])
         #expect(actions(subject(.image, copyableText: nil), on: .editMenu) == text)
         #expect(actions(subject(.redacted, copyableText: nil), on: .editMenu) == text)
         #expect(actions(nil, on: .editMenu) == text)
     }
 
     @Test func editMenuDisablesWhatDoesNotApply() {
-        #expect(disabled(subject(.image, copyableText: nil), on: .editMenu) == [.edit, .copyText, .redact])
-        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.react + [.edit, .copyText, .pin, .redact])
+        #expect(disabled(subject(.image, copyableText: nil, isForwardable: true), on: .editMenu) == [.edit, .copyText, .redact])
+        let redacted = subject(.redacted, copyableText: nil)
+        #expect(disabled(redacted, on: .editMenu) == [.reply] + Self.react + [.edit, .forward, .copyText, .pin, .redact])
     }
 
     @Test func editMenuWithoutATargetIsAllDisabled() {
@@ -165,7 +168,7 @@ struct MessageActionModelTests {
     }
 
     @Test func editMenuSwapsPinForUnpin() {
-        let pinned = subject(isOwn: true, isPinned: true, redactPermission: Self.member, isEditable: true)
+        let pinned = subject(isOwn: true, isPinned: true, redactPermission: Self.member, isEditable: true, isForwardable: true)
         #expect(actions(pinned, on: .editMenu).contains(.unpin))
         #expect(!actions(pinned, on: .editMenu).contains(.pin))
         #expect(disabled(pinned, on: .editMenu).isEmpty)
