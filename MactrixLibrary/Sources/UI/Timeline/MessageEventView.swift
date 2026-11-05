@@ -63,7 +63,7 @@ public extension MessageEventActions {
         case .replyInThread: replyInThread()
         case let .toggleReaction(key): toggleReaction(key: key)
         case .pin: pin()
-        case .openReactionPicker, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads: break
+        case .openReactionPicker, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact: break
         }
     }
 }

@@ -32,6 +32,15 @@ public final class LiveTimeline {
     /// on hover; the menu commands read it through the window's timeline.
     public let messageActionTarget = MessageActionTargetSlot()
 
+    /// The message that waits for the delete confirmation (MATRIX-110). The
+    /// room view shows the confirmation sheet while it is set. It lives here,
+    /// not in the row, because a row can scroll away while the sheet is open.
+    public var pendingRedaction: MessageRedactionRequest?
+
+    /// Why the last redaction failed, or nil. The room view shows it in an
+    /// alert and clears it.
+    public var redactionFailure: String?
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline
