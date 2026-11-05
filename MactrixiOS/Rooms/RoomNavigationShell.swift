@@ -133,6 +133,55 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
 
     private func detail(for roomID: String) -> some View {
         RoomDetailHost(roomID: roomID, rooms: rooms, content: roomDetail)
+            .environment(\.closeRoom, closeAction(for: roomID))
+    }
+
+    /// Closes `roomID` if it is still the open room: pops it off the iPhone
+    /// stack, or clears the iPad selection (MATRIX-104).
+    private func closeAction(for roomID: String) -> CloseRoomAction {
+        let path = $path
+        let selection = $selection
+        return CloseRoomAction {
+            path.wrappedValue = RoomClosing.path(path.wrappedValue, closing: roomID)
+            selection.wrappedValue = RoomClosing.selection(selection.wrappedValue, closing: roomID)
+        }
+    }
+}
+
+/// Closes the open room. The shell puts one in each room detail's
+/// environment; outside the shell (previews, fixtures) it is nil.
+struct CloseRoomAction {
+    private let close: @MainActor () -> Void
+
+    init(_ close: @escaping @MainActor () -> Void) {
+        self.close = close
+    }
+
+    @MainActor
+    func callAsFunction() {
+        close()
+    }
+}
+
+extension EnvironmentValues {
+    /// The shell's action that closes the open room (MATRIX-104).
+    @Entry var closeRoom: CloseRoomAction?
+}
+
+/// The navigation state after a room closes. A room that is no longer the
+/// open one leaves the state as it is, so a late close (a call that returns
+/// after the user moved on) never closes another room.
+enum RoomClosing {
+    /// The iPhone stack path: the closed room and everything pushed above it
+    /// come off.
+    static func path(_ path: [String], closing roomID: String) -> [String] {
+        guard let index = path.firstIndex(of: roomID) else { return path }
+        return Array(path[..<index])
+    }
+
+    /// The iPad selection: nil when the closed room was selected.
+    static func selection(_ selection: String?, closing roomID: String) -> String? {
+        selection == roomID ? nil : selection
     }
 }
 
