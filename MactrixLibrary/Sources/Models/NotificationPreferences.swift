@@ -1,12 +1,12 @@
 import Foundation
 
 /// The user's global notification settings (MATRIX-117, Settings >
-/// Notifications).
+/// Notifications), and the Dock badge switch (MATRIX-119).
 ///
 /// Each value is stored with `@AppStorage` under its `...StorageKey`. The
 /// keys are persisted user settings: do not rename them. A key that was never
-/// written reads as its default, so a fresh install shows notifications and
-/// plays a sound.
+/// written reads as its default, so a fresh install shows notifications,
+/// plays a sound, and shows the Dock badge.
 ///
 /// Per-room mute (a push rule) and the MATRIX-77 label mute are not settings
 /// here: they apply before these values, see
@@ -16,24 +16,33 @@ public struct NotificationPreferences: Equatable, Sendable {
     public var showsNotifications: Bool
     /// Play the default notification sound with each notification.
     public var playsSound: Bool
+    /// Show the number of unread chats on the Dock icon (macOS only). The
+    /// counting rule is `DockBadge.counts(_:isMutedByLabel:)`.
+    public var showsDockBadge: Bool
 
     /// `UserDefaults` key of `showsNotifications`. Same naming style as
     /// `ComposerKeyDecision.SendMode.storageKey`.
     public static let showNotificationsStorageKey = "showNotifications"
     /// `UserDefaults` key of `playsSound`.
     public static let playNotificationSoundStorageKey = "playNotificationSound"
+    /// `UserDefaults` key of `showsDockBadge` (MATRIX-119).
+    public static let showDockBadgeStorageKey = "showDockBadge"
 
     /// Value of `showsNotifications` when the user never changed it.
     public static let defaultShowsNotifications = true
     /// Value of `playsSound` when the user never changed it.
     public static let defaultPlaysSound = true
+    /// Value of `showsDockBadge` when the user never changed it.
+    public static let defaultShowsDockBadge = true
 
     public init(
         showsNotifications: Bool = NotificationPreferences.defaultShowsNotifications,
-        playsSound: Bool = NotificationPreferences.defaultPlaysSound
+        playsSound: Bool = NotificationPreferences.defaultPlaysSound,
+        showsDockBadge: Bool = NotificationPreferences.defaultShowsDockBadge
     ) {
         self.showsNotifications = showsNotifications
         self.playsSound = playsSound
+        self.showsDockBadge = showsDockBadge
     }
 
     /// Reads the current settings from `defaults`. A missing or non-Bool
@@ -44,9 +53,11 @@ public struct NotificationPreferences: Equatable, Sendable {
     public init(defaults: UserDefaults) {
         let storedShow: Bool? = defaults.object(forKey: Self.showNotificationsStorageKey) as? Bool
         let storedSound: Bool? = defaults.object(forKey: Self.playNotificationSoundStorageKey) as? Bool
+        let storedDockBadge: Bool? = defaults.object(forKey: Self.showDockBadgeStorageKey) as? Bool
         self.init(
             showsNotifications: storedShow ?? Self.defaultShowsNotifications,
-            playsSound: storedSound ?? Self.defaultPlaysSound
+            playsSound: storedSound ?? Self.defaultPlaysSound,
+            showsDockBadge: storedDockBadge ?? Self.defaultShowsDockBadge
         )
     }
 }
