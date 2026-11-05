@@ -85,7 +85,6 @@ public class MatrixClient {
         storePassphrase: String,
         process: ClientProcess = .app
     ) -> ClientBuilder {
-        URL.ensureSessionCachesDirectory(for: storeId)
         let sqliteConfig = SqliteStoreBuilder(
             dataPath: URL.sessionData(for: storeId).path(percentEncoded: false),
             cachePath: URL.sessionCaches(for: storeId).path(percentEncoded: false)
