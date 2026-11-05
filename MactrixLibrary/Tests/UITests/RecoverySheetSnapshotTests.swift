@@ -31,7 +31,7 @@ struct RecoverySheetSnapshotTests {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func keyDisplay() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(RecoveryKeyDisplaySheet(recoveryKey: sampleKey, onAcknowledge: {})),
             as: .scaledImage
         )
@@ -39,7 +39,7 @@ struct RecoverySheetSnapshotTests {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func keyEntryEmpty() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(RecoveryKeyEntrySheet(isBusy: false, errorMessage: nil, onSubmit: { _ in }, onCancel: {})),
             as: .scaledImage
         )
@@ -49,7 +49,7 @@ struct RecoverySheetSnapshotTests {
     /// not push the buttons off the sheet.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func keyEntryShowingError() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(RecoveryKeyEntrySheet(
                 isBusy: false,
                 errorMessage: "The recovery key is not valid. Check for missing characters and try again.",
@@ -67,7 +67,7 @@ struct RecoverySheetSnapshotTests {
     /// is an AppKit control whose track flipped between two styles (MATRIX-101).
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func keyEntryBusy() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(RecoveryKeyEntrySheet(isBusy: true, errorMessage: nil, onSubmit: { _ in }, onCancel: {})
                 .environment(\.usesStaticProgressIndicators, true)),
             as: .scaledImage
@@ -78,7 +78,7 @@ struct RecoverySheetSnapshotTests {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func identityResetBanner() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(IdentityResetBanner(onVerify: {}, onSignOut: {})),
             as: .scaledImage
         )

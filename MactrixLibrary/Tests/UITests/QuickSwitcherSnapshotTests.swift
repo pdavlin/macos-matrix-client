@@ -49,7 +49,7 @@ struct QuickSwitcherSnapshotTests {
     /// Empty query: recent rooms, with the open room ("General") last.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func emptyQueryShowsRecentRooms() {
-        assertSnapshot(of: host(query: ""), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(query: ""), as: .scaledImage)
     }
 
     /// "ali": the DM room first, then people from the directory. Alice has a
@@ -61,7 +61,7 @@ struct QuickSwitcherSnapshotTests {
             NewChatPerson(userId: "@alistair:example.org", displayName: "Alistair Reid"),
             NewChatPerson(userId: "@natalia:example.org", displayName: "Natalia Ali"),
         ]
-        assertSnapshot(of: host(query: "ali", directoryResults: people), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(query: "ali", directoryResults: people), as: .scaledImage)
     }
 }
 

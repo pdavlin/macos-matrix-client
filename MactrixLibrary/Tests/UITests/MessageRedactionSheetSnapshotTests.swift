@@ -21,7 +21,7 @@ struct MessageRedactionSheetSnapshotTests {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func ownMessage() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(MessageRedactionSheet(isOwn: true, onDelete: { _ in }, onCancel: {})),
             as: .scaledImage
         )
@@ -30,7 +30,7 @@ struct MessageRedactionSheetSnapshotTests {
     /// A moderator deletes another person's message: the note says so.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func otherPersonsMessage() {
-        assertSnapshot(
+        assertTextFieldSnapshot(
             of: host(MessageRedactionSheet(isOwn: false, onDelete: { _ in }, onCancel: {})),
             as: .scaledImage
         )
