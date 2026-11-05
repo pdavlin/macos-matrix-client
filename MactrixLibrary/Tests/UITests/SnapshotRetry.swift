@@ -4,6 +4,13 @@ import Foundation
 // `assertSnapshot` itself uses. The package pins SnapshotTesting exactly.
 @_spi(Internals) import SnapshotTesting
 
+/// How long the main run loop spins between a failed first attempt and the
+/// retry (MATRIX-120). An immediate retry was not enough: in a 20-run sample
+/// (run 19), `LabelSnapshotTests.editSheetNew` failed on both attempts with
+/// the race signature (same 880x1006 px size, 7238 px different in rows 98
+/// to 157, the text-field area). The race window was longer than one render.
+let textFieldSnapshotRetryDelay: TimeInterval = 1.0
+
 /// Asserts a snapshot with one automatic retry, for suites that render
 /// AppKit text fields (MATRIX-120).
 ///
@@ -19,6 +26,9 @@ import Foundation
 /// (`verifySnapshot` plus `recordIssue`), so it records the usual issue with
 /// the usual diff. When the retry passes, one line goes to stderr so retries
 /// stay visible in logs.
+///
+/// After a failed first attempt, the helper spins the main run loop for
+/// `textFieldSnapshotRetryDelay` before it re-creates the view and retries.
 ///
 /// The first attempt runs with `record: .never`, so it never writes a
 /// reference. When the effective record mode is `.all`, there is no retry.
@@ -56,6 +66,7 @@ func assertTextFieldSnapshot<Value>(
         )
         guard firstFailure != nil else { return }
         firstAttemptFailed = true
+        RunLoop.main.run(until: Date().addingTimeInterval(textFieldSnapshotRetryDelay))
     }
     let retryFailure: String? = verifySnapshot(
         of: value(),
