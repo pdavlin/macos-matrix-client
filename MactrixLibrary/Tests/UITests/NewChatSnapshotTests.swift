@@ -44,7 +44,7 @@ struct NewChatSnapshotTests {
     /// Empty query: the leading actions, then recent DM partners.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func emptyStateWithLeadingActions() {
-        assertSnapshot(of: host(mode: .direct), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(mode: .direct), as: .scaledImage)
     }
 
     /// A typed user ID the directory does not return still gets a row of its
@@ -52,27 +52,27 @@ struct NewChatSnapshotTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func searchResultsWithExactUserIdRow() {
         let draft = NewChatDraft(query: "@slackbot:davlin.io", searchResults: [puppet])
-        assertSnapshot(of: host(mode: .direct, draft: draft), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(mode: .direct, draft: draft), as: .scaledImage)
     }
 
     /// One pill selected: the person leaves the list and Start is enabled.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func onePersonSelected() {
         let draft = NewChatDraft(selected: [alice])
-        assertSnapshot(of: host(mode: .direct, draft: draft), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(mode: .direct, draft: draft), as: .scaledImage)
     }
 
     /// Group mode with a name, showing the encryption confirm.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func groupModeWithEncryptionConfirm() {
         let draft = NewChatDraft(selected: [alice, bob], groupName: "Weekend plans", isConfirmingEncryption: true)
-        assertSnapshot(of: host(mode: .group, draft: draft), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(mode: .group, draft: draft), as: .scaledImage)
     }
 
     /// Join mode after a failed join.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func joinModeWithError() {
         let draft = NewChatDraft(joinAddress: "#nowhere:example.org", errorMessage: NewChatScreen.joinErrorMessage)
-        assertSnapshot(of: host(mode: .join, draft: draft), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(mode: .join, draft: draft), as: .scaledImage)
     }
 }

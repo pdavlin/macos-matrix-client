@@ -14,6 +14,7 @@ public enum MessageActionPresentation {
         case .replyInThread: "Reply in Thread"
         case let .toggleReaction(key): "\(key)"
         case .openReactionPicker: "Add Reaction…"
+        case .edit: "Edit"
         case .copyText: "Copy Text"
         case .copyLink: "Copy Link"
         case .pin: "Pin"
@@ -44,6 +45,7 @@ public enum MessageActionPresentation {
         case .replyInThread: "ellipsis.message"
         case .toggleReaction: nil
         case .openReactionPicker: "face.smiling"
+        case .edit: "pencil"
         case .copyText: "doc.on.doc"
         case .copyLink: "link"
         case .pin: "pin"

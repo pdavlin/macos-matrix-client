@@ -15,7 +15,8 @@ struct MessageActionModelTests {
         canBeRepliedTo: Bool = true,
         isPinned: Bool = false,
         copyableText: String? = "hello",
-        redactPermission: MessageRedactPermission = .none
+        redactPermission: MessageRedactPermission = .none,
+        isEditable: Bool = false
     ) -> MessageActionSubject {
         MessageActionSubject(
             content: content,
@@ -24,7 +25,8 @@ struct MessageActionModelTests {
             canBeRepliedTo: canBeRepliedTo,
             isPinned: isPinned,
             copyableText: copyableText,
-            redactPermission: redactPermission
+            redactPermission: redactPermission,
+            isEditable: isEditable
         )
     }
 
@@ -147,15 +149,15 @@ struct MessageActionModelTests {
 
     @Test func editMenuKeepsOneShapeAcrossMessages() {
         let text = actions(subject(), on: .editMenu)
-        #expect(text == [.reply] + Self.react + [.copyText, .copyLink, .pin, .redact])
+        #expect(text == [.reply] + Self.react + [.edit, .copyText, .copyLink, .pin, .redact])
         #expect(actions(subject(.image, copyableText: nil), on: .editMenu) == text)
         #expect(actions(subject(.redacted, copyableText: nil), on: .editMenu) == text)
         #expect(actions(nil, on: .editMenu) == text)
     }
 
     @Test func editMenuDisablesWhatDoesNotApply() {
-        #expect(disabled(subject(.image, copyableText: nil), on: .editMenu) == [.copyText, .redact])
-        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.react + [.copyText, .pin, .redact])
+        #expect(disabled(subject(.image, copyableText: nil), on: .editMenu) == [.edit, .copyText, .redact])
+        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.react + [.edit, .copyText, .pin, .redact])
     }
 
     @Test func editMenuWithoutATargetIsAllDisabled() {
@@ -163,7 +165,7 @@ struct MessageActionModelTests {
     }
 
     @Test func editMenuSwapsPinForUnpin() {
-        let pinned = subject(isOwn: true, isPinned: true, redactPermission: Self.member)
+        let pinned = subject(isOwn: true, isPinned: true, redactPermission: Self.member, isEditable: true)
         #expect(actions(pinned, on: .editMenu).contains(.unpin))
         #expect(!actions(pinned, on: .editMenu).contains(.pin))
         #expect(disabled(pinned, on: .editMenu).isEmpty)
@@ -297,6 +299,7 @@ struct MessageActionModelTests {
         let subjects = [
             subject(), subject(.image), subject(.video(isPlayingInline: true)), subject(isPinned: true), subject(eventId: nil),
             subject(isOwn: true, redactPermission: Self.member), subject(.image, isOwn: false, redactPermission: Self.moderator),
+            subject(isOwn: true, redactPermission: Self.member, isEditable: true), subject(.image, isOwn: true, isEditable: true),
         ]
         for subject in subjects {
             for surface in MessageActionSurface.allCases {

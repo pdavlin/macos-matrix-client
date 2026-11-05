@@ -34,7 +34,8 @@ public extension Models.MessageActionSubject {
             canBeRepliedTo: event.canBeRepliedTo,
             isPinned: eventId.map(pinnedEventIds.contains) ?? false,
             copyableText: copyableText,
-            redactPermission: redactPermission
+            redactPermission: redactPermission,
+            isEditable: event.isEditable && MessageEditTarget.editableContent(of: msg.kind) != nil
         )
     }
 
