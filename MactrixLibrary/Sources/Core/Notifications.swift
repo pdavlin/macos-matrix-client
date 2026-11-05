@@ -1,4 +1,5 @@
 import MatrixRustSDK
+import Models
 import OSLog
 import UserNotifications
 
@@ -14,12 +15,19 @@ import UserNotifications
     /// notification for them; push rules and other clients are untouched.
     @ObservationIgnored var labelMutedRoomIds: Set<String> = []
 
+    /// MATRIX-117: the store that holds Settings > Notifications. Read for
+    /// each notification, so a change in Settings applies at once.
+    @ObservationIgnored private let settingsStore: UserDefaults
+
     public typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
 
     @ObservationIgnored private let notificationContinuation: AsyncStream<NotificationEvent>.Continuation
     @ObservationIgnored private var streamTask: Task<Void, Never>?
 
-    override public init() {
+    /// - Parameter settingsStore: the defaults store that Settings >
+    ///   Notifications writes with `@AppStorage`.
+    public init(settingsStore: UserDefaults = .standard) {
+        self.settingsStore = settingsStore
         let (stream, continuation) = AsyncStream<NotificationEvent>.makeStream()
         notificationContinuation = continuation
 
@@ -51,8 +59,19 @@ extension MatrixNotifications: MatrixRustSDK.SyncNotificationListener {
 
 public extension MatrixNotifications {
     func sendNotification(notification: MatrixRustSDK.NotificationItem, roomId: String) async {
-        guard !labelMutedRoomIds.contains(roomId) else {
+        let decision = NotificationDecision.decide(
+            isMutedByLabel: labelMutedRoomIds.contains(roomId),
+            settings: NotificationPreferences(defaults: settingsStore)
+        )
+        let playsSound: Bool
+        switch decision {
+        case .post(playsSound: let withSound):
+            playsSound = withSound
+        case .suppress(.mutedByLabel):
             Logger.notification.debug("skipping notification from room \(roomId): muted by label")
+            return
+        case .suppress(.notificationsOff):
+            Logger.notification.debug("skipping notification from room \(roomId): notifications are off in Settings")
             return
         }
 
@@ -73,7 +92,7 @@ public extension MatrixNotifications {
         let content = UNMutableNotificationContent()
         content.title = notificationTitle(for: notification)
         content.subtitle = notificationBody(for: notification)
-        content.sound = UNNotificationSound.default
+        content.sound = playsSound ? UNNotificationSound.default : nil
         content.interruptionLevel = .timeSensitive
         content.userInfo = [Self.roomIDUserInfoKey: roomId]
 
