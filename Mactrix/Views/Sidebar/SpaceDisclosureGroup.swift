@@ -1,5 +1,6 @@
 import Core
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 import UI
@@ -60,8 +61,27 @@ struct SpaceDisclosureGroup: View {
         return false
     }
 
+    /// Whether the SDK's space hierarchy item says the account has joined this
+    /// room. Top-level rows come from the joined-spaces subscription, so for
+    /// them this is the answer even when `getRoom` does not know the room.
+    private var hierarchyStateIsJoined: Bool {
+        if case .joined = space.spaceRoom.state {
+            return true
+        }
+        return false
+    }
+
+    /// MATRIX-121: any one source saying "joined" means no "Join" link.
+    private var isJoined: Bool {
+        Models.SpaceRowMembership.isJoined(
+            hierarchyStateIsJoined: hierarchyStateIsJoined,
+            isInRoomList: appState.matrixClient?.rooms.contains(where: { $0.room.id() == space.id }) ?? false,
+            clientReportsJoined: isJoinedOutsideRoomList
+        )
+    }
+
     var joinRoom: (() async throws -> Void)? {
-        if appState.matrixClient?.rooms.contains(where: { $0.room.id() == space.id }) == false, !isJoinedOutsideRoomList {
+        if appState.matrixClient != nil, !isJoined {
             return {
                 Logger.viewCycle.error("Joining room: \(space.id)")
                 guard let matrixClient = appState.matrixClient else { return }
