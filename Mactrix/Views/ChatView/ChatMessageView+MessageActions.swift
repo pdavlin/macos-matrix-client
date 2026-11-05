@@ -38,8 +38,8 @@ extension ChatMessageView {
 
     /// Runs one message action.
     ///
-    /// Extension point: B2 (edit), B5 (forward), and B6 (select) each add
-    /// their case here once `MessageAction` has it. B3 (redact) is in.
+    /// Extension point: B5 (forward) and B6 (select) each add their case
+    /// here once `MessageAction` has it. B2 (edit) and B3 (redact) are in.
     func perform(_ action: MessageAction) {
         switch action {
         case .reply:
@@ -50,6 +50,9 @@ extension ChatMessageView {
             toggleReaction(key: key)
         case .openReactionPicker:
             openReactionPicker()
+        case .edit:
+            // The composer starts edit mode; it makes the SDK call on save.
+            timeline?.requestEdit(of: event)
         case .copyText:
             copyText()
         case .copyLink:

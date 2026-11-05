@@ -14,7 +14,8 @@ import Foundation
 /// `UI.MessageActionPresentation`, and a handler in the app's
 /// `ChatMessageView.perform(_:)`. The exhaustive switches make the compiler
 /// list every place a new case must go.
-/// - B2 `edit`: own, editable, sent text messages. Section `.modify`.
+/// - B2 `edit`: in (MATRIX-109). Own, editable text messages and media
+///   captions. Section `.modify`.
 /// - B3 `redact`: own messages, or others' with the power level. Section
 ///   `.destructive`.
 /// - B5 `forward`: text and media with an event ID. Section `.modify`.
@@ -30,6 +31,9 @@ public enum MessageAction: Hashable, Sendable {
     /// Open the reaction picker popover (MATRIX-111, D-3). The hover row,
     /// the right-click menu, and the Edit menu all offer it.
     case openReactionPicker
+    /// Edit the message in the composer (MATRIX-109, M2-B2): the text of a
+    /// text message, or the caption of a media message. Own messages only.
+    case edit
     /// Copy the message's plain text body or media caption.
     case copyText
     /// Copy the message's matrix.to permalink.
@@ -66,7 +70,7 @@ public enum MessageAction: Hashable, Sendable {
         switch self {
         case .quickLook, .playInline, .saveToDownloads:
             return true
-        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .copyText, .copyLink, .pin, .unpin, .redact:
+        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .copyText, .copyLink, .pin, .unpin, .redact:
             return false
         }
     }
@@ -84,10 +88,11 @@ public enum MessageActionSurface: Hashable, Sendable, CaseIterable {
 
 /// Groups of actions. Menus draw a separator between two groups.
 ///
-/// The raw value is the display order. B2 and B5 add `.modify` after
-/// `.respond`. `.destructive` (B3) stays last.
+/// The raw value is the display order. `.destructive` (B3) stays last.
 public enum MessageActionSection: Int, Hashable, Sendable, Comparable {
     case respond
+    /// Actions that change the message: edit (B2) and forward (B5).
+    case modify
     case media
     case copy
     case organize
@@ -148,10 +153,17 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// What the signed-in account may redact in this message's room, from the
     /// room's power levels (MATRIX-110). The rule reads `isOwn` to pick one.
     public var redactPermission: MessageRedactPermission
+    /// Whether the composer can edit this message (MATRIX-109): the SDK's
+    /// `isEditable`, and content the composer can edit (text, or a media
+    /// caption). The rule reads `isOwn` too.
+    public var isEditable: Bool
 
-    /// - Parameter redactPermission: The room's redact permission. It defaults
-    ///   to `.none`, so a caller that does not know the power levels never
-    ///   offers Delete.
+    /// - Parameters:
+    ///   - redactPermission: The room's redact permission. It defaults to
+    ///     `.none`, so a caller that does not know the power levels never
+    ///     offers Delete.
+    ///   - isEditable: Whether the composer can edit the message. It
+    ///     defaults to false, so a caller that does not know never offers Edit.
     public init(
         content: Content,
         isOwn: Bool,
@@ -159,7 +171,8 @@ public struct MessageActionSubject: Equatable, Sendable {
         canBeRepliedTo: Bool,
         isPinned: Bool,
         copyableText: String?,
-        redactPermission: MessageRedactPermission = .none
+        redactPermission: MessageRedactPermission = .none,
+        isEditable: Bool = false
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -168,6 +181,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.isPinned = isPinned
         self.copyableText = copyableText
         self.redactPermission = redactPermission
+        self.isEditable = isEditable
     }
 
     /// The same subject with other content. A video view uses it to report
@@ -321,6 +335,11 @@ public enum MessageActionModel {
             // A local echo takes reactions too: the SDK keys the toggle on
             // the event or transaction ID, as the hover row always did.
             return isRedacted ? .notApplicable : .available
+        case .edit:
+            // The SDK edits a local echo through its transaction ID, so an
+            // own echo stays eligible when the SDK marks it editable.
+            if isRedacted { return .notApplicable }
+            return subject.isOwn && subject.isEditable ? .available : .notApplicable
         case .copyText:
             guard let text = subject.copyableText, !text.isEmpty else { return .notApplicable }
             return .available
@@ -367,15 +386,16 @@ public enum MessageActionModel {
         switch surface {
         case .contextMenu:
             return [.reply] + reactions + [.openReactionPicker]
+                + [.edit]
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyText, .copyLink]
                 + [.pin, .unpin]
                 + [.redact]
         case .hoverRow:
-            return reactions + [.openReactionPicker, .reply, .replyInThread, .pin, .unpin]
+            return reactions + [.openReactionPicker, .reply, .replyInThread, .edit, .pin, .unpin]
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
-            return [.reply] + reactions + [.openReactionPicker] + [.copyText, .copyLink, pinAction, .redact]
+            return [.reply] + reactions + [.openReactionPicker] + [.edit] + [.copyText, .copyLink, pinAction, .redact]
         }
     }
 
@@ -383,6 +403,8 @@ public enum MessageActionModel {
         switch action {
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker:
             return .respond
+        case .edit:
+            return .modify
         case .quickLook, .playInline, .saveToDownloads:
             return .media
         case .copyText, .copyLink:

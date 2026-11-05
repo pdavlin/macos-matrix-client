@@ -26,8 +26,15 @@ struct ChatInputView: View {
     /// True while a media send waits for its measurements, so a second
     /// Return does not send the same attachments again.
     @State private var isSendingMedia = false
+    /// The message the composer edits, or nil when it writes a new message
+    /// (MATRIX-109).
+    @State private var editSession: ComposerEditSession?
 
     func sendMessage() async {
+        if let editSession {
+            await saveEdit(editSession)
+            return
+        }
         if !attachments.isEmpty {
             await sendMedia()
             return
@@ -94,70 +101,6 @@ struct ChatInputView: View {
         timeline.requestScrollToBottom()
     }
 
-    private func saveDraft() async {
-        guard isDraftLoaded else { return } // avoid saving a draft hasn't yet been restored
-        if chatInput.isEmpty, replyTo == nil {
-            Logger.viewCycle.debug("clearing draft")
-            do {
-                try await room.clearComposerDraft(threadRoot: timeline.focusedThreadId)
-            } catch {
-                Logger.viewCycle.error("failed to clear draft: \(error)")
-            }
-            return
-        }
-
-        let draftType: ComposerDraftType = if let replyTo {
-            .reply(eventId: replyTo.eventOrTransactionId.id)
-        } else {
-            .newMessage
-        }
-        let draft = ComposerDraft(
-            plainText: chatInput,
-            htmlText: nil,
-            draftType: draftType,
-            attachments: []
-        )
-        do {
-            try await room.saveComposerDraft(draft: draft, threadRoot: timeline.focusedThreadId)
-        } catch {
-            Logger.viewCycle.error("failed save draft: \(error)")
-        }
-    }
-
-    private func loadDraft() async {
-        guard !isDraftLoaded else { return } // don't load a draft more than once
-        do {
-            guard let draft = try await room.loadComposerDraft(threadRoot: timeline.focusedThreadId) else {
-                // no draft to load
-                isDraftLoaded = true
-                return
-            }
-            chatInput = draft.plainText
-            switch draft.draftType {
-            case .reply(eventId: let eventId):
-                // we need a timeline to be able to populate the reply; return false so we can try again
-                guard let innerTimeline = timeline.timeline else {
-                    isDraftLoaded = false
-                    return
-                }
-
-                do {
-                    let item = try await innerTimeline.getEventTimelineItemByEventId(eventId: eventId)
-                    timeline.sendReplyTo = item
-                } catch {
-                    Logger.viewCycle.error("failed to resolve reply target: \(error)")
-                }
-            case .newMessage, .edit:
-                // nothing to do
-                isDraftLoaded = true
-                return
-            }
-        } catch {
-            Logger.viewCycle.error("failed to load draft: \(error)")
-        }
-        isDraftLoaded = true // so we don't try again
-    }
-
     private func chatInputChanged() async {
         guard isDraftLoaded else { return } // avoid working on a draft that's being restored
         if !chatInput.isEmpty {
@@ -211,12 +154,18 @@ struct ChatInputView: View {
                 )
                 Divider()
             }
+            if let editSession {
+                UI.ComposerEditBar(previewText: ComposerEdit.previewText(fromDraftText: editSession.target.originalDraftText)) {
+                    endEdit()
+                }
+            }
             if let replyEmbeddedDetails {
                 EmbeddedMessageView(embeddedEvent: replyEmbeddedDetails) {
                     replyTo = nil
                 }
             }
-            if !attachments.isEmpty {
+            // Edit mode keeps the pending attachments for later, out of sight.
+            if !attachments.isEmpty, editSession == nil {
                 UI.ComposerAttachmentStrip(attachments: attachments.attachments) {
                     attachments.remove($0)
                 }
@@ -231,7 +180,7 @@ struct ChatInputView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .disabled(!isDraftLoaded)
+                .disabled(!isDraftLoaded || editSession != nil)
                 .help("Attach files")
                 .accessibilityLabel(Text("Attach files"))
                 ChatTextView(
@@ -240,6 +189,9 @@ struct ChatInputView: View {
                     disabled: !isDraftLoaded,
                     mentions: mentions,
                     attachments: attachments,
+                    attachmentsEnabled: editSession == nil,
+                    onEmptyUpArrow: { editLastOwnMessage() },
+                    onEscape: { endEdit() },
                     onSubmit: { Task { await sendMessage() } }
                 )
             }
@@ -249,7 +201,7 @@ struct ChatInputView: View {
         // itself (`DynamicTextView.performDragOperation`).
         .dropDestination(for: URL.self) { urls, _ in
             let fileURLs = urls.filter(\.isFileURL)
-            guard !fileURLs.isEmpty else { return false }
+            guard editSession == nil, !fileURLs.isEmpty else { return false }
             attachments.add(fileURLs: fileURLs)
             return true
         }
@@ -261,6 +213,16 @@ struct ChatInputView: View {
         }
         .onChange(of: isDraftLoaded) {
             insertPendingMention()
+            startPendingEdit()
+        }
+        .onChange(of: timeline.pendingComposerEdit, initial: true) {
+            startPendingEdit()
+        }
+        .onChange(of: replyTo?.eventOrTransactionId) {
+            leaveEditForReply()
+        }
+        .task(id: editSession?.target.id) {
+            await saveDraft()
         }
         .task(id: chatInput) {
             await chatInputChanged()
@@ -300,6 +262,209 @@ struct ChatInputView: View {
             tahoeView
         } else {
             oldView
+        }
+    }
+}
+
+// MARK: - Draft
+
+/// The room's composer draft, saved and loaded through the SDK. An edit in
+/// progress is saved as an `.edit` draft (MATRIX-109).
+extension ChatInputView {
+    private func saveDraft() async {
+        guard isDraftLoaded else { return } // avoid saving a draft hasn't yet been restored
+        if chatInput.isEmpty, replyTo == nil, editSession == nil {
+            Logger.viewCycle.debug("clearing draft")
+            do {
+                try await room.clearComposerDraft(threadRoot: timeline.focusedThreadId)
+            } catch {
+                Logger.viewCycle.error("failed to clear draft: \(error)")
+            }
+            return
+        }
+
+        let draftType: ComposerDraftType
+        if let editSession {
+            // A local echo has no event ID yet, so its edit is not saved.
+            guard case let .eventId(eventId) = editSession.target.itemId else { return }
+            draftType = .edit(eventId: eventId)
+        } else if let replyTo {
+            draftType = .reply(eventId: replyTo.eventOrTransactionId.id)
+        } else {
+            draftType = .newMessage
+        }
+        let draft = ComposerDraft(
+            plainText: chatInput,
+            htmlText: nil,
+            draftType: draftType,
+            attachments: []
+        )
+        do {
+            try await room.saveComposerDraft(draft: draft, threadRoot: timeline.focusedThreadId)
+        } catch {
+            Logger.viewCycle.error("failed save draft: \(error)")
+        }
+    }
+
+    private func loadDraft() async {
+        guard !isDraftLoaded else { return } // don't load a draft more than once
+        do {
+            guard let draft = try await room.loadComposerDraft(threadRoot: timeline.focusedThreadId) else {
+                // no draft to load
+                isDraftLoaded = true
+                return
+            }
+            chatInput = draft.plainText
+            switch draft.draftType {
+            case .reply(eventId: let eventId):
+                // we need a timeline to be able to populate the reply; return false so we can try again
+                guard let innerTimeline = timeline.timeline else {
+                    isDraftLoaded = false
+                    return
+                }
+
+                do {
+                    let item = try await innerTimeline.getEventTimelineItemByEventId(eventId: eventId)
+                    timeline.sendReplyTo = item
+                } catch {
+                    Logger.viewCycle.error("failed to resolve reply target: \(error)")
+                }
+            case .edit(eventId: let eventId):
+                // the edit target needs a timeline too; try again when it loads
+                guard let innerTimeline = timeline.timeline else {
+                    isDraftLoaded = false
+                    return
+                }
+                await restoreEdit(eventId: eventId, in: innerTimeline)
+            case .newMessage:
+                // nothing to do
+                isDraftLoaded = true
+                return
+            }
+        } catch {
+            Logger.viewCycle.error("failed to load draft: \(error)")
+        }
+        isDraftLoaded = true // so we don't try again
+    }
+}
+
+// MARK: - Edit mode (MATRIX-109, M2-B2)
+
+/// One edit in the composer: the target, and the draft from before the edit,
+/// which comes back when the edit ends.
+private struct ComposerEditSession {
+    let target: MessageEditTarget
+    let previousDraftText: String
+    let previousReplyTo: MatrixRustSDK.EventTimelineItem?
+}
+
+extension ChatInputView {
+    /// Puts the composer in edit mode for `target`: the edit bar shows, the
+    /// field holds the original text (pills as chips), and the reply and the
+    /// draft wait until the edit ends.
+    private func beginEdit(_ target: MessageEditTarget) {
+        // A second edit keeps the draft from before the first one.
+        let previousDraftText: String = editSession?.previousDraftText ?? chatInput
+        let previousReplyTo: MatrixRustSDK.EventTimelineItem? = if let editSession {
+            editSession.previousReplyTo
+        } else {
+            replyTo
+        }
+        editSession = ComposerEditSession(
+            target: target,
+            previousDraftText: previousDraftText,
+            previousReplyTo: previousReplyTo
+        )
+        replyTo = nil
+        chatInput = target.originalDraftText
+        if let textView = mentions.textView {
+            unsafe textView.window?.makeFirstResponder(textView)
+        }
+    }
+
+    /// Leaves edit mode and puts back the draft and the reply from before the
+    /// edit. Esc, the x button, and a finished save all end here.
+    ///
+    /// - Returns: false when the composer was not in edit mode.
+    @discardableResult
+    private func endEdit() -> Bool {
+        guard let session = editSession else { return false }
+        editSession = nil
+        chatInput = session.previousDraftText
+        replyTo = session.previousReplyTo
+        return true
+    }
+
+    /// Starts the edit that a message action asked for.
+    private func startPendingEdit() {
+        guard isDraftLoaded, let target = timeline.pendingComposerEdit else { return }
+        timeline.pendingComposerEdit = nil
+        beginEdit(target)
+    }
+
+    /// The Up arrow in an empty composer: edits the newest own message the
+    /// composer can edit.
+    ///
+    /// - Returns: true if an edit started.
+    private func editLastOwnMessage() -> Bool {
+        guard isDraftLoaded,
+              ComposerEdit.startsEditOnUpArrow(
+                  draftText: chatInput,
+                  attachmentCount: attachments.attachments.count,
+                  isEditing: editSession != nil
+              ),
+              let target = timeline.lastEditTarget()
+        else { return false }
+        beginEdit(target)
+        return true
+    }
+
+    /// A Reply chosen in edit mode ends the edit and keeps the new reply, so
+    /// Return never sends an edit with a reply bar on screen.
+    private func leaveEditForReply() {
+        guard replyTo != nil, let session = editSession else { return }
+        editSession = nil
+        chatInput = session.previousDraftText
+    }
+
+    /// Return in edit mode: sends the edit through the SDK, then ends edit
+    /// mode. On a failure the composer stays in edit mode, so nothing is lost.
+    private func saveEdit(_ session: ComposerEditSession) async {
+        let decision = ComposerEdit.saveDecision(
+            kind: session.target.kind,
+            originalDraftText: session.target.originalDraftText,
+            draftText: chatInput
+        )
+        switch decision {
+        case .keepEditing:
+            return
+        case .finishWithoutSending:
+            endEdit()
+        case let .send(content):
+            do {
+                try await timeline.edit(session.target, with: content)
+            } catch {
+                Logger.viewCycle.error("failed to edit message: \(error)")
+                return
+            }
+            // The user can start another edit while the call runs.
+            guard editSession?.target == session.target else { return }
+            endEdit()
+        }
+    }
+
+    /// Restores an edit from a saved draft. The draft text is already in the
+    /// composer, and there is no earlier draft to restore after the edit.
+    private func restoreEdit(eventId: String, in innerTimeline: MatrixRustSDK.Timeline) async {
+        do {
+            let item = try await innerTimeline.getEventTimelineItemByEventId(eventId: eventId)
+            guard let target = MessageEditTarget(event: item) else {
+                Logger.viewCycle.error("saved edit target is not editable: \(eventId)")
+                return
+            }
+            editSession = ComposerEditSession(target: target, previousDraftText: "", previousReplyTo: nil)
+        } catch {
+            Logger.viewCycle.error("failed to resolve edit target: \(error)")
         }
     }
 }
