@@ -28,7 +28,12 @@ extension ChatMessageView {
     /// This message as the Edit menu's target, and as the row actions a media
     /// view forwards to.
     var actionTarget: MessageActionTarget {
-        MessageActionTarget(key: event.eventOrTransactionId.id, subject: messageActionSubject, perform: perform)
+        MessageActionTarget(
+            key: event.eventOrTransactionId.id,
+            subject: messageActionSubject,
+            quickReactionKeys: quickReactionKeys,
+            perform: perform
+        )
     }
 
     /// Runs one message action.
@@ -44,8 +49,7 @@ extension ChatMessageView {
         case let .toggleReaction(key):
             toggleReaction(key: key)
         case .openReactionPicker:
-            // B4 opens the reaction picker here.
-            break
+            openReactionPicker()
         case .copyText:
             copyText()
         case .copyLink:

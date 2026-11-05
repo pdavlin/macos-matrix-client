@@ -4,7 +4,9 @@ import Testing
 /// MATRIX-108 (M2-B1): one action model drives the right-click menu, the
 /// hover row, and the Edit menu.
 struct MessageActionModelTests {
-    private static let reactions: [MessageAction] = MessageActionModel.quickReactionKeys.map { .toggleReaction(key: $0) }
+    private static let reactions: [MessageAction] = MessageActionModel.defaultQuickReactionKeys.map { .toggleReaction(key: $0) }
+    /// The quick reactions and the picker, as the menus list them (MATRIX-111).
+    private static let react: [MessageAction] = reactions + [.openReactionPicker]
 
     private func subject(
         _ content: MessageActionSubject.Content = .text,
@@ -42,7 +44,7 @@ struct MessageActionModelTests {
     // MARK: - Context menu
 
     @Test func textMessageGetsAContextMenu() {
-        #expect(actions(subject(), on: .contextMenu) == [.reply] + Self.reactions + [.copyText, .copyLink, .pin])
+        #expect(actions(subject(), on: .contextMenu) == [.reply] + Self.react + [.copyText, .copyLink, .pin])
         #expect(disabled(subject(), on: .contextMenu).isEmpty)
     }
 
@@ -53,7 +55,7 @@ struct MessageActionModelTests {
 
     @Test func imageKeepsQuickLookAndSave() {
         let image = subject(.image, copyableText: nil)
-        #expect(actions(image, on: .contextMenu) == [.reply] + Self.reactions + [.quickLook, .saveToDownloads, .copyLink, .pin])
+        #expect(actions(image, on: .contextMenu) == [.reply] + Self.react + [.quickLook, .saveToDownloads, .copyLink, .pin])
     }
 
     @Test func imageCaptionIsCopyable() {
@@ -91,7 +93,7 @@ struct MessageActionModelTests {
 
     @Test func localEchoDisablesLinkPinAndReply() {
         let echo = subject(eventId: nil, canBeRepliedTo: false)
-        #expect(actions(echo, on: .contextMenu) == [.reply] + Self.reactions + [.copyText, .copyLink, .pin])
+        #expect(actions(echo, on: .contextMenu) == [.reply] + Self.react + [.copyText, .copyLink, .pin])
         #expect(disabled(echo, on: .contextMenu) == [.reply, .copyLink, .pin])
     }
 
@@ -109,7 +111,7 @@ struct MessageActionModelTests {
 
     @Test func otherContentOffersRespondAndLinkOnly() {
         // Stickers, polls, undecryptable messages: no text, no media.
-        #expect(actions(subject(.other, copyableText: nil), on: .contextMenu) == [.reply] + Self.reactions + [.copyLink, .pin])
+        #expect(actions(subject(.other, copyableText: nil), on: .contextMenu) == [.reply] + Self.react + [.copyLink, .pin])
     }
 
     // MARK: - Hover row
@@ -145,7 +147,7 @@ struct MessageActionModelTests {
 
     @Test func editMenuKeepsOneShapeAcrossMessages() {
         let text = actions(subject(), on: .editMenu)
-        #expect(text == [.reply] + Self.reactions + [.copyText, .copyLink, .pin, .redact])
+        #expect(text == [.reply] + Self.react + [.copyText, .copyLink, .pin, .redact])
         #expect(actions(subject(.image, copyableText: nil), on: .editMenu) == text)
         #expect(actions(subject(.redacted, copyableText: nil), on: .editMenu) == text)
         #expect(actions(nil, on: .editMenu) == text)
@@ -153,7 +155,7 @@ struct MessageActionModelTests {
 
     @Test func editMenuDisablesWhatDoesNotApply() {
         #expect(disabled(subject(.image, copyableText: nil), on: .editMenu) == [.copyText, .redact])
-        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.reactions + [.copyText, .pin, .redact])
+        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.react + [.copyText, .pin, .redact])
     }
 
     @Test func editMenuWithoutATargetIsAllDisabled() {
@@ -171,7 +173,40 @@ struct MessageActionModelTests {
         let edit = actions(subject(.video(isPlayingInline: true)), on: .editMenu)
         #expect(!edit.contains { $0.isMediaAction })
         #expect(!edit.contains(.replyInThread))
-        #expect(!edit.contains(.openReactionPicker))
+    }
+
+    // MARK: - Reaction picker and recent emoji (MATRIX-111)
+
+    @Test func everySurfaceOffersThePickerAfterTheQuickReactions() {
+        for surface in MessageActionSurface.allCases {
+            let list = actions(subject(), on: surface)
+            let picker: Int? = list.firstIndex(of: .openReactionPicker)
+            let lastReaction: Int? = list.lastIndex { $0.isQuickReaction }
+            #expect(picker != nil, "\(surface)")
+            #expect(picker.map { $0 - 1 } == lastReaction, "\(surface)")
+        }
+    }
+
+    @Test func noRecentsGiveTheDefaultQuickReactions() {
+        #expect(MessageActionModel.quickReactionKeys(fromRecents: []) == ["👍", "🎉", "❤️"])
+    }
+
+    @Test func quickReactionsAreTheTopThreeRecents() {
+        #expect(MessageActionModel.quickReactionKeys(fromRecents: ["😂", "🔥", "👀", "🙏"]) == ["😂", "🔥", "👀"])
+    }
+
+    @Test func fewRecentsAreFilledWithDefaultsWithoutRepeats() {
+        #expect(MessageActionModel.quickReactionKeys(fromRecents: ["🎉"]) == ["🎉", "👍", "❤️"])
+        #expect(MessageActionModel.quickReactionKeys(fromRecents: ["😂", "😂", ""]) == ["😂", "👍", "🎉"])
+    }
+
+    @Test func recentsReplaceTheQuickReactionsOnEverySurface() {
+        let keys = ["😂", "🔥", "👀"]
+        let recentReactions: [MessageAction] = keys.map { .toggleReaction(key: $0) }
+        for surface in MessageActionSurface.allCases {
+            let list = MessageActionModel.items(for: subject(), on: surface, quickReactionKeys: keys).map(\.action)
+            #expect(list.filter(\.isQuickReaction) == recentReactions, "\(surface)")
+        }
     }
 
     // MARK: - Redact (MATRIX-110, M2-B3)
@@ -308,7 +343,7 @@ struct MessageActionMenuLayoutTests {
             }
         }
         #expect(shape == [
-            "action:reply", "reactions:3", "separator",
+            "action:reply", "reactions:3", "action:openReactionPicker", "separator",
             "action:copyText", "action:copyLink", "separator",
             "action:pin"
         ])

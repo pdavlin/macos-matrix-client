@@ -95,6 +95,20 @@ in the Mactrix Xcode project, checked on 2026-08-19.
 - Private use, modification, and distribution obligations: same as
   matrix-rust-components-swift above.
 
+## Unicode emoji data
+
+- License: Unicode License v3
+- SPDX id: Unicode-3.0
+- Source: https://unicode.org/Public/emoji/15.1/emoji-test.txt (Emoji
+  15.1, the emoji list with CLDR English short names)
+- Use: `scripts/generate-emoji-data.py` converts the file at development
+  time into `MactrixLibrary/Sources/UI/Resources/Emoji.txt`, which the
+  reaction picker bundles (MATRIX-111). The generated file keeps the
+  Unicode copyright line in its header.
+- Obligations: the Unicode License permits use, copy, modification, and
+  distribution of the data, if the copyright notice and the license text
+  come with all copies of the data or the documentation.
+
 ## Summary for the current phase (private, personal use)
 
 No obligation is currently triggered. GPLv3 and Apache-2.0 both leave

@@ -27,7 +27,8 @@ public enum MessageAction: Hashable, Sendable {
     case replyInThread
     /// Toggle one of the quick reactions. Menus group these in a React submenu.
     case toggleReaction(key: String)
-    /// Open the reaction picker. Hover row only, and empty until B4.
+    /// Open the reaction picker popover (MATRIX-111, D-3). The hover row,
+    /// the right-click menu, and the Edit menu all offer it.
     case openReactionPicker
     /// Copy the message's plain text body or media caption.
     case copyText
@@ -250,9 +251,28 @@ public struct MessageActionItem: Hashable, Sendable, Identifiable {
 /// let items = MessageActionModel.items(for: subject, on: .contextMenu)
 /// ```
 public enum MessageActionModel {
-    /// The three fixed quick reactions of the hover row. B4 replaces them with
-    /// the SDK's recent emoji (D-3).
-    public static let quickReactionKeys = ["👍", "🎉", "❤️"]
+    /// The quick reactions when the account has no recent emoji yet: the
+    /// three fixed emoji from before M2.
+    public static let defaultQuickReactionKeys = ["👍", "🎉", "❤️"]
+
+    /// How many quick reactions the hover row and the React submenus show.
+    public static let quickReactionCount = 3
+
+    /// The quick reactions for a recent-emoji list (MATRIX-111, D-3): the
+    /// top three recent emoji. With fewer than three recents, the defaults
+    /// fill the free places, so the hover row keeps its width. With no
+    /// recents, the result is `defaultQuickReactionKeys`.
+    ///
+    /// - Parameter recents: The recent emoji, most recent first.
+    /// - Returns: `quickReactionCount` distinct emoji.
+    public static func quickReactionKeys(fromRecents recents: [String]) -> [String] {
+        var keys: [String] = []
+        for emoji in recents + defaultQuickReactionKeys where !emoji.isEmpty && !keys.contains(emoji) {
+            keys.append(emoji)
+            if keys.count == quickReactionCount { break }
+        }
+        return keys
+    }
 
     /// The ordered actions for `subject` on `surface`.
     ///
@@ -260,9 +280,15 @@ public enum MessageActionModel {
     ///   - subject: The message, or nil when no message is targeted (only the
     ///     Edit menu has that case; it then shows its list disabled).
     ///   - surface: Where the actions show.
+    ///   - quickReactionKeys: The quick reactions, from
+    ///     `quickReactionKeys(fromRecents:)`.
     /// - Returns: The actions in display order, each with its enabled state.
-    public static func items(for subject: MessageActionSubject?, on surface: MessageActionSurface) -> [MessageActionItem] {
-        order(on: surface, for: subject).compactMap { action in
+    public static func items(
+        for subject: MessageActionSubject?,
+        on surface: MessageActionSurface,
+        quickReactionKeys keys: [String] = defaultQuickReactionKeys
+    ) -> [MessageActionItem] {
+        order(on: surface, for: subject, quickReactionKeys: keys).compactMap { action in
             let state: Availability = subject.map { Self.availability(of: action, for: $0) } ?? .unavailable
             let shows = switch surface {
             case .contextMenu: state != .notApplicable
@@ -330,12 +356,17 @@ public enum MessageActionModel {
     ///
     /// The Edit menu shows one Pin or Unpin item: Unpin when the target is
     /// pinned, else Pin. Delete is not in the hover row: one stray click there
-    /// must not start a destructive action.
-    static func order(on surface: MessageActionSurface, for subject: MessageActionSubject?) -> [MessageAction] {
-        let reactions = quickReactionKeys.map { MessageAction.toggleReaction(key: $0) }
+    /// must not start a destructive action. The menus put "Add Reaction…"
+    /// after the React submenu (MATRIX-111).
+    static func order(
+        on surface: MessageActionSurface,
+        for subject: MessageActionSubject?,
+        quickReactionKeys keys: [String]
+    ) -> [MessageAction] {
+        let reactions: [MessageAction] = keys.map { MessageAction.toggleReaction(key: $0) }
         switch surface {
         case .contextMenu:
-            return [.reply] + reactions
+            return [.reply] + reactions + [.openReactionPicker]
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyText, .copyLink]
                 + [.pin, .unpin]
@@ -344,7 +375,7 @@ public enum MessageActionModel {
             return reactions + [.openReactionPicker, .reply, .replyInThread, .pin, .unpin]
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
-            return [.reply] + reactions + [.copyText, .copyLink, pinAction, .redact]
+            return [.reply] + reactions + [.openReactionPicker] + [.copyText, .copyLink, pinAction, .redact]
         }
     }
 
