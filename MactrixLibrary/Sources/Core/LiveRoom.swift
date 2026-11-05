@@ -10,6 +10,14 @@ public final class LiveRoom: Identifiable {
     public var typingUserIds: [String] = []
     public var members: [MatrixRustSDK.RoomMember] = []
 
+    /// What the signed-in account may redact in this room (MATRIX-110).
+    ///
+    /// Read from the power levels when the room opens, and again when the
+    /// room info changes, because a power-level change arrives as a room info
+    /// update. Rows read this stored value, so a hover never calls the SDK.
+    /// It is `.none` until the first read finishes.
+    public private(set) var redactPermission: Models.MessageRedactPermission = .none
+
     @ObservationIgnored private var typingHandle: TaskHandle?
 
     public var room: MatrixRustSDK.Room {
@@ -28,6 +36,7 @@ public final class LiveRoom: Identifiable {
         self.sidebarRoom = sidebarRoom
 
         startListening()
+        observePowerLevels()
 
         Task(priority: .utility) {
             do {
@@ -58,6 +67,37 @@ public final class LiveRoom: Identifiable {
                 Logger.matrixClient.info("typing indicator updating UI")
                 self.typingUserIds = typingUserIds
             }
+        }
+    }
+
+    /// Reads the power levels now, and again on every room info change.
+    ///
+    /// The room info stream is debounced in `SidebarRoom`, and most updates
+    /// change only unread counts, so the result is assigned only when it
+    /// differs: rows do not re-render for an unrelated update.
+    private func observePowerLevels() {
+        withObservationTracking {
+            _ = sidebarRoom.roomInfo
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.observePowerLevels()
+            }
+        }
+        Task { [weak self] in
+            await self?.refreshRedactPermission()
+        }
+    }
+
+    private func refreshRedactPermission() async {
+        let permission: Models.MessageRedactPermission
+        do {
+            permission = try await Models.MessageRedactPermission(powerLevels: room.getPowerLevels())
+        } catch {
+            Logger.liveRoom.error("failed to read power levels for room \(self.id): \(error)")
+            return
+        }
+        if permission != redactPermission {
+            redactPermission = permission
         }
     }
 

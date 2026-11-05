@@ -165,18 +165,13 @@ struct MainView: View {
     func attemptLoadUserSession() async {
         guard appState.matrixClient == nil else { return }
 
-        do {
-            if let matrixClient = try await MatrixClient.attemptRestore() {
-                appState.matrixClient = matrixClient
-            }
-        } catch {
-            Logger.viewCycle.error("Failed to restore matrix session: \(error)")
-        }
+        // Restores the session and starts sync. Shared with room windows
+        // restored on relaunch (MATRIX-116), so it runs once.
+        await appState.restoreSavedSession()
 
         showWelcomeSheet = appState.matrixClient == nil
-        if let matrixClient = appState.matrixClient {
-            onMatrixLoaded(matrixClient: matrixClient)
-        }
+        // check if a room is selected and load it
+        await onRoomSelected()
     }
 
     func onMatrixLoaded(matrixClient: MatrixClient) {

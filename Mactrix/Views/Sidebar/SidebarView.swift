@@ -20,6 +20,20 @@ struct SidebarView: View {
     @Environment(WindowState.self) var windowState
     @Environment(\.appearsActive) private var appearsActive
 
+    /// The column's narrowest width: the chat list plus the label rail.
+    private static let minimumWidth: CGFloat = 240 + LabelToken.railWidth
+    /// The column's width before the user first resizes it.
+    private static let defaultWidth: CGFloat = 320 + LabelToken.railWidth
+
+    /// Stores the column's width when the user resizes it (MATRIX-116).
+    @State private var widthRecorder = SidebarWidthRecorder(minimumWidth: SidebarView.minimumWidth)
+    /// The width the column starts at: the width the user last left a
+    /// sidebar at. Read once per window, so the column's ideal does not move
+    /// while the user drags the divider.
+    @State private var initialWidth = CGFloat(
+        SidebarWidthRecorder.idealWidth(minimumWidth: SidebarView.minimumWidth, defaultWidth: SidebarView.defaultWidth)
+    )
+
     /// The rooms a window's sidebar shows: the favourites grid, then the
     /// chat list (MATRIX-115).
     ///
@@ -65,7 +79,10 @@ struct SidebarView: View {
             Divider()
             chatList
         }
-        .navigationSplitViewColumnWidth(min: 240 + LabelToken.railWidth, ideal: 320 + LabelToken.railWidth, max: nil)
+        .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width in
+            widthRecorder.record(width)
+        })
         .toolbar {
             chatListFilterMenu
             AppCommands.createRoomButton(windowState: windowState)

@@ -101,4 +101,21 @@ struct QuickSwitcherActionsTests {
         try await open()
         #expect(opened == ["!a"])
     }
+
+    /// MATRIX-116: ⌥-Return runs the app's new-window hook, and only that.
+    @Test func optionReturnOpensTheRoomInANewWindowOnceWired() async throws {
+        var openedHere: [String] = []
+        var openedInNewWindow: [String] = []
+        let actions = QuickSwitcherActions.navigate(
+            searchPeople: { _ in [] },
+            openRoom: { openedHere.append($0) },
+            startDirectChat: { _ in },
+            openRoomInNewWindow: { openedInNewWindow.append($0) }
+        )
+
+        let openInNewWindow = try #require(actions.handler(for: .openRoomInNewWindow(roomId: "!a")))
+        try await openInNewWindow()
+        #expect(openedInNewWindow == ["!a"])
+        #expect(openedHere.isEmpty)
+    }
 }

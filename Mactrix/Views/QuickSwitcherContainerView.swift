@@ -14,6 +14,7 @@ import UI
 struct QuickSwitcherContainerView: View {
     @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
+    @Environment(\.openWindow) private var openWindow
 
     /// Shows a room in this window (`MainView.openRoom`).
     let openRoom: (_ roomId: String) async -> Void
@@ -27,14 +28,15 @@ struct QuickSwitcherContainerView: View {
                 currentRoomId: windowState.selectedRoomId,
                 ownUserId: try? matrixClient.client.userId(),
                 imageLoader: matrixClient,
-                // MATRIX-116 wires ⌥-Return through `openRoomInNewWindow`.
                 actions: .navigate(
                     searchPeople: { try await matrixClient.searchNewChatPeople(query: $0) },
                     openRoom: { await openRoom($0) },
                     startDirectChat: { userId in
                         let roomId = try await matrixClient.startDirectChat(userId: userId)
                         await openRoom(roomId)
-                    }
+                    },
+                    // ⌥-Return: the room in its own window (MATRIX-116).
+                    openRoomInNewWindow: { openWindow(value: RoomWindowID(roomId: $0)) }
                 )
             )
             .onAppear {

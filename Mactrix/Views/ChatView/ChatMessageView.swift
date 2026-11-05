@@ -164,16 +164,16 @@ struct ChatMessageView: View, UI.MessageEventActions {
         case let .emote(content: content):
             Text("Emote: \(content.body)").textSelection(.enabled)
         case let .image(content: content):
-            MessageImageView(content: content)
+            MessageImageView(content: content, rowActions: actionTarget)
                 .mediaUploadOverlay(mediaUploadState, placement: .mediaCorner, cancel: cancelUpload)
         case let .audio(content: content):
-            MessageAudioView(content: content)
+            MessageAudioView(content: content, rowActions: actionTarget)
                 .mediaUploadOverlay(mediaUploadState, placement: .rowTrailing, cancel: cancelUpload)
         case let .video(content: content):
-            MessageVideoView(content: content)
+            MessageVideoView(content: content, rowActions: actionTarget)
                 .mediaUploadOverlay(mediaUploadState, placement: .mediaCorner, cancel: cancelUpload)
         case let .file(content: content):
-            MessageFileView(content: content)
+            MessageFileView(content: content, rowActions: actionTarget)
                 .mediaUploadOverlay(mediaUploadState, placement: .rowTrailing, cancel: cancelUpload)
         case let .gallery(content: content):
             Text("Gallery: \(content.body)").textSelection(.enabled)
@@ -249,5 +249,27 @@ struct ChatMessageView: View, UI.MessageEventActions {
         }
         .font(.system(size: typography.base))
         .environment(\.timelineTypography, typography)
+        // The Edit menu acts on the hovered or focused message (MATRIX-108).
+        // None of these change layout, so the row is not re-measured.
+        .onHover { hovering in
+            if hovering { offerAsTarget() }
+        }
+        .onChange(of: isEventFocused) { _, focused in
+            if focused { offerAsTarget() }
+        }
+        .onChange(of: TargetState(key: event.eventOrTransactionId.id, subject: messageActionSubject)) { old, _ in
+            timeline?.messageActionTarget.refresh(replacing: old.key, with: actionTarget)
+        }
+        .onDisappear {
+            timeline?.messageActionTarget.withdraw(key: event.eventOrTransactionId.id)
+        }
     }
+}
+
+/// What the Edit-menu target depends on. A change refreshes the target, so
+/// the menu does not act on old facts (a local echo that got its event ID, a
+/// message that was pinned).
+private struct TargetState: Equatable {
+    let key: String
+    let subject: MessageActionSubject
 }

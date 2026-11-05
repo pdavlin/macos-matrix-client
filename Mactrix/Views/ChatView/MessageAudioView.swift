@@ -12,6 +12,9 @@ import UniformTypeIdentifiers
 struct MessageAudioView: View {
     @Environment(AppState.self) private var appState
     let content: AudioMessageContent
+    /// The row's actions. The menu over the attachment shows them with the
+    /// media actions this view performs (MATRIX-108).
+    let rowActions: MessageActionTarget
 
     @State private var media = MediaFileController()
     @State private var quickLookUrl: URL?
@@ -50,6 +53,18 @@ struct MessageAudioView: View {
         )
     }
 
+    /// Performs the media actions here and hands the rest to the row.
+    func performMenuAction(_ action: MessageAction) {
+        switch action {
+        case .quickLook:
+            Task { await presentQuickLook() }
+        case .saveToDownloads:
+            Task { await saveToDownloads() }
+        default:
+            rowActions.perform(action)
+        }
+    }
+
     var body: some View {
         VStack {
             Button {
@@ -63,12 +78,10 @@ struct MessageAudioView: View {
             }
             .buttonStyle(.plain)
             .contextMenu {
-                Button("Quick Look") {
-                    Task { await presentQuickLook() }
-                }
-                Button("Save to Downloads") {
-                    Task { await saveToDownloads() }
-                }
+                UI.MessageActionMenu(
+                    items: MessageActionModel.items(for: rowActions.subject, on: .contextMenu),
+                    perform: performMenuAction
+                )
             }
 
             if let caption = content.caption {

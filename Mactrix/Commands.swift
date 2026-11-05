@@ -8,6 +8,13 @@ struct AppCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
+    /// The key window's state when it is a main window. A single-room
+    /// window (MATRIX-116) shows one room only, so New Chat and New Group
+    /// are disabled there.
+    private var mainWindowState: WindowState? {
+        windowState?.isSingleRoomWindow == true ? nil : windowState
+    }
+
     var body: some Commands {
         SidebarCommands()
         InspectorCommands()
@@ -26,21 +33,21 @@ struct AppCommands: Commands {
     var newItems: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Chat") {
-                windowState?.selectedScreen = .newChat(mode: .direct)
+                mainWindowState?.selectedScreen = .newChat(mode: .direct)
             }
             .keyboardShortcut("n", modifiers: [.command])
-            .disabled(windowState == nil)
+            .disabled(mainWindowState == nil)
 
             Button("New Group") {
-                windowState?.selectedScreen = .newChat(mode: .group)
+                mainWindowState?.selectedScreen = .newChat(mode: .group)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
-            .disabled(windowState == nil)
+            .disabled(mainWindowState == nil)
 
             Button("New Room with Options…") {
-                windowState?.selectedScreen = .newRoom
+                mainWindowState?.selectedScreen = .newRoom
             }
-            .disabled(windowState == nil)
+            .disabled(mainWindowState == nil)
 
             Divider()
 

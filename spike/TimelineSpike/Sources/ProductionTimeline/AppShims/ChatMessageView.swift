@@ -34,6 +34,33 @@ struct ChatMessageView: View, UI.MessageEventActions {
     func pin() {}
     func focusUser() {}
 
+    /// The action model's input (MATRIX-108), so the measured rows carry the
+    /// app's hover row and right-click menu. The harness has no pins and no
+    /// local echoes, so every message has an event ID and none is pinned.
+    var actionSubject: MessageActionSubject? {
+        var kind = MessageActionSubject.Content.other
+        var copyableText: String?
+        if case let .message(content: content) = msg.kind {
+            switch content.msgType {
+            case .image, .gallery:
+                kind = .image
+            case .video:
+                kind = .video(isPlayingInline: false)
+            default:
+                kind = .text
+                copyableText = content.body
+            }
+        }
+        return MessageActionSubject(
+            content: kind,
+            isOwn: event.isOwn,
+            eventId: "spike",
+            canBeRepliedTo: event.canBeRepliedTo,
+            isPinned: false,
+            copyableText: copyableText
+        )
+    }
+
     private var typography: TimelineTypography {
         TimelineTypography(base: CGFloat(fontSize))
     }
