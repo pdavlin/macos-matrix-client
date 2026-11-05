@@ -21,8 +21,17 @@ struct ChatInputView: View {
     /// a draft keeps its chips.
     @State private var chatInput: String = ""
     @State private var mentions = ComposerMentionController()
+    /// The pending attachments (MATRIX-106).
+    @State private var attachments = ComposerAttachmentController()
+    /// True while a media send waits for its measurements, so a second
+    /// Return does not send the same attachments again.
+    @State private var isSendingMedia = false
 
     func sendMessage() async {
+        if !attachments.isEmpty {
+            await sendMedia()
+            return
+        }
         guard !chatInput.isEmpty else { return }
         guard let innerTimeline = timeline.timeline else { return }
 
@@ -49,6 +58,37 @@ struct ChatInputView: View {
 
         // Enqueued: the send queue owns it from here. A failure surfaces on
         // the local echo (EventSendState.sendingFailed) with retry/discard.
+        chatInput = ""
+        replyTo = nil
+        timeline.requestScrollToBottom()
+    }
+
+    /// Sends the pending attachments with the composer text as the caption
+    /// and the reply target as `inReplyTo` (MATRIX-106). One attachment goes
+    /// by its type, two or more as a gallery (`Models.MediaSendPlan`).
+    private func sendMedia() async {
+        guard !isSendingMedia else { return }
+        isSendingMedia = true
+        defer { isSendingMedia = false }
+
+        let measured = await attachments.measuredAttachments()
+        guard let request = MediaSendRequest.make(
+            attachments: measured,
+            draftText: chatInput,
+            inReplyTo: replyTo?.eventOrTransactionId.id
+        ) else { return }
+
+        do {
+            try timeline.sendMedia(request)
+        } catch {
+            // The send never started, so keep the attachments and the text.
+            Logger.viewCycle.error("failed to start media send: \(error)")
+            return
+        }
+
+        // Started: the send queue owns it. Progress and failure show on the
+        // local echo (MATRIX-107).
+        attachments.clear()
         chatInput = ""
         replyTo = nil
         timeline.requestScrollToBottom()
@@ -176,15 +216,43 @@ struct ChatInputView: View {
                     replyTo = nil
                 }
             }
-            ChatTextView(
-                text: $chatInput,
-                placeholder: "Message \(room.displayName() ?? "room")",
-                disabled: !isDraftLoaded,
-                mentions: mentions,
-                onSubmit: { Task { await sendMessage() } }
-            )
+            if !attachments.isEmpty {
+                UI.ComposerAttachmentStrip(attachments: attachments.attachments) {
+                    attachments.remove($0)
+                }
+            }
+            HStack(alignment: .bottom, spacing: 0) {
+                Button {
+                    attachments.presentOpenPanel()
+                } label: {
+                    Image(systemName: "paperclip")
+                        .padding(.vertical, DynamicTextView.padding.height)
+                        .padding(.leading, DynamicTextView.padding.width)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .disabled(!isDraftLoaded)
+                .help("Attach files")
+                .accessibilityLabel(Text("Attach files"))
+                ChatTextView(
+                    text: $chatInput,
+                    placeholder: "Message \(room.displayName() ?? "room")",
+                    disabled: !isDraftLoaded,
+                    mentions: mentions,
+                    attachments: attachments,
+                    onSubmit: { Task { await sendMessage() } }
+                )
+            }
         }
         .font(.system(size: .init(fontSize)))
+        // Drops on the chips or the paperclip. The text view takes drops on
+        // itself (`DynamicTextView.performDragOperation`).
+        .dropDestination(for: URL.self) { urls, _ in
+            let fileURLs = urls.filter(\.isFileURL)
+            guard !fileURLs.isEmpty else { return false }
+            attachments.add(fileURLs: fileURLs)
+            return true
+        }
         .task(id: ObjectIdentifier(timeline)) {
             configureMentions()
         }

@@ -1,14 +1,26 @@
 import Core
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 
 struct RoomContextMenu: View {
     @Environment(WindowState.self) var windowState
+    @Environment(\.openWindow) private var openWindow
 
     let room: SidebarRoom
 
     var body: some View {
+        // MATRIX-116: a single-room window, or the room's open one brought
+        // forward.
+        Button {
+            openWindow(value: RoomWindowID(roomId: room.id))
+        } label: {
+            Label("Open in New Window", systemImage: "macwindow.badge.plus")
+        }
+
+        Divider()
+
         if let roomInfo = room.roomInfo {
             Button {
                 Task {
