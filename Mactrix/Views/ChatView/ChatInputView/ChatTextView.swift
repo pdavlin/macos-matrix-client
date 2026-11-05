@@ -23,6 +23,15 @@ struct ChatTextView: NSViewRepresentable {
     /// Takes pasted and dropped files and images, and removes the newest
     /// attachment on Esc (MATRIX-106).
     let attachments: ComposerAttachmentController
+    /// False in edit mode: paste, drop, and Esc then leave the attachments
+    /// alone (MATRIX-109).
+    var attachmentsEnabled = true
+    /// The Up arrow in an empty composer. Returns true if it started an edit
+    /// (MATRIX-109).
+    var onEmptyUpArrow: () -> Bool = { false }
+    /// Esc when the mention popup and the attachments did not use it.
+    /// Returns true if it cancelled edit mode (MATRIX-109).
+    var onEscape: () -> Bool = { false }
     let onSubmit: () -> Void
 
     func makeNSView(context: Context) -> DynamicTextView {
@@ -38,6 +47,7 @@ struct ChatTextView: NSViewRepresentable {
         }
         mentions.textView = textView
         configureAttachmentHandlers(of: textView)
+        configureEditHandlers(of: textView)
         // Adds the file and image drag types (`acceptableDragTypes`).
         textView.updateDragTypeRegistration()
 
@@ -80,6 +90,7 @@ struct ChatTextView: NSViewRepresentable {
         }
         mentions.textView = textView
         configureAttachmentHandlers(of: textView)
+        configureEditHandlers(of: textView)
 
         let currentFont = NSFont.systemFont(ofSize: CGFloat(fontSize))
         if textView.font?.pointSize != currentFont.pointSize {
@@ -135,15 +146,23 @@ struct ChatTextView: NSViewRepresentable {
     /// Points the text view's paste, drop, and Esc hooks at the attachment
     /// controller (MATRIX-106).
     private func configureAttachmentHandlers(of textView: DynamicTextView) {
+        let isEnabled = attachmentsEnabled
         textView.attachmentContentHandler = { [weak attachments] pasteboard in
-            attachments?.takeContent(of: pasteboard) ?? false
+            isEnabled && attachments?.takeContent(of: pasteboard) ?? false
         }
         textView.attachmentDropFilter = { [weak attachments] pasteboard in
-            attachments?.acceptsDrop(of: pasteboard) ?? false
+            isEnabled && attachments?.acceptsDrop(of: pasteboard) ?? false
         }
         textView.attachmentEscapeHandler = { [weak attachments] in
-            attachments?.removeLast() ?? false
+            isEnabled && attachments?.removeLast() ?? false
         }
+    }
+
+    /// Points the text view's Up-arrow and Esc hooks at the composer's edit
+    /// mode (MATRIX-109).
+    private func configureEditHandlers(of textView: DynamicTextView) {
+        textView.emptyUpArrowHandler = onEmptyUpArrow
+        textView.escapeHandler = onEscape
     }
 
     func makeCoordinator() -> Coordinator {
@@ -208,6 +227,15 @@ class DynamicTextView: NSTextView {
     /// Removes the newest pending attachment on Esc. Returns true if it
     /// removed one (MATRIX-106).
     var attachmentEscapeHandler: (() -> Bool)?
+
+    /// Runs on the Up arrow with no modifier while the text view is empty.
+    /// Returns true if it started an edit of the last own message
+    /// (MATRIX-109).
+    var emptyUpArrowHandler: (() -> Bool)?
+
+    /// Runs on Esc when the mention popup and the attachments did not use
+    /// it. Returns true if it cancelled edit mode (MATRIX-109).
+    var escapeHandler: (() -> Bool)?
 
     /// The pasteboard type for composer content with chips: the draft text
     /// (`MentionMarkdown.draftText(for:)`). Copy and paste inside the composer
@@ -306,8 +334,14 @@ class DynamicTextView: NSTextView {
             return
         }
 
-        // Esc with the mention popup closed removes the newest attachment.
-        if mentionKey(for: event) == .dismiss, attachmentEscapeHandler?() == true {
+        // Esc with the mention popup closed removes the newest attachment,
+        // and then cancels edit mode.
+        if mentionKey(for: event) == .dismiss, attachmentEscapeHandler?() == true || escapeHandler?() == true {
+            return
+        }
+
+        // Up arrow in an empty composer edits the last own message.
+        if mentionKey(for: event) == .up, string.isEmpty, emptyUpArrowHandler?() == true {
             return
         }
 

@@ -28,6 +28,11 @@ public final class LiveTimeline {
     /// composer inserts the chip and sets it back to nil.
     public var pendingComposerMention: MentionTarget?
 
+    /// A message the composer for this timeline must edit (MATRIX-109). The
+    /// Edit action sets it through `requestEdit(of:)`, and the composer starts
+    /// edit mode and sets it back to nil.
+    public var pendingComposerEdit: MessageEditTarget?
+
     /// The message the Edit menu acts on (MATRIX-108). Rows offer themselves
     /// on hover; the menu commands read it through the window's timeline.
     public let messageActionTarget = MessageActionTargetSlot()
