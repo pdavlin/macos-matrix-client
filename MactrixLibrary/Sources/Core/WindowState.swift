@@ -62,7 +62,22 @@ public final class WindowState {
     /// The label sheet to show, if any (MATRIX-77). Not restored.
     public var labelEditor: LabelEditorRequest?
 
-    public init() {}
+    /// The one room a single-room window shows (MATRIX-116), or `nil` for a
+    /// main window. A single-room window never shows another room, so the
+    /// menu commands that change the selection skip it.
+    public let singleRoomId: String?
+
+    /// Whether this is a single-room window (MATRIX-116).
+    public var isSingleRoomWindow: Bool {
+        singleRoomId != nil
+    }
+
+    /// - Parameter singleRoomId: the room of a single-room window, or `nil`
+    ///   (the default) for a main window.
+    public init(singleRoomId: String? = nil) {
+        self.singleRoomId = singleRoomId
+        self.selectedRoomId = singleRoomId
+    }
 
     public var searchFocused: Binding<Bool> {
         Binding(
