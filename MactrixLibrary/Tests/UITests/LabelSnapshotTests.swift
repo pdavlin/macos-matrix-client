@@ -49,13 +49,13 @@ struct LabelSnapshotTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func railInboxSelected() {
         let rail = LabelRail(labels: labels, badges: badges, selection: nil, actions: .none)
-        assertSnapshot(of: snapshot(of: rail, width: 68, height: 360), as: .scaledImage)
+        assertTextFieldSnapshot(of: snapshot(of: rail, width: 68, height: 360), as: .scaledImage)
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func railLabelSelected() {
         let rail = LabelRail(labels: labels, badges: badges, selection: "games", actions: .none)
-        assertSnapshot(of: snapshot(of: rail, width: 68, height: 360), as: .scaledImage)
+        assertTextFieldSnapshot(of: snapshot(of: rail, width: 68, height: 360), as: .scaledImage)
     }
 
     // MARK: Sheet
@@ -70,7 +70,7 @@ struct LabelSnapshotTests {
             onCancel: {},
             onSave: { _ in }
         )
-        assertSnapshot(of: snapshot(of: sheet, width: 440), as: .scaledImage)
+        assertTextFieldSnapshot(of: snapshot(of: sheet, width: 440), as: .scaledImage)
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
@@ -83,7 +83,7 @@ struct LabelSnapshotTests {
             onCancel: {},
             onSave: { _ in }
         )
-        assertSnapshot(of: snapshot(of: sheet, width: 440), as: .scaledImage)
+        assertTextFieldSnapshot(of: snapshot(of: sheet, width: 440), as: .scaledImage)
     }
 
     // MARK: Picker
@@ -91,6 +91,6 @@ struct LabelSnapshotTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func pickerContent() {
         let picker = LabelIconColorPickerContent(name: "Work", colorIndex: .constant(6), icon: .constant("briefcase"))
-        assertSnapshot(of: snapshot(of: picker.fixedSize(), width: 300), as: .scaledImage)
+        assertTextFieldSnapshot(of: snapshot(of: picker.fixedSize(), width: 300), as: .scaledImage)
     }
 }
