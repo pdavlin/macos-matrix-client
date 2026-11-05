@@ -157,6 +157,14 @@ public struct MessageBodyGeometry: Equatable, Sendable {
 /// message timestamp (a fixed-width label), hover and focus state (background
 /// only), read-receipt *count* (fixed-frame avatars), and the media label
 /// fields that draw one-line metadata (mime type, byte size, duration).
+///
+/// Upload progress is also deliberately not in it (MATRIX-107). The upload
+/// indicator and its cancel control draw as an overlay on the media body, so
+/// they take no layout space: a progress tick, the queued-to-uploading swap,
+/// and the indicator going away when the send finishes are all height-neutral.
+/// Only the send *failure* is a height input, because its banner sits in the
+/// layout (`sendFailureMessage`). Keep the indicator an overlay; if it ever
+/// takes layout space, it has to come into this type.
 public struct TimelineRowHeightFingerprint: Equatable, Sendable {
     public let body: MessageBodyGeometry
     /// Whether the row draws a reply preview: an `EmbeddedMessageView` plus

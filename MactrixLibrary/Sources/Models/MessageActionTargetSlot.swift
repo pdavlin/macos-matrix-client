@@ -6,14 +6,28 @@ public struct MessageActionTarget {
     /// The row's event or transaction ID. A row withdraws only its own target.
     public let key: String
     public let subject: MessageActionSubject
+    /// The quick reactions the menus offer, from the account's recent emoji
+    /// (MATRIX-111).
+    public let quickReactionKeys: [String]
     /// Runs an action on the message. The row that offered the target builds
     /// it, so the SDK call stays in the row's code path.
     public let perform: @MainActor (MessageAction) -> Void
 
-    public init(key: String, subject: MessageActionSubject, perform: @escaping @MainActor (MessageAction) -> Void) {
+    public init(
+        key: String,
+        subject: MessageActionSubject,
+        quickReactionKeys: [String] = MessageActionModel.defaultQuickReactionKeys,
+        perform: @escaping @MainActor (MessageAction) -> Void
+    ) {
         self.key = key
         self.subject = subject
+        self.quickReactionKeys = quickReactionKeys
         self.perform = perform
+    }
+
+    /// The message's actions on `surface`, with this target's quick reactions.
+    public func items(on surface: MessageActionSurface) -> [MessageActionItem] {
+        MessageActionModel.items(for: subject, on: surface, quickReactionKeys: quickReactionKeys)
     }
 }
 
@@ -67,7 +81,7 @@ public final class MessageActionTargetSlot {
     }
 
     private func publishItems() {
-        let items = MessageActionModel.items(for: target?.subject, on: .editMenu)
+        let items = target?.items(on: .editMenu) ?? MessageActionModel.items(for: nil, on: .editMenu)
         if items != editMenuItems {
             editMenuItems = items
         }
