@@ -19,8 +19,8 @@ public struct QuickSwitcherActions {
     let openRoom: (@MainActor (_ roomId: String) async throws -> Void)?
     /// Opens the existing DM with a person, or creates one, and shows it.
     let startDirectChat: (@MainActor (_ userId: String) async throws -> Void)?
-    /// ⌥-Return: shows a room in a new window. `nil` until MATRIX-116, and
-    /// ⌥-Return does nothing while it is `nil`.
+    /// ⌥-Return: shows a room in its own window (MATRIX-116). ⌥-Return does
+    /// nothing while it is `nil`.
     let openRoomInNewWindow: (@MainActor (_ roomId: String) async throws -> Void)?
     /// Hands a room back to the caller. Picker mode only.
     let pickRoom: (@MainActor (_ roomId: String) -> Void)?
@@ -32,7 +32,8 @@ public struct QuickSwitcherActions {
     ///   - searchPeople: the user directory search (New Chat's path).
     ///   - openRoom: shows a room in this window.
     ///   - startDirectChat: New Chat's start path for one person.
-    ///   - openRoomInNewWindow: the MATRIX-116 hook for ⌥-Return.
+    ///   - openRoomInNewWindow: ⌥-Return, the room in its own window
+    ///     (MATRIX-116). Optional, so a caller without windows leaves it out.
     public static func navigate(
         searchPeople: @escaping @MainActor (_ query: String) async throws -> [NewChatPerson],
         openRoom: @escaping @MainActor (_ roomId: String) async throws -> Void,

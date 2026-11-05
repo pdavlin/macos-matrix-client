@@ -14,7 +14,14 @@ public extension Models.MessageActionSubject {
     ///   - event: The timeline event.
     ///   - msg: The event's message-like content.
     ///   - pinnedEventIds: The room's pinned event IDs, from `RoomInfo`.
-    init(event: MatrixRustSDK.EventTimelineItem, msg: MatrixRustSDK.MsgLikeContent, pinnedEventIds: [String]) {
+    ///   - redactPermission: The room's redact permission, from
+    ///     `LiveRoom.redactPermission` (MATRIX-110).
+    init(
+        event: MatrixRustSDK.EventTimelineItem,
+        msg: MatrixRustSDK.MsgLikeContent,
+        pinnedEventIds: [String],
+        redactPermission: Models.MessageRedactPermission
+    ) {
         var eventId: String?
         if case let .eventId(id) = event.eventOrTransactionId {
             eventId = id
@@ -26,7 +33,8 @@ public extension Models.MessageActionSubject {
             eventId: eventId,
             canBeRepliedTo: event.canBeRepliedTo,
             isPinned: eventId.map(pinnedEventIds.contains) ?? false,
-            copyableText: copyableText
+            copyableText: copyableText,
+            redactPermission: redactPermission
         )
     }
 
@@ -64,5 +72,19 @@ public extension Models.MessageActionSubject {
         case let .other(_, body):
             return (.other, body)
         }
+    }
+}
+
+// MARK: - Redact permission (MATRIX-110)
+
+public extension Models.MessageRedactPermission {
+    /// Reads what the signed-in account may redact from the room's power
+    /// levels. The SDK owns the power-level rules; this only copies its two
+    /// answers.
+    init(powerLevels: MatrixRustSDK.RoomPowerLevels) {
+        self.init(
+            canRedactOwn: powerLevels.canOwnUserRedactOwn(),
+            canRedactOther: powerLevels.canOwnUserRedactOther()
+        )
     }
 }

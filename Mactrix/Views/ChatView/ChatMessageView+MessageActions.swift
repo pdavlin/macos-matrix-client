@@ -13,7 +13,12 @@ import UI
 extension ChatMessageView {
     /// The input of the shared action model for this message.
     var messageActionSubject: MessageActionSubject {
-        MessageActionSubject(event: event, msg: msg, pinnedEventIds: timeline?.room.roomInfo?.pinnedEventIds ?? [])
+        MessageActionSubject(
+            event: event,
+            msg: msg,
+            pinnedEventIds: timeline?.room.roomInfo?.pinnedEventIds ?? [],
+            redactPermission: timeline?.room.redactPermission ?? .none
+        )
     }
 
     var actionSubject: MessageActionSubject? {
@@ -33,8 +38,8 @@ extension ChatMessageView {
 
     /// Runs one message action.
     ///
-    /// Extension point: B2 (edit), B3 (redact), B5 (forward), and B6 (select)
-    /// each add their case here once `MessageAction` has it.
+    /// Extension point: B2 (edit), B5 (forward), and B6 (select) each add
+    /// their case here once `MessageAction` has it. B3 (redact) is in.
     func perform(_ action: MessageAction) {
         switch action {
         case .reply:
@@ -53,6 +58,8 @@ extension ChatMessageView {
             pin()
         case .unpin:
             unpin()
+        case .redact:
+            requestRedaction()
         case .quickLook, .playInline, .saveToDownloads:
             // The media view performs these; its menu never forwards them.
             Logger.viewCycle.error("media action reached the row: \(String(describing: action))")
@@ -71,6 +78,12 @@ extension ChatMessageView {
                 Logger.viewCycle.error("Failed to unpin message: \(error)")
             }
         }
+    }
+
+    /// Opens the delete confirmation for this message (MATRIX-110). The room
+    /// view shows the sheet; `LiveTimeline.confirmRedaction` sends it.
+    func requestRedaction() {
+        timeline?.requestRedaction(of: event.eventOrTransactionId, isOwn: event.isOwn)
     }
 
     /// Puts the message's plain body, or its media caption, on the pasteboard.

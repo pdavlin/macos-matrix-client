@@ -1,4 +1,5 @@
 import Core
+import Models
 import OSLog
 import SwiftUI
 
@@ -18,8 +19,27 @@ struct MactrixApp: App {
             GoCommands()
             MessageCommands()
         }
-        .onChange(of: windowState == nil, focusNotification)
+        // Keyed on the window, not only on whether one is key: moving from a
+        // room window to a main window hands that window a waiting
+        // notification (MATRIX-116).
+        .onChange(of: windowState.map(ObjectIdentifier.init), focusNotification)
         .onChange(of: appState.matrixClient?.notifications.selectedRoomId == nil, focusNotification)
+
+        // MATRIX-116 (D-8): one window per room, opened from the room's
+        // context menu and with ⌥-Return in ⌘K. Opening a room that has a
+        // window brings that window forward. SwiftUI restores these windows,
+        // with their room, on relaunch.
+        WindowGroup("Room", id: "room", for: RoomWindowID.self) { $roomWindow in
+            if let roomWindow {
+                RoomWindowView(roomId: roomWindow.roomId)
+                    .id(roomWindow.roomId)
+            } else {
+                ContentUnavailableView("No room", systemImage: "message.fill")
+            }
+        }
+        .defaultSize(width: 560, height: 720)
+        .commandsRemoved()
+        .environment(appState)
 
         Settings {
             SettingsView()
@@ -28,8 +48,19 @@ struct MactrixApp: App {
     }
 
     func focusNotification() {
-        guard let windowState else { return }
-        guard let notificationRoomId = appState.matrixClient?.notifications.selectedRoomId else { return }
+        guard let windowState, let notificationRoomId = appState.matrixClient?.notifications.selectedRoomId else { return }
+
+        // A room window shows only its own room (MATRIX-116). A notification
+        // for another room goes to a main window: bring one forward, and
+        // this method runs again when it becomes key.
+        if let singleRoomId = windowState.singleRoomId {
+            if singleRoomId == notificationRoomId {
+                appState.matrixClient?.notifications.selectedRoomId = nil
+            } else {
+                NSApp.frontmostMainWindow?.makeKeyAndOrderFront(nil)
+            }
+            return
+        }
 
         windowState.selectedRoomId = notificationRoomId
         appState.matrixClient?.notifications.selectedRoomId = nil

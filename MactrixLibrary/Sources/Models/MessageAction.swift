@@ -45,6 +45,10 @@ public enum MessageAction: Hashable, Sendable {
     case playInline
     /// Save the media file to the Downloads folder.
     case saveToDownloads
+    /// Delete (redact) the message for everyone, after a confirmation with an
+    /// optional reason (MATRIX-110, M2-B3). Own messages, and other people's
+    /// when the power levels allow it.
+    case redact
 
     /// Whether this is one of the quick reactions, which menus fold into one
     /// React submenu and the hover row draws as emoji.
@@ -62,7 +66,7 @@ public enum MessageAction: Hashable, Sendable {
         switch self {
         case .quickLook, .playInline, .saveToDownloads:
             return true
-        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .copyText, .copyLink, .pin, .unpin:
+        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .copyText, .copyLink, .pin, .unpin, .redact:
             return false
         }
     }
@@ -81,12 +85,15 @@ public enum MessageActionSurface: Hashable, Sendable, CaseIterable {
 /// Groups of actions. Menus draw a separator between two groups.
 ///
 /// The raw value is the display order. B2 and B5 add `.modify` after
-/// `.respond`; B3 adds `.destructive` last.
+/// `.respond`. `.destructive` (B3) stays last.
 public enum MessageActionSection: Int, Hashable, Sendable, Comparable {
     case respond
     case media
     case copy
     case organize
+    /// Actions that remove the message. Always the last group, so a
+    /// separator keeps them away from the rest (MATRIX-110).
+    case destructive
 
     public static func < (lhs: Self, rhs: Self) -> Bool {
         lhs.rawValue < rhs.rawValue
@@ -138,14 +145,21 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// The text Copy Text puts on the pasteboard: the plain body, or the
     /// caption of a media message. Nil or empty means there is no text.
     public var copyableText: String?
+    /// What the signed-in account may redact in this message's room, from the
+    /// room's power levels (MATRIX-110). The rule reads `isOwn` to pick one.
+    public var redactPermission: MessageRedactPermission
 
+    /// - Parameter redactPermission: The room's redact permission. It defaults
+    ///   to `.none`, so a caller that does not know the power levels never
+    ///   offers Delete.
     public init(
         content: Content,
         isOwn: Bool,
         eventId: String?,
         canBeRepliedTo: Bool,
         isPinned: Bool,
-        copyableText: String?
+        copyableText: String?,
+        redactPermission: MessageRedactPermission = .none
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -153,6 +167,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.canBeRepliedTo = canBeRepliedTo
         self.isPinned = isPinned
         self.copyableText = copyableText
+        self.redactPermission = redactPermission
     }
 
     /// The same subject with other content. A video view uses it to report
@@ -161,6 +176,44 @@ public struct MessageActionSubject: Equatable, Sendable {
         var copy = self
         copy.content = content
         return copy
+    }
+}
+
+/// What the signed-in account may redact in one room (MATRIX-110).
+///
+/// `Core` reads it from the room's power levels once per room open, and again
+/// when the room info changes. Rows read the stored value, so a hover never
+/// calls the SDK.
+public struct MessageRedactPermission: Equatable, Sendable {
+    /// The account may redact its own messages.
+    public var canRedactOwn: Bool
+    /// The account may redact other people's messages (a moderator).
+    public var canRedactOther: Bool
+
+    public init(canRedactOwn: Bool, canRedactOther: Bool) {
+        self.canRedactOwn = canRedactOwn
+        self.canRedactOther = canRedactOther
+    }
+
+    /// No redaction. The value until the power levels load, and after a
+    /// failed read.
+    public static let none = Self(canRedactOwn: false, canRedactOther: false)
+
+    /// Whether the account may redact a message.
+    /// - Parameter isOwn: Whether the account sent the message.
+    public func allows(isOwn: Bool) -> Bool {
+        isOwn ? canRedactOwn : canRedactOther
+    }
+}
+
+/// Rules for the redaction request itself (MATRIX-110).
+public enum MessageRedaction {
+    /// The reason to send with a redaction: the typed text without leading
+    /// and trailing white space, or nil when nothing is left. The SDK then
+    /// sends no reason field at all.
+    public static func normalizedReason(_ typed: String) -> String? {
+        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -290,14 +343,21 @@ public enum MessageActionModel {
             return subject.content == .video(isPlayingInline: false) ? .available : .notApplicable
         case .saveToDownloads:
             return subject.content.isMedia ? .available : .notApplicable
+        case .redact:
+            // A local echo has no event ID, but the SDK takes the transaction
+            // ID too and aborts the pending send, so an own echo stays
+            // eligible. A message the power levels protect gets no item.
+            if isRedacted { return .notApplicable }
+            return subject.redactPermission.allows(isOwn: subject.isOwn) ? .available : .notApplicable
         }
     }
 
     /// The display order of the actions each surface can show.
     ///
     /// The Edit menu shows one Pin or Unpin item: Unpin when the target is
-    /// pinned, else Pin. The menus put "Add Reaction…" after the React
-    /// submenu (MATRIX-111).
+    /// pinned, else Pin. Delete is not in the hover row: one stray click there
+    /// must not start a destructive action. The menus put "Add Reaction…"
+    /// after the React submenu (MATRIX-111).
     static func order(
         on surface: MessageActionSurface,
         for subject: MessageActionSubject?,
@@ -310,11 +370,12 @@ public enum MessageActionModel {
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyText, .copyLink]
                 + [.pin, .unpin]
+                + [.redact]
         case .hoverRow:
             return reactions + [.openReactionPicker, .reply, .replyInThread, .pin, .unpin]
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
-            return [.reply] + reactions + [.openReactionPicker] + [.copyText, .copyLink, pinAction]
+            return [.reply] + reactions + [.openReactionPicker] + [.copyText, .copyLink, pinAction, .redact]
         }
     }
 
@@ -328,6 +389,8 @@ public enum MessageActionModel {
             return .copy
         case .pin, .unpin:
             return .organize
+        case .redact:
+            return .destructive
         }
     }
 }

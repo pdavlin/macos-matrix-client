@@ -14,7 +14,8 @@ struct MessageActionModelTests {
         eventId: String? = "$event",
         canBeRepliedTo: Bool = true,
         isPinned: Bool = false,
-        copyableText: String? = "hello"
+        copyableText: String? = "hello",
+        redactPermission: MessageRedactPermission = .none
     ) -> MessageActionSubject {
         MessageActionSubject(
             content: content,
@@ -22,9 +23,15 @@ struct MessageActionModelTests {
             eventId: eventId,
             canBeRepliedTo: canBeRepliedTo,
             isPinned: isPinned,
-            copyableText: copyableText
+            copyableText: copyableText,
+            redactPermission: redactPermission
         )
     }
+
+    /// A member who may redact own messages only: the common room default.
+    private static let member = MessageRedactPermission(canRedactOwn: true, canRedactOther: false)
+    /// A moderator who may redact anyone's messages.
+    private static let moderator = MessageRedactPermission(canRedactOwn: true, canRedactOther: true)
 
     private func actions(_ subject: MessageActionSubject?, on surface: MessageActionSurface) -> [MessageAction] {
         MessageActionModel.items(for: subject, on: surface).map(\.action)
@@ -41,7 +48,8 @@ struct MessageActionModelTests {
         #expect(disabled(subject(), on: .contextMenu).isEmpty)
     }
 
-    @Test func ownAndOtherTextOfferTheSameActionsBeforeB2AndB3() {
+    @Test func withoutRedactPermissionOwnAndOtherTextOfferTheSameActions() {
+        // `.none` is the value before the power levels load.
         #expect(actions(subject(isOwn: true), on: .contextMenu) == actions(subject(isOwn: false), on: .contextMenu))
     }
 
@@ -139,15 +147,15 @@ struct MessageActionModelTests {
 
     @Test func editMenuKeepsOneShapeAcrossMessages() {
         let text = actions(subject(), on: .editMenu)
-        #expect(text == [.reply] + Self.react + [.copyText, .copyLink, .pin])
+        #expect(text == [.reply] + Self.react + [.copyText, .copyLink, .pin, .redact])
         #expect(actions(subject(.image, copyableText: nil), on: .editMenu) == text)
         #expect(actions(subject(.redacted, copyableText: nil), on: .editMenu) == text)
         #expect(actions(nil, on: .editMenu) == text)
     }
 
     @Test func editMenuDisablesWhatDoesNotApply() {
-        #expect(disabled(subject(.image, copyableText: nil), on: .editMenu) == [.copyText])
-        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.react + [.copyText, .pin])
+        #expect(disabled(subject(.image, copyableText: nil), on: .editMenu) == [.copyText, .redact])
+        #expect(disabled(subject(.redacted, copyableText: nil), on: .editMenu) == [.reply] + Self.react + [.copyText, .pin, .redact])
     }
 
     @Test func editMenuWithoutATargetIsAllDisabled() {
@@ -155,8 +163,10 @@ struct MessageActionModelTests {
     }
 
     @Test func editMenuSwapsPinForUnpin() {
-        #expect(actions(subject(isPinned: true), on: .editMenu).last == .unpin)
-        #expect(disabled(subject(isPinned: true), on: .editMenu).isEmpty)
+        let pinned = subject(isOwn: true, isPinned: true, redactPermission: Self.member)
+        #expect(actions(pinned, on: .editMenu).contains(.unpin))
+        #expect(!actions(pinned, on: .editMenu).contains(.pin))
+        #expect(disabled(pinned, on: .editMenu).isEmpty)
     }
 
     @Test func editMenuHasNoMediaOrHoverOnlyActions() {
@@ -199,10 +209,95 @@ struct MessageActionModelTests {
         }
     }
 
+    // MARK: - Redact (MATRIX-110, M2-B3)
+
+    @Test func ownMessageOffersDeleteLastInItsOwnSection() {
+        let own = subject(isOwn: true, redactPermission: Self.member)
+        let items = MessageActionModel.items(for: own, on: .contextMenu)
+        #expect(items.last == MessageActionItem(action: .redact, section: .destructive, isEnabled: true))
+        let entries = MessageActionMenuLayout.entries(for: items)
+        #expect(entries.suffix(2) == [.separator, .action(MessageActionItem(action: .redact, section: .destructive, isEnabled: true))])
+    }
+
+    @Test func otherPersonsMessageHasNoDeleteWithoutThePowerLevel() {
+        let other = subject(isOwn: false, redactPermission: Self.member)
+        #expect(!actions(other, on: .contextMenu).contains(.redact))
+        #expect(disabled(other, on: .editMenu).contains(.redact))
+    }
+
+    @Test func otherPersonsMessageOffersDeleteToAModerator() {
+        let other = subject(isOwn: false, redactPermission: Self.moderator)
+        #expect(actions(other, on: .contextMenu).last == .redact)
+        #expect(!disabled(other, on: .editMenu).contains(.redact))
+    }
+
+    @Test func ownMessageHasNoDeleteWhenThePowerLevelsForbidIt() {
+        let forbidden = MessageRedactPermission(canRedactOwn: false, canRedactOther: true)
+        #expect(!actions(subject(isOwn: true, redactPermission: forbidden), on: .contextMenu).contains(.redact))
+    }
+
+    @Test func noDeleteBeforeThePowerLevelsLoad() {
+        for isOwn in [true, false] {
+            #expect(!actions(subject(isOwn: isOwn), on: .contextMenu).contains(.redact))
+        }
+    }
+
+    @Test func ownLocalEchoOffersDelete() {
+        // The SDK takes the transaction ID and aborts the pending send.
+        let echo = subject(isOwn: true, eventId: nil, canBeRepliedTo: false, redactPermission: Self.member)
+        #expect(actions(echo, on: .contextMenu).last == .redact)
+        #expect(!disabled(echo, on: .contextMenu).contains(.redact))
+        #expect(!disabled(echo, on: .editMenu).contains(.redact))
+    }
+
+    @Test func redactedMessageHasNoDelete() {
+        let redacted = subject(.redacted, isOwn: true, copyableText: nil, redactPermission: Self.moderator)
+        #expect(actions(redacted, on: .contextMenu) == [.copyLink])
+        #expect(disabled(redacted, on: .editMenu).contains(.redact))
+    }
+
+    @Test func mediaMessagesOfferDelete() {
+        let media: [MessageActionSubject.Content] = [.image, .video(isPlayingInline: false), .video(isPlayingInline: true), .audio, .file]
+        for content in media {
+            let menu = actions(subject(content, isOwn: true, copyableText: nil, redactPermission: Self.member), on: .contextMenu)
+            #expect(menu.last == .redact)
+        }
+    }
+
+    @Test func otherContentOffersDeleteToItsSender() {
+        // Stickers, polls, undecryptable messages can be deleted too.
+        #expect(actions(subject(.other, isOwn: true, copyableText: nil, redactPermission: Self.member), on: .contextMenu).last == .redact)
+    }
+
+    @Test func hoverRowNeverOffersDelete() {
+        let subjects = [
+            subject(isOwn: true, redactPermission: Self.moderator),
+            subject(isOwn: false, redactPermission: Self.moderator),
+            subject(.image, isOwn: true, redactPermission: Self.moderator),
+        ]
+        for subject in subjects {
+            #expect(!actions(subject, on: .hoverRow).contains(.redact))
+        }
+    }
+
+    @Test func deleteIsNotAMediaAction() {
+        #expect(!MessageAction.redact.isMediaAction)
+        #expect(!MessageAction.redact.isQuickReaction)
+    }
+
+    @Test func blankReasonSendsNoReason() {
+        #expect(MessageRedaction.normalizedReason("") == nil)
+        #expect(MessageRedaction.normalizedReason("  \n\t ") == nil)
+        #expect(MessageRedaction.normalizedReason("  spam \n") == "spam")
+    }
+
     // MARK: - Shared rules
 
     @Test func everySurfaceListsActionsInSectionOrder() {
-        let subjects = [subject(), subject(.image), subject(.video(isPlayingInline: true)), subject(isPinned: true), subject(eventId: nil)]
+        let subjects = [
+            subject(), subject(.image), subject(.video(isPlayingInline: true)), subject(isPinned: true), subject(eventId: nil),
+            subject(isOwn: true, redactPermission: Self.member), subject(.image, isOwn: false, redactPermission: Self.moderator),
+        ]
         for subject in subjects {
             for surface in MessageActionSurface.allCases {
                 let sections = MessageActionModel.items(for: subject, on: surface).map(\.section)
