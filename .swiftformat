@@ -21,7 +21,13 @@
 --disable wrapIfStatementBodies
 --disable docComments
 --disable redundantMemberwiseInit
---disable redundantViewBuilder
 --disable redundantFileprivate
 --disable wrapLoopBodies
 --disable redundantOptionalBinding
+
+# SwiftFormat 0.64 (MATRIX-95). contentBuilder replaces the deprecated
+# redundantViewBuilder, which this file already disabled. repeatedGuard merges
+# guards that are separate on purpose and pushes four lines past SwiftLint's
+# 140-column line_length warning.
+--disable contentBuilder
+--disable repeatedGuard
