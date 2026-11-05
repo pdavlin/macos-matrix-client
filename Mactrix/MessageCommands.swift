@@ -12,8 +12,10 @@ import UI
 ///
 /// The list does not change shape between messages: an action that does not
 /// apply to the target shows disabled. With no room or no target, every item
-/// is disabled. No keyboard shortcuts yet: ⌘C belongs to text selection, and
-/// B6 (selection) decides the message-level shortcuts.
+/// is disabled. While messages are selected (MATRIX-113), the selected message
+/// is the target and "Copy Messages" shows. It has no shortcut of its own:
+/// the standard Copy (⌘C) copies the message selection when the timeline has
+/// the keyboard focus, and a text selection when the text has it.
 struct MessageCommands: Commands {
     @FocusedValue(WindowState.self) private var windowState: WindowState?
 

@@ -64,7 +64,8 @@ struct MessageVideoView: View {
             items: MessageActionModel.items(
                 for: rowActions.subject.with(content: .video(isPlayingInline: video != nil)),
                 on: .contextMenu,
-                quickReactionKeys: rowActions.quickReactionKeys
+                quickReactionKeys: rowActions.quickReactionKeys,
+                hasMessageSelection: rowActions.hasMessageSelection
             ),
             perform: performMenuAction
         )

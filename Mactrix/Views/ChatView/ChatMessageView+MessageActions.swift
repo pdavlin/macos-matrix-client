@@ -32,14 +32,15 @@ extension ChatMessageView {
             key: event.eventOrTransactionId.id,
             subject: messageActionSubject,
             quickReactionKeys: quickReactionKeys,
+            hasMessageSelection: hasMessageSelection,
             perform: perform
         )
     }
 
     /// Runs one message action.
     ///
-    /// Extension point: B2 (edit), B5 (forward), and B6 (select) each add
-    /// their case here once `MessageAction` has it. B3 (redact) is in.
+    /// Extension point: B2 (edit) and B5 (forward) each add their case here
+    /// once `MessageAction` has it. B3 (redact) and B6 (copy messages) are in.
     func perform(_ action: MessageAction) {
         switch action {
         case .reply:
@@ -60,6 +61,8 @@ extension ChatMessageView {
             unpin()
         case .redact:
             requestRedaction()
+        case .copyMessages:
+            timeline?.messageActionTarget.copySelection()
         case .quickLook, .playInline, .saveToDownloads:
             // The media view performs these; its menu never forwards them.
             Logger.viewCycle.error("media action reached the row: \(String(describing: action))")

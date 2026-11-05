@@ -28,6 +28,7 @@ struct AppearanceTokenTests {
         #expect(AccentToken.hoverBackgroundOpacity == 0.1)
         #expect(AccentToken.inactiveBackgroundOpacity == 0.001)
         #expect(AccentToken.activeBackgroundOpacity == 1)
+        #expect(AccentToken.selectionBackgroundOpacity == 0.2)
     }
 
     @Test
