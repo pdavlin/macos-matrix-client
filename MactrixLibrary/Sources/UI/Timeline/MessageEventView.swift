@@ -40,6 +40,48 @@ public protocol MessageEventActions {
     func replyInThread()
     func pin()
     func focusUser()
+
+    /// The facts the action model reads for this message (MATRIX-108). Nil
+    /// means the conformer has no message menu: the row then draws no
+    /// right-click menu, and the hover row falls back to its pre-M2 buttons.
+    var actionSubject: MessageActionSubject? { get }
+
+    /// Runs one action from the hover row or the right-click menu.
+    func perform(_ action: MessageAction)
+}
+
+/// Defaults that keep conformers from before MATRIX-108 (the iOS rows, the
+/// timeline gate's shim, the mocks) working without a change.
+public extension MessageEventActions {
+    var actionSubject: MessageActionSubject? {
+        nil
+    }
+
+    func perform(_ action: MessageAction) {
+        switch action {
+        case .reply: reply()
+        case .replyInThread: replyInThread()
+        case let .toggleReaction(key): toggleReaction(key: key)
+        case .pin: pin()
+        case .openReactionPicker, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact: break
+        }
+    }
+}
+
+extension MessageActionSubject {
+    /// The subject for a conformer without one. It gives the pre-M2 hover row
+    /// (quick reactions, picker, reply and thread when repliable, pin). The
+    /// placeholder event ID only marks Pin as available, as it always was.
+    static func hoverFallback(for event: some Models.EventTimelineItem) -> Self {
+        MessageActionSubject(
+            content: .other,
+            isOwn: event.isOwn,
+            eventId: "",
+            canBeRepliedTo: event.canBeRepliedTo,
+            isPinned: false,
+            copyableText: nil
+        )
+    }
 }
 
 struct MessageTimestampView: View {
@@ -186,35 +228,46 @@ public struct MessageEventBodyView<
 
     @State private var hoverText: Bool = false
 
+    /// The hover row's actions, from the shared action model (MATRIX-108).
+    var hoverItems: [MessageActionItem] {
+        let subject = actions.actionSubject ?? .hoverFallback(for: event)
+        return MessageActionModel.items(for: subject, on: .hoverRow)
+    }
+
+    func hoverButton(for item: MessageActionItem) -> some View {
+        HoverButton(
+            icon: {
+                if let systemImage = MessageActionPresentation.systemImage(of: item.action) {
+                    Image(systemName: systemImage)
+                } else {
+                    Text(MessageActionPresentation.title(of: item.action))
+                }
+            },
+            tooltip: MessageActionPresentation.hoverTooltip(of: item.action),
+            action: { actions.perform(item.action) }
+        )
+    }
+
     @ViewBuilder
     var hoverActions: some View {
+        let items = hoverItems
+        let reactions = items.filter(\.action.isQuickReaction)
+        let others = items.filter { !$0.action.isQuickReaction }
+
         HStack(spacing: 0) {
-            HoverButton(icon: { Text("👍") }, tooltip: "React") {
-                actions.toggleReaction(key: "👍")
+            ForEach(reactions) { item in
+                hoverButton(for: item)
             }
-            HoverButton(icon: { Text("🎉") }, tooltip: "React") {
-                actions.toggleReaction(key: "🎉")
+            if !reactions.isEmpty, !others.isEmpty {
+                Divider().frame(height: DensityToken.hoverActionsDividerHeight)
             }
-            HoverButton(icon: { Text("❤️") }, tooltip: "React") {
-                actions.toggleReaction(key: "❤️")
-            }
-            Divider().frame(height: DensityToken.hoverActionsDividerHeight)
-            HoverButton(icon: { Image(systemName: "face.smiling") }, tooltip: "React") {}
-
-            if event.canBeRepliedTo {
-                HoverButton(icon: { Image(systemName: "arrowshape.turn.up.left") }, tooltip: "Reply") {
-                    actions.reply()
-                }
-
-                HoverButton(icon: { Image(systemName: "ellipsis.message") }, tooltip: "Reply in thread") {
-                    actions.replyInThread()
-                }
-            }
-
-            HoverButton(icon: { Image(systemName: "pin") }, tooltip: "Pin") {
-                actions.pin()
+            ForEach(others) { item in
+                hoverButton(for: item)
             }
         }
+        // The row height must not depend on which buttons show (MATRIX-63):
+        // the bar keeps one button's height even when it has no buttons.
+        .frame(minHeight: DensityToken.hoverActionButtonSize + 2 * DensityToken.hoverActionButtonPadding)
         .padding(DensityToken.hoverActionsPadding)
         .background(
             RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
@@ -224,7 +277,7 @@ public struct MessageEventBodyView<
         )
         .padding(.trailing, DensityToken.hoverActionsTrailingPadding)
         .padding(.top, DensityToken.hoverActionsTopOffset)
-        .opacity(hoverText ? 1 : 0)
+        .opacity(hoverText && !items.isEmpty ? 1 : 0)
     }
 
     func reactionIsActive(_ reaction: Reaction) -> Bool {
@@ -264,6 +317,7 @@ public struct MessageEventBodyView<
 
             hoverActions
         }
+        .modifier(MessageRowContextMenu(actions: actions))
         .onHover { hover in
             hoverText = hover
         }
@@ -272,6 +326,27 @@ public struct MessageEventBodyView<
 
     private var hasBottomContent: Bool {
         !reactions.isEmpty || !event.userReadReceipts.isEmpty
+    }
+}
+
+/// The right-click menu of a message row (MATRIX-108). It holds the row's
+/// actions. Media actions live in the menu over the media view, which has the
+/// state they need. A conformer without a subject gets no menu, so the iOS
+/// rows keep their own.
+struct MessageRowContextMenu: ViewModifier {
+    let actions: MessageEventActions
+
+    func body(content: Content) -> some View {
+        if let subject = actions.actionSubject {
+            content.contextMenu {
+                MessageActionMenu(
+                    items: MessageActionModel.items(for: subject, on: .contextMenu).filter { !$0.action.isMediaAction },
+                    perform: actions.perform
+                )
+            }
+        } else {
+            content
+        }
     }
 }
 
