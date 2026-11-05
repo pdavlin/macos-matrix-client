@@ -18,7 +18,8 @@ import Foundation
 ///   captions. Section `.modify`.
 /// - B3 `redact`: own messages, or others' with the power level. Section
 ///   `.destructive`.
-/// - B5 `forward`: text and media with an event ID. Section `.modify`.
+/// - B5 `forward`: in (MATRIX-112). Sent text and media messages, own or
+///   other. Section `.modify`.
 /// - B6 `copyMessages`: the message selection, not one message. Section
 ///   `.copy`.
 public enum MessageAction: Hashable, Sendable {
@@ -35,6 +36,10 @@ public enum MessageAction: Hashable, Sendable {
     /// Edit the message in the composer (MATRIX-109, M2-B2): the text of a
     /// text message, or the caption of a media message. Own messages only.
     case edit
+    /// Send the message again to another room (MATRIX-112, M2-B5, D-4): the
+    /// quick switcher picks the room, then a sheet confirms. Text and media
+    /// messages with an event ID, own or other. Not in the hover row.
+    case forward
     /// Copy the message's plain text body or media caption.
     case copyText
     /// Copy the message's matrix.to permalink.
@@ -76,7 +81,8 @@ public enum MessageAction: Hashable, Sendable {
         switch self {
         case .quickLook, .playInline, .saveToDownloads:
             return true
-        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .copyText, .copyLink, .pin, .unpin, .redact, .copyMessages:
+        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .pin, .unpin, .redact,
+             .copyMessages:
             return false
         }
     }
@@ -140,6 +146,17 @@ public struct MessageActionSubject: Equatable, Sendable {
                 return false
             }
         }
+
+        /// Whether Quick Look shows the content now. A video that plays in
+        /// the row offers Quick Look instead of Play Inline (S-38).
+        public var opensInQuickLook: Bool {
+            switch self {
+            case .image, .audio, .file, .video(isPlayingInline: true):
+                return true
+            case .video(isPlayingInline: false), .text, .redacted, .other:
+                return false
+            }
+        }
     }
 
     public var content: Content
@@ -163,6 +180,10 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// `isEditable`, and content the composer can edit (text, or a media
     /// caption). The rule reads `isOwn` too.
     public var isEditable: Bool
+    /// Whether the message's content can forward (MATRIX-112): text or a
+    /// notice with a body, or one media file. `Core` sets it from
+    /// `MessageForwardContent.decide(type:body:media:)`.
+    public var isForwardable: Bool
 
     /// - Parameters:
     ///   - redactPermission: The room's redact permission. It defaults to
@@ -170,6 +191,8 @@ public struct MessageActionSubject: Equatable, Sendable {
     ///     offers Delete.
     ///   - isEditable: Whether the composer can edit the message. It
     ///     defaults to false, so a caller that does not know never offers Edit.
+    ///   - isForwardable: Whether the content can forward. It defaults to
+    ///     false, so a caller that does not know never offers Forward.
     public init(
         content: Content,
         isOwn: Bool,
@@ -178,7 +201,8 @@ public struct MessageActionSubject: Equatable, Sendable {
         isPinned: Bool,
         copyableText: String?,
         redactPermission: MessageRedactPermission = .none,
-        isEditable: Bool = false
+        isEditable: Bool = false,
+        isForwardable: Bool = false
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -188,6 +212,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.copyableText = copyableText
         self.redactPermission = redactPermission
         self.isEditable = isEditable
+        self.isForwardable = isForwardable
     }
 
     /// The same subject with other content. A video view uses it to report
@@ -196,44 +221,6 @@ public struct MessageActionSubject: Equatable, Sendable {
         var copy = self
         copy.content = content
         return copy
-    }
-}
-
-/// What the signed-in account may redact in one room (MATRIX-110).
-///
-/// `Core` reads it from the room's power levels once per room open, and again
-/// when the room info changes. Rows read the stored value, so a hover never
-/// calls the SDK.
-public struct MessageRedactPermission: Equatable, Sendable {
-    /// The account may redact its own messages.
-    public var canRedactOwn: Bool
-    /// The account may redact other people's messages (a moderator).
-    public var canRedactOther: Bool
-
-    public init(canRedactOwn: Bool, canRedactOther: Bool) {
-        self.canRedactOwn = canRedactOwn
-        self.canRedactOther = canRedactOther
-    }
-
-    /// No redaction. The value until the power levels load, and after a
-    /// failed read.
-    public static let none = Self(canRedactOwn: false, canRedactOther: false)
-
-    /// Whether the account may redact a message.
-    /// - Parameter isOwn: Whether the account sent the message.
-    public func allows(isOwn: Bool) -> Bool {
-        isOwn ? canRedactOwn : canRedactOther
-    }
-}
-
-/// Rules for the redaction request itself (MATRIX-110).
-public enum MessageRedaction {
-    /// The reason to send with a redaction: the typed text without leading
-    /// and trailing white space, or nil when nothing is left. The SDK then
-    /// sends no reason field at all.
-    public static func normalizedReason(_ typed: String) -> String? {
-        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -355,6 +342,11 @@ public enum MessageActionModel {
             // own echo stays eligible when the SDK marks it editable.
             if isRedacted { return .notApplicable }
             return subject.isOwn && subject.isEditable ? .available : .notApplicable
+        case .forward:
+            // A local echo has no event yet: it shows disabled until the
+            // send completes, as Copy Link does.
+            if isRedacted || !subject.isForwardable { return .notApplicable }
+            return hasEventId ? .available : .unavailable
         case .copyText:
             guard let text = subject.copyableText, !text.isEmpty else { return .notApplicable }
             return .available
@@ -367,12 +359,7 @@ public enum MessageActionModel {
             if isRedacted || !subject.isPinned { return .notApplicable }
             return hasEventId ? .available : .unavailable
         case .quickLook:
-            switch subject.content {
-            case .image, .audio, .file, .video(isPlayingInline: true):
-                return .available
-            case .video(isPlayingInline: false), .text, .redacted, .other:
-                return .notApplicable
-            }
+            return subject.content.opensInQuickLook ? .available : .notApplicable
         case .playInline:
             return subject.content == .video(isPlayingInline: false) ? .available : .notApplicable
         case .saveToDownloads:
@@ -394,7 +381,8 @@ public enum MessageActionModel {
     ///
     /// The Edit menu shows one Pin or Unpin item: Unpin when the target is
     /// pinned, else Pin. Delete is not in the hover row: one stray click there
-    /// must not start a destructive action. The menus put "Add Reaction…"
+    /// must not start a destructive action. Forward is not in the hover row either
+    /// (MATRIX-112): the menus carry it, after Edit. The menus put "Add Reaction…"
     /// after the React submenu (MATRIX-111). Copy Messages heads the copy
     /// group (MATRIX-113). The Edit menu lists it only while a selection
     /// exists; the context menu leaves it out through its availability.
@@ -408,7 +396,7 @@ public enum MessageActionModel {
         switch surface {
         case .contextMenu:
             return [.reply] + reactions + [.openReactionPicker]
-                + [.edit]
+                + [.edit, .forward]
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyMessages, .copyText, .copyLink]
                 + [.pin, .unpin]
@@ -418,7 +406,8 @@ public enum MessageActionModel {
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
             let copySelection: [MessageAction] = hasMessageSelection ? [.copyMessages] : []
-            return [.reply] + reactions + [.openReactionPicker] + [.edit] + copySelection + [.copyText, .copyLink, pinAction, .redact]
+            return [.reply] + reactions + [.openReactionPicker] + [.edit, .forward]
+                + copySelection + [.copyText, .copyLink, pinAction, .redact]
         }
     }
 
@@ -426,7 +415,7 @@ public enum MessageActionModel {
         switch action {
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker:
             return .respond
-        case .edit:
+        case .edit, .forward:
             return .modify
         case .quickLook, .playInline, .saveToDownloads:
             return .media

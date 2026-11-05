@@ -39,8 +39,7 @@ extension ChatMessageView {
 
     /// Runs one message action.
     ///
-    /// Extension point: B5 (forward) adds its case here once `MessageAction`
-    /// has it. B2 (edit), B3 (redact), and B6 (copy messages) are in.
+    /// B2 (edit), B3 (redact), B5 (forward), and B6 (copy messages) are in.
     func perform(_ action: MessageAction) {
         switch action {
         case .reply:
@@ -54,6 +53,10 @@ extension ChatMessageView {
         case .edit:
             // The composer starts edit mode; it makes the SDK call on save.
             timeline?.requestEdit(of: event)
+        case .forward:
+            // The room view opens the room picker, then the confirmation;
+            // `MatrixClient.forward(_:to:)` makes the SDK calls (MATRIX-112).
+            timeline?.requestForward(of: event)
         case .copyText:
             copyText()
         case .copyLink:

@@ -15,6 +15,7 @@ public enum MessageActionPresentation {
         case let .toggleReaction(key): "\(key)"
         case .openReactionPicker: "Add Reaction…"
         case .edit: "Edit"
+        case .forward: "Forward…"
         case .copyText: "Copy Text"
         case .copyLink: "Copy Link"
         case .pin: "Pin"
@@ -46,6 +47,7 @@ public enum MessageActionPresentation {
         case .toggleReaction: nil
         case .openReactionPicker: "face.smiling"
         case .edit: "pencil"
+        case .forward: "arrowshape.turn.up.right"
         case .copyText: "doc.on.doc"
         case .copyLink: "link"
         case .pin: "pin"

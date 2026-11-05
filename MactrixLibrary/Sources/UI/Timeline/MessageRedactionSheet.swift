@@ -64,9 +64,10 @@ public struct MessageRedactionSheet: View {
     }
 }
 
-private extension View {
+extension View {
     /// Escape runs `action` on macOS. iOS has no Escape key path for a sheet,
-    /// and the Cancel button covers it.
+    /// and the Cancel button covers it. The forward confirmation uses it too
+    /// (MATRIX-112).
     func cancelsOnExitCommand(_ action: @escaping () -> Void) -> some View {
         #if os(macOS)
             onExitCommand(perform: action)

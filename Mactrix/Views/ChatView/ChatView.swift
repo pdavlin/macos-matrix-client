@@ -86,6 +86,7 @@ struct ChatJoinedRoom: View {
             } message: { failure in
                 Text(failure)
             }
+            .messageForwardSheets(timeline: timeline)
             .background(Color(NSColor.controlBackgroundColor))
             .navigationTitle(room.room.displayName() ?? "Unknown room")
             .navigationSubtitle(toolbarSubtitle)

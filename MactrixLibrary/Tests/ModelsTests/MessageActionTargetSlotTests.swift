@@ -23,7 +23,8 @@ struct MessageActionTargetSlotTests {
             isPinned: isPinned,
             copyableText: content == .text ? "body" : nil,
             redactPermission: redactPermission,
-            isEditable: true
+            isEditable: true,
+            isForwardable: true
         )
         return MessageActionTarget(key: key, subject: subject) { action in
             recorder.performed[key, default: []].append(action)
