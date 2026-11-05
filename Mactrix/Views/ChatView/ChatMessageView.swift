@@ -142,6 +142,29 @@ struct ChatMessageView: View, UI.MessageEventActions {
         }
     }
 
+    /// The upload indicator state of this row's media, or nil when the row
+    /// shows none (MATRIX-107).
+    ///
+    /// Only an own local echo uploads. The state is read off the SDK send
+    /// state the same way the failure banner below reads it; the container
+    /// throttles how often a progress tick reaches this view.
+    var mediaUploadState: Models.MediaUploadState? {
+        event.isOwn ? event.mediaUploadState : nil
+    }
+
+    /// Cancels the upload of this local echo. The send queue removes the echo
+    /// when the abort lands, so the row goes away on its own.
+    func cancelUpload() {
+        Task {
+            guard let timeline else {
+                Logger.viewCycle.error("cancelUpload: no timeline for \(event.eventOrTransactionId.id)")
+                return
+            }
+            let cancelled: Bool = await timeline.cancelMediaSend(localEcho: event)
+            Logger.viewCycle.info("cancel of media send \(event.eventOrTransactionId.id) returned \(cancelled)")
+        }
+    }
+
     @ViewBuilder
     var message: some View {
         switch msg.kind {
@@ -181,14 +204,19 @@ struct ChatMessageView: View, UI.MessageEventActions {
             Text("Emote: \(content.body)").textSelection(.enabled)
         case let .image(content: content):
             MessageImageView(content: content, rowActions: actionTarget)
+                .mediaUploadOverlay(mediaUploadState, placement: .mediaCorner, cancel: cancelUpload)
         case let .audio(content: content):
             MessageAudioView(content: content, rowActions: actionTarget)
+                .mediaUploadOverlay(mediaUploadState, placement: .rowTrailing, cancel: cancelUpload)
         case let .video(content: content):
             MessageVideoView(content: content, rowActions: actionTarget)
+                .mediaUploadOverlay(mediaUploadState, placement: .mediaCorner, cancel: cancelUpload)
         case let .file(content: content):
             MessageFileView(content: content, rowActions: actionTarget)
+                .mediaUploadOverlay(mediaUploadState, placement: .rowTrailing, cancel: cancelUpload)
         case let .gallery(content: content):
             Text("Gallery: \(content.body)").textSelection(.enabled)
+                .mediaUploadOverlay(mediaUploadState, placement: .rowTrailing, cancel: cancelUpload)
         case let .notice(content: content):
             Text(content.body.formatAsMarkdown)
                 .textSelection(.enabled)

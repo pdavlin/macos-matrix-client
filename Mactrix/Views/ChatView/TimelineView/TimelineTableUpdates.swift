@@ -2,6 +2,7 @@ import AppKit
 import MatrixRustSDK
 import Models
 import OSLog
+import QuartzCore
 import SwiftUI
 import UI
 
@@ -137,6 +138,7 @@ extension TimelineViewController {
         // Every row is rebuilt from the source of truth, which already carries
         // the content the queue was holding.
         pendingRowUpdates.removeAll()
+        uploadProgressThrottle.removeAll()
         leadingDecorationCount = 0
         trailingDecorationCount = 0
         refreshDecorationRows(applyingSnapshot: false)
@@ -195,6 +197,8 @@ extension TimelineViewController {
         for id in removedIds {
             heightCache.invalidate(rowId: id)
             rowRevisions[id] = nil
+            // A cancelled upload leaves while its indicator still shows.
+            uploadProgressThrottle.forget(rowId: id)
         }
         // The drain drops an identity it cannot resolve, but the same identity
         // can be re-inserted by a later resync; a returning row must not
@@ -262,6 +266,19 @@ extension TimelineViewController {
 
         guard row.uniqueId == timelineRows[tableIndex].uniqueId else {
             applyReset()
+            return false
+        }
+
+        // An upload reports progress on the local echo, so each tick arrives
+        // here as a content update. A tick that would not change what the row
+        // draws is dropped before it costs a row reload (MATRIX-107). Dropping
+        // is height-safe: the row keeps the content its height was measured
+        // against, and the next admitted tick carries the newest item whole.
+        guard uploadProgressThrottle.admit(
+            rowId: row.uniqueId,
+            state: row.mediaUploadState,
+            at: CACurrentMediaTime()
+        ) else {
             return false
         }
 
