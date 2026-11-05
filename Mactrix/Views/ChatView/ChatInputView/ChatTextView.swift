@@ -4,6 +4,7 @@ import OSLog
 import SwiftUI
 import Tokens
 import UI
+import UniformTypeIdentifiers
 
 struct ChatTextView: NSViewRepresentable {
     typealias NSViewRepresentableType = NSTextView
@@ -19,6 +20,9 @@ struct ChatTextView: NSViewRepresentable {
     let disabled: Bool
     /// Runs the "@" autocomplete and inserts chips (MATRIX-105).
     let mentions: ComposerMentionController
+    /// Takes pasted and dropped files and images, and removes the newest
+    /// attachment on Esc (MATRIX-106).
+    let attachments: ComposerAttachmentController
     let onSubmit: () -> Void
 
     func makeNSView(context: Context) -> DynamicTextView {
@@ -33,6 +37,9 @@ struct ChatTextView: NSViewRepresentable {
             mentions?.handle(key) ?? false
         }
         mentions.textView = textView
+        configureAttachmentHandlers(of: textView)
+        // Adds the file and image drag types (`acceptableDragTypes`).
+        textView.updateDragTypeRegistration()
 
         textView.placeholderAttributedString = NSAttributedString(
             string: placeholder,
@@ -72,6 +79,7 @@ struct ChatTextView: NSViewRepresentable {
             mentions?.handle(key) ?? false
         }
         mentions.textView = textView
+        configureAttachmentHandlers(of: textView)
 
         let currentFont = NSFont.systemFont(ofSize: CGFloat(fontSize))
         if textView.font?.pointSize != currentFont.pointSize {
@@ -124,6 +132,20 @@ struct ChatTextView: NSViewRepresentable {
         }
     }
 
+    /// Points the text view's paste, drop, and Esc hooks at the attachment
+    /// controller (MATRIX-106).
+    private func configureAttachmentHandlers(of textView: DynamicTextView) {
+        textView.attachmentContentHandler = { [weak attachments] pasteboard in
+            attachments?.takeContent(of: pasteboard) ?? false
+        }
+        textView.attachmentDropFilter = { [weak attachments] pasteboard in
+            attachments?.acceptsDrop(of: pasteboard) ?? false
+        }
+        textView.attachmentEscapeHandler = { [weak attachments] in
+            attachments?.removeLast() ?? false
+        }
+    }
+
     func makeCoordinator() -> Coordinator {
         return Coordinator(text: text, mentions: mentions)
     }
@@ -173,6 +195,19 @@ class DynamicTextView: NSTextView {
     /// Takes the popup keys (arrows, Return, Tab, Esc) while the mention
     /// popup is open. Returns true if it used the key (MATRIX-105).
     var mentionKeyHandler: ((MentionAutocompleteKey) -> Bool)?
+
+    /// Takes the files or the image on a pasteboard as attachments, for a
+    /// paste or a drop. Returns true if it took them; false lets the text
+    /// view paste text as usual (MATRIX-106).
+    var attachmentContentHandler: ((NSPasteboard) -> Bool)?
+
+    /// Returns true if a drag holds files or an image that
+    /// `attachmentContentHandler` takes (MATRIX-106).
+    var attachmentDropFilter: ((NSPasteboard) -> Bool)?
+
+    /// Removes the newest pending attachment on Esc. Returns true if it
+    /// removed one (MATRIX-106).
+    var attachmentEscapeHandler: (() -> Bool)?
 
     /// The pasteboard type for composer content with chips: the draft text
     /// (`MentionMarkdown.draftText(for:)`). Copy and paste inside the composer
@@ -271,6 +306,11 @@ class DynamicTextView: NSTextView {
             return
         }
 
+        // Esc with the mention popup closed removes the newest attachment.
+        if mentionKey(for: event) == .dismiss, attachmentEscapeHandler?() == true {
+            return
+        }
+
         if sendAction(for: event) == .send {
             onSubmit?()
             return
@@ -318,5 +358,44 @@ class DynamicTextView: NSTextView {
             replacementRange: selectedRange()
         )
         return true
+    }
+
+    // MARK: - Attachments (MATRIX-106)
+
+    /// Pastes files and images as attachments. Text, and composer draft text
+    /// with chips, paste as before.
+    override func paste(_ sender: Any?) {
+        if attachmentContentHandler?(NSPasteboard.general) == true {
+            return
+        }
+        super.paste(sender)
+    }
+
+    /// Adds file URLs and image types, so a drop of files or images reaches
+    /// `performDragOperation(_:)`.
+    override var acceptableDragTypes: [NSPasteboard.PasteboardType] {
+        super.acceptableDragTypes + [.fileURL, .png, .tiff, NSPasteboard.PasteboardType(UTType.jpeg.identifier)]
+    }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if attachmentDropFilter?(sender.draggingPasteboard) == true {
+            return .copy
+        }
+        return super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if attachmentDropFilter?(sender.draggingPasteboard) == true {
+            return .copy
+        }
+        return super.draggingUpdated(sender)
+    }
+
+    /// Drops files and images as attachments. A text drag drops as text.
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        if attachmentDropFilter?(sender.draggingPasteboard) == true {
+            return attachmentContentHandler?(sender.draggingPasteboard) ?? false
+        }
+        return super.performDragOperation(sender)
     }
 }

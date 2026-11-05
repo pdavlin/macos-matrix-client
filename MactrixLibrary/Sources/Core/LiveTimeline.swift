@@ -41,6 +41,10 @@ public final class LiveTimeline {
     /// alert and clears it.
     public var redactionFailure: String?
 
+    /// The media sends that run in the SDK, with their join handle cancels
+    /// (MATRIX-106). See `sendMedia(_:)` and `cancelMediaSend(localEcho:)`.
+    public let mediaSends = MediaSendTracker()
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline
