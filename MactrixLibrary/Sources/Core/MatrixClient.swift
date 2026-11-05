@@ -25,6 +25,9 @@ public class MatrixClient {
 
     public let notifications: MatrixNotifications = .init()
 
+    /// MATRIX-119: the Dock badge and the account-wide unread chat count.
+    public let dockBadge = DockBadgeController()
+
     /// The account's recent emoji for this session (MATRIX-111). See
     /// `MatrixClient+RecentEmoji.swift`.
     public let recentEmojis = RecentEmojiStore()
@@ -213,6 +216,9 @@ public class MatrixClient {
         roomListEntriesHandle?.entriesStream().cancel()
         roomListEntriesHandle = nil
 
+        // MATRIX-119: drop the per-room subscriptions and clear the badge.
+        dockBadge.stop()
+
         roomListServiceStateHandle?.cancel()
         roomListServiceStateHandle = nil
         syncIndicatorHandle?.cancel()
@@ -360,6 +366,10 @@ public class MatrixClient {
             labels = LabelsModel(client: client, notifications: notifications)
         }
         await labels?.refresh()
+
+        // MATRIX-119: a no-op on iOS. Restart sync calls this again with
+        // the new room list service.
+        await dockBadge.start(roomListService: _roomListService, labels: labels)
 
         // Start the sync loop.
         await _syncService.start()

@@ -5,7 +5,8 @@ import SwiftUI
 import Testing
 @testable import UI
 
-/// Snapshots for Settings > Notifications (MATRIX-117).
+/// Snapshots for Settings > Notifications (MATRIX-117, Dock badge switch
+/// MATRIX-119).
 ///
 /// Each test reads the settings from its own `UserDefaults` suite, so the
 /// snapshot never depends on what the test host's standard defaults hold, and
@@ -16,7 +17,8 @@ struct NotificationSettingsSnapshotTests {
     private func isolatedDefaults(
         suite: String,
         showsNotifications: Bool?,
-        playsSound: Bool?
+        playsSound: Bool?,
+        showsDockBadge: Bool? = nil
     ) throws -> UserDefaults {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -25,6 +27,9 @@ struct NotificationSettingsSnapshotTests {
         }
         if let playsSound {
             defaults.set(playsSound, forKey: NotificationPreferences.playNotificationSoundStorageKey)
+        }
+        if let showsDockBadge {
+            defaults.set(showsDockBadge, forKey: NotificationPreferences.showDockBadgeStorageKey)
         }
         return defaults
     }
@@ -41,7 +46,7 @@ struct NotificationSettingsSnapshotTests {
         assertSnapshot(of: controller, as: .scaledImage, testName: testName)
     }
 
-    /// A user who never opened the tab sees both switches on.
+    /// A user who never opened the tab sees every switch on.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func defaultsAllOn() throws {
         let defaults = try isolatedDefaults(
@@ -69,6 +74,18 @@ struct NotificationSettingsSnapshotTests {
             suite: "NotificationSettingsSnapshotTests.notificationsOff",
             showsNotifications: false,
             playsSound: true
+        )
+        assertPinnedSnapshot(of: NotificationSettingsView(store: defaults))
+    }
+
+    /// The Dock badge switch is independent of the notification switches.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func dockBadgeOff() throws {
+        let defaults = try isolatedDefaults(
+            suite: "NotificationSettingsSnapshotTests.dockBadgeOff",
+            showsNotifications: true,
+            playsSound: true,
+            showsDockBadge: false
         )
         assertPinnedSnapshot(of: NotificationSettingsView(store: defaults))
     }
