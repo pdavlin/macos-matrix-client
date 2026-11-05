@@ -95,6 +95,12 @@ class TimelineViewController: NSViewController {
     /// calendar and time zone, the day a reader sees in the date dividers.
     let groupingCalendar = Calendar.autoupdatingCurrent
 
+    /// The whole messages selected by gutter clicks (MATRIX-113), by row
+    /// identity. The behaviour lives in `TimelineMessageSelection.swift`.
+    var messageSelection = MessageSelection()
+    /// Set while a check for selected rows that left the timeline is pending.
+    var messageSelectionPruneScheduled = false
+
     init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline) {
         self.coordinator = coordinator
         self.timeline = timeline
@@ -125,7 +131,11 @@ class TimelineViewController: NSViewController {
         tableView.headerView = nil
         tableView.style = .plain
         tableView.allowsColumnSelection = false
+        // AppKit row selection stays off (see the delegate below): whole
+        // messages are selected through the gutter, and the row view draws
+        // that selection (MATRIX-113).
         tableView.selectionHighlightStyle = .none
+        tableView.focusRingType = .none
 
         // S-32: manual `heightOfRow` + the height cache is the decided
         // mechanism (contract 2026-08-20). AppKit self-sizing stays off.
@@ -166,8 +176,12 @@ class TimelineViewController: NSViewController {
             TimelineStormProfiler.recordProvider(since: providerStarted, recycled: didRecycle)
             return hostView
         }
+        dataSource?.rowViewProvider = { [weak self] tableView, row, _ in
+            self?.makeMessageRowView(in: tableView, forRow: row) ?? NSTableRowView()
+        }
 
         tableView.delegate = self
+        installMessageSelection()
 
         tableView.onLiveResizeEnd = { [weak self] in
             guard let self else { return }
@@ -393,6 +407,8 @@ class TimelineViewController: NSViewController {
 }
 
 extension TimelineViewController: NSTableViewDelegate {
+    // AppKit's own row selection stays off, so a click on message text keeps
+    // selecting characters. Message selection is `messageSelection`.
     func selectionShouldChange(in _: NSTableView) -> Bool {
         return false
     }
@@ -440,21 +456,5 @@ extension TimelineViewController: NSTableViewDelegate {
         let height = measurementHostingView.sizeThatFits(in: proposedSize).height
         TimelineStormProfiler.recordMeasure(TimelineStormProfiler.elapsedMilliseconds(since: started))
         return height
-    }
-}
-
-class BottomStickyTableView: NSTableView {
-    /// Called once when a window live resize finishes, so the controller can
-    /// settle heights for rows that were offscreen during the resize.
-    var onLiveResizeEnd: (() -> Void)?
-
-    // By returning false, the table starts drawing from the bottom up
-    override var isFlipped: Bool {
-        return false
-    }
-
-    override func viewDidEndLiveResize() {
-        super.viewDidEndLiveResize()
-        onLiveResizeEnd?()
     }
 }

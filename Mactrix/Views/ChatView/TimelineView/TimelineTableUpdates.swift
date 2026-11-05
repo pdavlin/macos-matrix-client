@@ -125,6 +125,9 @@ extension TimelineViewController {
         // state — the S-54 re-entrancy.
         if isStructural {
             scheduleFocusScroll()
+            // A selected message can leave the timeline (a reset, a removed
+            // echo). Deferred for the same S-54 reason (MATRIX-113).
+            scheduleMessageSelectionPrune()
         }
     }
 

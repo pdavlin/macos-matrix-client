@@ -232,6 +232,8 @@ spike/TimelineSpike/Sources/ProductionTimeline/Production/
   TimelineTableView.swift      -> Mactrix/Views/ChatView/TimelineView/TimelineTableView.swift
   TimelineTableUpdates.swift   -> Mactrix/Views/ChatView/TimelineView/TimelineTableUpdates.swift
   TimelineScrollAnchor.swift   -> Mactrix/Views/ChatView/TimelineView/TimelineScrollAnchor.swift
+  BottomStickyTableView.swift  -> Mactrix/Views/ChatView/TimelineView/BottomStickyTableView.swift
+  TimelineMessageSelection.swift -> Mactrix/Views/ChatView/TimelineView/TimelineMessageSelection.swift
   NSTableView.swift            -> Mactrix/Extensions/NSTableView.swift
 ```
 

@@ -23,6 +23,7 @@ public enum MessageActionPresentation {
         case .playInline: "Play Inline"
         case .saveToDownloads: "Save to Downloads"
         case .redact: "Delete…"
+        case .copyMessages: "Copy Messages"
         }
     }
 
@@ -53,6 +54,7 @@ public enum MessageActionPresentation {
         case .playInline: "play.rectangle"
         case .saveToDownloads: "arrow.down.circle"
         case .redact: "trash"
+        case .copyMessages: "doc.on.clipboard"
         }
     }
 

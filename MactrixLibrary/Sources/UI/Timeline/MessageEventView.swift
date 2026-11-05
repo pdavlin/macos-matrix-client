@@ -52,6 +52,15 @@ public protocol MessageEventActions {
 
     /// Runs one action from the hover row or the right-click menu.
     func perform(_ action: MessageAction)
+
+    /// Whether the timeline has a message selection (MATRIX-113). The
+    /// right-click menu offers Copy Messages only then.
+    var hasMessageSelection: Bool { get }
+
+    /// Handles a click in the message's selection gutter (the timestamp
+    /// column), or nil when the conformer has no message selection. With
+    /// nil, the gutter takes no clicks.
+    var messageSelectionHandler: (@MainActor (MessageSelectionGesture) -> Void)? { get }
 }
 
 /// Defaults that keep conformers from before MATRIX-108 (the iOS rows, the
@@ -71,8 +80,16 @@ public extension MessageEventActions {
         case .replyInThread: replyInThread()
         case let .toggleReaction(key): toggleReaction(key: key)
         case .pin: pin()
-        case .openReactionPicker, .edit, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact: break
+        case .openReactionPicker, .edit, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact, .copyMessages: break
         }
+    }
+
+    var hasMessageSelection: Bool {
+        false
+    }
+
+    var messageSelectionHandler: (@MainActor (MessageSelectionGesture) -> Void)? {
+        nil
     }
 }
 
@@ -122,6 +139,9 @@ struct MessageMainBody<MessageView: View, EventTimelineItem: Models.EventTimelin
     let message: MessageView
     let hover: Bool
     let focused: Bool
+    /// Handles a click in the selection gutter, or nil for no gutter
+    /// (MATRIX-113).
+    var select: (@MainActor (MessageSelectionGesture) -> Void)?
 
     var body: some View {
         // Main body
@@ -131,6 +151,13 @@ struct MessageMainBody<MessageView: View, EventTimelineItem: Models.EventTimelin
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, DensityToken.rowVerticalPadding)
+        // An overlay takes the size of the view under it and never sizes it,
+        // so the gutter cannot change the row height (MATRIX-63).
+        .overlay(alignment: .leading) {
+            if let select {
+                MessageSelectionGutter(select: select)
+            }
+        }
         .background(
             RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
                 .fill(
@@ -299,7 +326,8 @@ public struct MessageEventBodyView<
                     event: event,
                     message: message,
                     hover: hoverText,
-                    focused: focused
+                    focused: focused,
+                    select: actions.messageSelectionHandler
                 )
 
                 // Always present to keep view tree stable (avoids NSHostingView layout loop)
@@ -348,8 +376,13 @@ struct MessageRowContextMenu: ViewModifier {
         if let subject = actions.actionSubject {
             content.contextMenu {
                 MessageActionMenu(
-                    items: MessageActionModel.items(for: subject, on: .contextMenu, quickReactionKeys: actions.quickReactionKeys)
-                        .filter { !$0.action.isMediaAction },
+                    items: MessageActionModel.items(
+                        for: subject,
+                        on: .contextMenu,
+                        quickReactionKeys: actions.quickReactionKeys,
+                        hasMessageSelection: actions.hasMessageSelection
+                    )
+                    .filter { !$0.action.isMediaAction },
                     perform: actions.perform
                 )
             }

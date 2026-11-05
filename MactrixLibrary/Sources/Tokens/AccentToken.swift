@@ -17,4 +17,9 @@ public enum AccentToken {
 
     /// Row background opacity when the row is hovered or focused.
     public static let activeBackgroundOpacity: Double = 1
+
+    /// Opacity of the accent-colored background behind a message in the
+    /// message selection (MATRIX-113). Stronger than the focus background, so
+    /// a selected message reads apart from a focused one.
+    public static let selectionBackgroundOpacity: Double = 0.2
 }

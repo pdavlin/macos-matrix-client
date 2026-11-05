@@ -19,7 +19,8 @@ import Foundation
 /// - B3 `redact`: own messages, or others' with the power level. Section
 ///   `.destructive`.
 /// - B5 `forward`: text and media with an event ID. Section `.modify`.
-/// - B6 `select`: every message. Section `.organize`.
+/// - B6 `copyMessages`: the message selection, not one message. Section
+///   `.copy`.
 public enum MessageAction: Hashable, Sendable {
     /// Reply to the message in the composer.
     case reply
@@ -53,6 +54,11 @@ public enum MessageAction: Hashable, Sendable {
     /// optional reason (MATRIX-110, M2-B3). Own messages, and other people's
     /// when the power levels allow it.
     case redact
+    /// Copy the selected messages as a plain-text transcript (MATRIX-113,
+    /// M2-B6). It acts on the timeline's message selection, not on the
+    /// message that shows the menu, so it shows only while a selection
+    /// exists.
+    case copyMessages
 
     /// Whether this is one of the quick reactions, which menus fold into one
     /// React submenu and the hover row draws as emoji.
@@ -70,7 +76,7 @@ public enum MessageAction: Hashable, Sendable {
         switch self {
         case .quickLook, .playInline, .saveToDownloads:
             return true
-        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .copyText, .copyLink, .pin, .unpin, .redact:
+        case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .copyText, .copyLink, .pin, .unpin, .redact, .copyMessages:
             return false
         }
     }
@@ -296,14 +302,23 @@ public enum MessageActionModel {
     ///   - surface: Where the actions show.
     ///   - quickReactionKeys: The quick reactions, from
     ///     `quickReactionKeys(fromRecents:)`.
+    ///   - hasMessageSelection: Whether the timeline has a message selection
+    ///     (MATRIX-113). Copy Messages shows only then.
     /// - Returns: The actions in display order, each with its enabled state.
     public static func items(
         for subject: MessageActionSubject?,
         on surface: MessageActionSurface,
-        quickReactionKeys keys: [String] = defaultQuickReactionKeys
+        quickReactionKeys keys: [String] = defaultQuickReactionKeys,
+        hasMessageSelection: Bool = false
     ) -> [MessageActionItem] {
-        order(on: surface, for: subject, quickReactionKeys: keys).compactMap { action in
-            let state: Availability = subject.map { Self.availability(of: action, for: $0) } ?? .unavailable
+        order(on: surface, for: subject, quickReactionKeys: keys, hasMessageSelection: hasMessageSelection).compactMap { action in
+            // Copy Messages reads the selection, not the message, so it is
+            // available even when the Edit menu has no single target.
+            let state: Availability = if action == .copyMessages {
+                hasMessageSelection ? .available : .notApplicable
+            } else {
+                subject.map { Self.availability(of: action, for: $0) } ?? .unavailable
+            }
             let shows = switch surface {
             case .contextMenu: state != .notApplicable
             case .hoverRow: state == .available
@@ -368,6 +383,10 @@ public enum MessageActionModel {
             // eligible. A message the power levels protect gets no item.
             if isRedacted { return .notApplicable }
             return subject.redactPermission.allows(isOwn: subject.isOwn) ? .available : .notApplicable
+        case .copyMessages:
+            // Decided in `items(for:on:quickReactionKeys:hasMessageSelection:)`
+            // from the selection. No message fact makes it apply.
+            return .notApplicable
         }
     }
 
@@ -376,11 +395,14 @@ public enum MessageActionModel {
     /// The Edit menu shows one Pin or Unpin item: Unpin when the target is
     /// pinned, else Pin. Delete is not in the hover row: one stray click there
     /// must not start a destructive action. The menus put "Add Reaction…"
-    /// after the React submenu (MATRIX-111).
+    /// after the React submenu (MATRIX-111). Copy Messages heads the copy
+    /// group (MATRIX-113). The Edit menu lists it only while a selection
+    /// exists; the context menu leaves it out through its availability.
     static func order(
         on surface: MessageActionSurface,
         for subject: MessageActionSubject?,
-        quickReactionKeys keys: [String]
+        quickReactionKeys keys: [String],
+        hasMessageSelection: Bool = false
     ) -> [MessageAction] {
         let reactions: [MessageAction] = keys.map { MessageAction.toggleReaction(key: $0) }
         switch surface {
@@ -388,14 +410,15 @@ public enum MessageActionModel {
             return [.reply] + reactions + [.openReactionPicker]
                 + [.edit]
                 + [.quickLook, .playInline, .saveToDownloads]
-                + [.copyText, .copyLink]
+                + [.copyMessages, .copyText, .copyLink]
                 + [.pin, .unpin]
                 + [.redact]
         case .hoverRow:
             return reactions + [.openReactionPicker, .reply, .replyInThread, .edit, .pin, .unpin]
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
-            return [.reply] + reactions + [.openReactionPicker] + [.edit] + [.copyText, .copyLink, pinAction, .redact]
+            let copySelection: [MessageAction] = hasMessageSelection ? [.copyMessages] : []
+            return [.reply] + reactions + [.openReactionPicker] + [.edit] + copySelection + [.copyText, .copyLink, pinAction, .redact]
         }
     }
 
@@ -407,7 +430,7 @@ public enum MessageActionModel {
             return .modify
         case .quickLook, .playInline, .saveToDownloads:
             return .media
-        case .copyText, .copyLink:
+        case .copyText, .copyLink, .copyMessages:
             return .copy
         case .pin, .unpin:
             return .organize
