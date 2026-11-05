@@ -17,6 +17,7 @@ struct MactrixApp: App {
         .commands {
             AppCommands()
             GoCommands()
+            MessageCommands()
         }
         // Keyed on the window, not only on whether one is key: moving from a
         // room window to a main window hands that window a waiting
