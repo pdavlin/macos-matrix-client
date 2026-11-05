@@ -10,6 +10,9 @@ import UniformTypeIdentifiers
 
 struct MessageImageView: View {
     let content: ImageMessageContent
+    /// The row's actions. The menu over the image shows them with the media
+    /// actions this view performs (MATRIX-108).
+    let rowActions: MessageActionTarget
 
     @Environment(AppState.self) private var appState
 
@@ -19,8 +22,9 @@ struct MessageImageView: View {
     @State private var media = MediaFileController()
     @State private var quickLookUrl: URL?
 
-    init(content: ImageMessageContent) {
+    init(content: ImageMessageContent, rowActions: MessageActionTarget) {
         self.content = content
+        self.rowActions = rowActions
         if let cached = MatrixClient.imageCache.object(forKey: NSString(string: content.source.url())) {
             self._image = State(initialValue: Image(nsImage: cached))
         }
@@ -63,12 +67,22 @@ struct MessageImageView: View {
         )
         .buttonStyle(.plain)
         .contextMenu {
-            Button("Quick Look") {
-                Task { await presentQuickLook() }
-            }
-            Button("Save to Downloads") {
-                Task { await saveToDownloads() }
-            }
+            UI.MessageActionMenu(
+                items: MessageActionModel.items(for: rowActions.subject, on: .contextMenu),
+                perform: performMenuAction
+            )
+        }
+    }
+
+    /// Performs the media actions here and hands the rest to the row.
+    func performMenuAction(_ action: MessageAction) {
+        switch action {
+        case .quickLook:
+            Task { await presentQuickLook() }
+        case .saveToDownloads:
+            Task { await saveToDownloads() }
+        default:
+            rowActions.perform(action)
         }
     }
 

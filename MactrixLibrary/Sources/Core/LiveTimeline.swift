@@ -28,6 +28,10 @@ public final class LiveTimeline {
     /// composer inserts the chip and sets it back to nil.
     public var pendingComposerMention: MentionTarget?
 
+    /// The message the Edit menu acts on (MATRIX-108). Rows offer themselves
+    /// on hover; the menu commands read it through the window's timeline.
+    public let messageActionTarget = MessageActionTargetSlot()
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline

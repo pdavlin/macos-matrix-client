@@ -11,6 +11,9 @@ import UI
 struct MessageVideoView: View {
     @Environment(AppState.self) private var appState
     let content: VideoMessageContent
+    /// The row's actions. The menu over the video shows them with the media
+    /// actions this view performs (MATRIX-108).
+    let rowActions: MessageActionTarget
 
     @State private var media = MediaFileController()
     @State private var quickLookUrl: URL?
@@ -54,10 +57,29 @@ struct MessageVideoView: View {
         )
     }
 
-    @ViewBuilder
-    var saveButton: some View {
-        Button("Save to Downloads") {
+    /// The menu over the video (S-38): before playback, "Play Inline", because
+    /// a click opens Quick Look; during inline playback, "Quick Look".
+    var menu: some View {
+        UI.MessageActionMenu(
+            items: MessageActionModel.items(
+                for: rowActions.subject.with(content: .video(isPlayingInline: video != nil)),
+                on: .contextMenu
+            ),
+            perform: performMenuAction
+        )
+    }
+
+    /// Performs the media actions here and hands the rest to the row.
+    func performMenuAction(_ action: MessageAction) {
+        switch action {
+        case .quickLook:
+            Task { await presentQuickLook() }
+        case .playInline:
+            Task { await playInline() }
+        case .saveToDownloads:
             Task { await saveToDownloads() }
+        default:
+            rowActions.perform(action)
         }
     }
 
@@ -66,12 +88,7 @@ struct MessageVideoView: View {
             if let video {
                 TimelineVideoPlayer(videoPlayer: video)
                     .cornerRadius(BubbleToken.mediaCornerRadius)
-                    .contextMenu {
-                        Button("Quick Look") {
-                            Task { await presentQuickLook() }
-                        }
-                        saveButton
-                    }
+                    .contextMenu { menu }
             } else {
                 Button {
                     Task { await presentQuickLook() }
@@ -91,12 +108,7 @@ struct MessageVideoView: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .contextMenu {
-                    Button("Play Inline") {
-                        Task { await playInline() }
-                    }
-                    saveButton
-                }
+                .contextMenu { menu }
             }
             if let caption = content.caption, !caption.isEmpty {
                 Text(caption.formatAsMarkdown)
