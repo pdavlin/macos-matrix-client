@@ -12,14 +12,19 @@ public enum ChatListToken {
     /// Vertical padding inside a chat-list row (Beeper: `padding: 10px 8px`).
     public static let rowVerticalPadding: CGFloat = 10
 
-    /// Horizontal padding inside a chat-list row.
-    public static let rowHorizontalPadding: CGFloat = 8
-
-    /// Width of the leading column that holds the unread or error dot.
-    public static let indicatorColumnWidth: CGFloat = 12
+    /// Horizontal padding inside a chat-list row (MATRIX-123).
+    ///
+    /// Zero, because the macOS sidebar `List` already insets every row by
+    /// 16 pt on each side and ignores `listRowInsets`. With this value the
+    /// avatar starts 16 pt from the chat list's leading edge (it was 36 pt).
+    public static let rowHorizontalPadding: CGFloat = 0
 
     /// Diameter of the unread dot and the send-failure dot.
-    public static let indicatorDotSize: CGFloat = 6
+    ///
+    /// MATRIX-123: the dot sits on the avatar's top-leading corner, not in a
+    /// column of its own, so the avatar can start at the row's leading edge
+    /// and an unread change never moves the row's content.
+    public static let indicatorDotSize: CGFloat = 8
 
     /// Avatar diameter in a chat-list row.
     public static let avatarSize: CGFloat = 46
@@ -53,11 +58,26 @@ public enum ChatListToken {
     /// Room title weight when the room is read.
     public static let titleReadWeight: Font.Weight = .medium
 
-    /// Timestamp size.
+    /// Layout priority of the room title against the timestamp (MATRIX-123).
+    ///
+    /// Above the default 0, so the title takes all the width the timestamp
+    /// does not need. Without it the title line's `HStack` splits the free
+    /// width between the title and its spacer, and a name truncates after
+    /// about six characters.
+    public static let titleLayoutPriority: Double = 1
+
+    /// Timestamp size: smaller than the title, so the time reads as metadata.
     public static let timestampFontSize: CGFloat = 11
 
-    /// Opacity of the timestamp against the primary color.
-    public static let timestampOpacity: Double = 0.7
+    /// Timestamp weight. Regular whatever the unread state, so only the
+    /// title carries the unread emphasis.
+    public static let timestampWeight: Font.Weight = .regular
+
+    /// Timestamp color (MATRIX-123): the system secondary color, as in
+    /// Beeper's inbox.
+    public static var timestampStyle: HierarchicalShapeStyle {
+        .secondary
+    }
 
     /// Preview size.
     public static let previewFontSize: CGFloat = 13
@@ -101,7 +121,11 @@ public enum ChatListToken {
     public static let pinnedTileMinWidth: CGFloat = 80
 
     /// Top padding inside a pinned tile (Beeper: `padding: 12px 12px 10px`).
-    public static let pinnedTileTopPadding: CGFloat = 12
+    ///
+    /// MATRIX-123: 8 pt, not Beeper's 12 pt, to remove the gap above the
+    /// pinned row. It still holds the unread mark, which sits
+    /// `pinnedUnreadOffset` above the avatar.
+    public static let pinnedTileTopPadding: CGFloat = 8
 
     /// Horizontal padding inside a pinned tile.
     public static let pinnedTileHorizontalPadding: CGFloat = 12

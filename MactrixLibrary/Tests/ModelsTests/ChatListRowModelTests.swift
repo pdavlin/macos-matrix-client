@@ -3,6 +3,39 @@ import Testing
 
 /// MATRIX-67: unread state and the VoiceOver label of a chat-list row.
 struct ChatListRowModelTests {
+    // MARK: Pinned tile label (MATRIX-123)
+
+    @Test(arguments: [
+        ("Seth Redacted", "Seth"),
+        ("Hermes", "Hermes"),
+        ("  Seth   Redacted  ", "Seth"),
+        ("Brian Ruch (WhatsApp)", "Brian"),
+        ("Ana\tMaria", "Ana"),
+        ("@seth:example.org", "@seth:example.org"),
+        ("", ""),
+        ("   ", "   "),
+    ])
+    func firstNameIsTheFirstWord(displayName: String, expected: String) {
+        #expect(ChatListRowModel.firstName(of: displayName) == expected)
+    }
+
+    @Test
+    func directPinnedTitleIsTheFirstName() {
+        let model = ChatListRowModel(id: "!dm", title: "Seth Redacted", isDirect: true)
+        #expect(model.pinnedTitle == "Seth")
+        // The tooltip and VoiceOver keep the full name.
+        #expect(model.helpText == "Seth Redacted")
+        #expect(model.accessibilityLabel == "Seth Redacted")
+    }
+
+    @Test
+    func groupPinnedTitleKeepsTheRoomName() {
+        let model = ChatListRowModel(id: "!group", title: "Family Group Chat")
+        #expect(model.pinnedTitle == "Family Group Chat")
+    }
+
+    // MARK: Unread state
+
     @Test
     func readRoomHasNoUnreadState() {
         let unread = ChatListUnread(

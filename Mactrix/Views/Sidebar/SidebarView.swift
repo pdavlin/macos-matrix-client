@@ -165,7 +165,10 @@ struct SidebarView: View {
                         model: room.chatListRow(now: now, mutedByLabel: mutedByLabel.contains(room.id)),
                         imageLoader: appState.matrixClient
                     )
-                    // The row pads itself to the Beeper geometry.
+                    // The row pads itself to the Beeper geometry. The macOS
+                    // sidebar List still insets each row 16 pt on each side
+                    // (measured for MATRIX-123), so the row adds no
+                    // horizontal padding of its own.
                     .listRowInsets(EdgeInsets())
                     .contextMenu {
                         RoomContextMenu(room: room)

@@ -4,11 +4,14 @@ import Tokens
 
 /// One two-line row of the sidebar chat list (MATRIX-67).
 ///
-/// Layout follows Beeper's inbox row: an indicator column (unread or
-/// send-failure dot), the avatar with its network badge, then the title and
-/// timestamp over a two-line preview with the unread count on the trailing
-/// edge. The row paints no selection of its own; the sidebar `List` draws the
-/// native one.
+/// Layout follows Beeper's inbox row: the avatar with its network badge,
+/// then the title and timestamp over a two-line preview with the unread count
+/// on the trailing edge. The row paints no selection of its own; the sidebar
+/// `List` draws the native one.
+///
+/// MATRIX-123: the unread or send-failure dot sits on the avatar's top-leading
+/// corner, so the avatar starts at the row's leading edge. The title has
+/// layout priority over the timestamp, and the timestamp never truncates.
 public struct ChatListRow: View {
     let model: ChatListRowModel
     let imageLoader: ImageLoader?
@@ -44,6 +47,7 @@ public struct ChatListRow: View {
                 ))
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .layoutPriority(ChatListToken.titleLayoutPriority)
 
             if model.unread.isMuted {
                 Image(systemName: "bell.slash.fill")
@@ -55,8 +59,9 @@ public struct ChatListRow: View {
 
             if let timestamp = model.timestamp {
                 Text(timestamp)
-                    .font(.system(size: ChatListToken.timestampFontSize))
-                    .foregroundStyle(HierarchicalShapeStyle.primary.opacity(ChatListToken.timestampOpacity))
+                    .font(.system(size: ChatListToken.timestampFontSize, weight: ChatListToken.timestampWeight))
+                    .monospacedDigit()
+                    .foregroundStyle(ChatListToken.timestampStyle)
                     .lineLimit(1)
                     .fixedSize()
             }
@@ -80,10 +85,12 @@ public struct ChatListRow: View {
 
     public var body: some View {
         HStack(alignment: .center, spacing: 0) {
-            indicator
-                .frame(width: ChatListToken.indicatorColumnWidth)
-
             ChatListAvatar(model: model, size: ChatListToken.avatarSize, imageLoader: imageLoader)
+                // An overlay, not a column: the dot takes no width, so the
+                // avatar keeps its place when the row turns unread.
+                .overlay(alignment: .topLeading) {
+                    indicator
+                }
 
             VStack(alignment: .leading, spacing: ChatListToken.lineSpacing) {
                 titleLine
