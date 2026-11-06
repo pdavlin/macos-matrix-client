@@ -90,6 +90,7 @@ public class MatrixClient {
             cachePath: URL.sessionCaches(for: storeId).path(percentEncoded: false)
         )
         .passphrase(passphrase: storePassphrase)
+        .poolMaxSize(poolMaxSize: Self.storePoolMaxSize)
 
         let builder = ClientBuilder()
             .serverNameOrHomeserverUrl(serverNameOrUrl: homeServer)

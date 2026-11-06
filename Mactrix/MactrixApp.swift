@@ -2,11 +2,20 @@ import Core
 import Models
 import OSLog
 import SwiftUI
+import Utils
 
 @main
 struct MactrixApp: App {
     @State var appState = AppState()
     @FocusedValue(WindowState.self) private var windowState: WindowState?
+
+    init() {
+        // MATRIX-122: macOS starts apps at 256 open files, which the SDK's
+        // SQLite pools exhausted. Raise it before any store opens.
+        if let limit = FileDescriptorLimit.raiseSoftLimit() {
+            Logger.matrixClient.info("open-file soft limit: \(limit.before) -> \(limit.after)")
+        }
+    }
 
     var body: some Scene {
         WindowGroup(id: "main") {
