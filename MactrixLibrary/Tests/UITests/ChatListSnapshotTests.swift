@@ -126,7 +126,62 @@ struct ChatListSnapshotTests {
         assertSnapshot(of: row(model), as: .scaledImage)
     }
 
+    /// MATRIX-123: the chat list at its narrowest. The sidebar column's
+    /// minimum is 240 pt of chat list beside the label rail
+    /// (`SidebarView.minimumWidth`), and the macOS sidebar `List` insets each
+    /// row 16 pt on each side, so a row gets 208 pt. The names must keep most
+    /// of that width; the times stay whole.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func minimumWidthLongNames() {
+        let minimumChatListWidth: CGFloat = 240
+        let sidebarListRowInset: CGFloat = 16
+        let models: [ChatListRowModel] = [
+            ChatListRowModel(
+                id: "!games",
+                title: "#omaha-board-games",
+                preview: "Jo: Catan on Friday? I can bring the expansion",
+                timestamp: "9:23 AM",
+                unread: ChatListUnread(count: 3, isUnread: true)
+            ),
+            ChatListRowModel(
+                id: "!pets",
+                title: "#pets_and_other_animals",
+                preview: "Sam: Photo",
+                timestamp: "Yesterday"
+            ),
+            ChatListRowModel(
+                id: "!infra",
+                title: "dt_core-infrastructure",
+                preview: "Deploy finished",
+                timestamp: "10/15/26",
+                unread: ChatListUnread(count: 1, isUnread: true, isMuted: true)
+            ),
+            ChatListRowModel(
+                id: "!dm",
+                title: "Brian Ruch \u{2022} DevObs",
+                isDirect: true,
+                preview: "Brian: Can you look at the alert rules?",
+                timestamp: "12:05 PM",
+                network: .slack
+            ),
+        ]
+        let list = VStack(spacing: 0) {
+            ForEach(models) { model in
+                ChatListRow(model: model, imageLoader: nil)
+            }
+        }
+        .padding(.horizontal, sidebarListRowInset)
+        assertSnapshot(of: snapshot(of: list, width: minimumChatListWidth), as: .scaledImage)
+    }
+
     // MARK: Pinned tiles
+
+    /// MATRIX-123: a direct chat's tile shows the first name only.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func pinnedTileDirectFirstName() {
+        let model = ChatListRowModel(id: "!pinned-dm", title: "Seth Redacted", isDirect: true, network: .whatsApp)
+        assertSnapshot(of: tile(model), as: .scaledImage)
+    }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func pinnedTileUnread() {

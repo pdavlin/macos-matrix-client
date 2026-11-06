@@ -7,6 +7,9 @@ import Tokens
 /// The grid sits outside the `List` selection model, so a tile is a button
 /// that reports the tap and draws its own subtle selected background. The
 /// unread count rides on the avatar's top-right corner.
+///
+/// MATRIX-123: a direct chat's tile shows the other person's first name
+/// (`ChatListRowModel.pinnedTitle`); the tooltip keeps the full name.
 public struct PinnedChatTile: View {
     let model: ChatListRowModel
     let isSelected: Bool
@@ -44,7 +47,7 @@ public struct PinnedChatTile: View {
                             .offset(x: ChatListToken.pinnedUnreadOffset, y: -ChatListToken.pinnedUnreadOffset)
                     }
 
-                Text(model.title)
+                Text(model.pinnedTitle)
                     .font(.system(size: ChatListToken.pinnedTitleFontSize, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.tail)

@@ -63,6 +63,30 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
         return parts.joined(separator: ", ")
     }
 
+    /// The label under a pinned favourite tile (MATRIX-123).
+    ///
+    /// A direct chat shows the other person's first name, as Beeper does; a
+    /// group keeps its full name. The tooltip and the VoiceOver label keep
+    /// the full title.
+    public var pinnedTitle: String {
+        isDirect ? Self.firstName(of: title) : title
+    }
+
+    /// The first word of a display name.
+    ///
+    /// - Parameter displayName: a person's display name, for example
+    ///   "Seth Redacted (WhatsApp)".
+    /// - Returns: the text before the first whitespace ("Seth"), or the whole
+    ///   trimmed name when it has one word. A blank name comes back unchanged.
+    ///
+    /// ```swift
+    /// ChatListRowModel.firstName(of: "  Seth Redacted ") // "Seth"
+    /// ```
+    public static func firstName(of displayName: String) -> String {
+        let firstWord = displayName.split(whereSeparator: \.isWhitespace).first
+        return firstWord.map(String.init) ?? displayName
+    }
+
     /// The row tooltip: the title, and why the row is muted when a label
     /// muted it (MATRIX-77).
     public var helpText: String {
