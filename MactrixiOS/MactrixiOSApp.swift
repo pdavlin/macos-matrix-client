@@ -1,5 +1,6 @@
 import Core
 import SwiftUI
+import Utils
 
 @main
 struct MactrixiOSApp: App {
@@ -8,6 +9,8 @@ struct MactrixiOSApp: App {
     @State private var model = RootViewModel(appState: AppState())
 
     init() {
+        // MATRIX-122: raise the open-file soft limit before any store opens.
+        FileDescriptorLimit.raiseSoftLimit()
         SessionStorageLocation.resolve()
     }
 
