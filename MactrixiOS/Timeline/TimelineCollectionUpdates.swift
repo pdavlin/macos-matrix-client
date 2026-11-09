@@ -20,13 +20,17 @@ extension TimelineCollectionController {
         let anchor = isStructural ? currentScrollAnchor() : nil
 
         var regroupedIds: Set<String> = []
-        var didReset = false
+        batchDidResync = false
 
         for update in updates {
+            // A resync rebuilds from the final display order, which already
+            // holds every later change in this batch. Replaying them would
+            // insert rows twice, and a duplicate identifier makes the
+            // snapshot raise (MATRIX-130, MATRIX-132).
+            guard !batchDidResync else { break }
             switch update.change {
             case .reset:
                 applyReset()
-                didReset = true
             case let .insert(index, count):
                 applyInsert(at: index, count: count, rows: update.rows)
             case let .remove(index, count):
@@ -41,7 +45,7 @@ extension TimelineCollectionController {
         Logger.timelineIOS.info(
             """
             timeline update: \(updates.count) change(s) over \(self.rows.count) row(s) \
-            (structural: \(isStructural), reset: \(didReset)), \(self.pendingRowUpdates.count) queued
+            (structural: \(isStructural), resync: \(self.batchDidResync)), \(self.pendingRowUpdates.count) queued
             """
         )
 
@@ -66,7 +70,8 @@ extension TimelineCollectionController {
     }
 
     private func applyReset() {
-        rows = feed.displayRows
+        batchDidResync = true
+        rows = uniqueDisplayRows()
         heightCache.invalidateAll()
         clearWidthPlaceholders()
         rowRevisions.removeAll()
@@ -82,14 +87,24 @@ extension TimelineCollectionController {
     }
 
     private func applyInsert(at index: Int, count: Int, rows inserted: [TimelineRow]) {
-        let ids = inserted.map(\.uniqueId)
-        // A duplicate identity would trap the diffable data source; a state
-        // that produces one is a desync, and a rebuild is always correct.
         guard inserted.count == count,
-              TimelineDisplayOrder.isValidInsertIndex(index, count: itemRowCount),
-              Set(ids).count == ids.count,
-              !ids.contains(where: { snapshot.indexOfItem($0) != nil })
+              TimelineDisplayOrder.isValidInsertIndex(index, count: itemRowCount)
         else {
+            applyReset()
+            return
+        }
+
+        let ids = inserted.map(\.uniqueId)
+        // The snapshot raises an Objective-C exception on a duplicate
+        // identifier (MATRIX-130). A diff that names a row the collection
+        // view already holds resynchronizes instead.
+        let canInsert = TimelineRowIdentity.canInsert(ids) { (rowId: String) -> Bool in
+            snapshot.indexOfItem(rowId) != nil
+        }
+        guard canInsert else {
+            Logger.timelineIOS.error(
+                "timeline insert of \(count) row(s) at \(index) repeats a row the collection view holds: resyncing"
+            )
             applyReset()
             return
         }
@@ -141,6 +156,28 @@ extension TimelineCollectionController {
             return
         }
         pendingRowUpdates.enqueue(uniqueId: row.uniqueId, payload: row)
+    }
+
+    /// The feed's display order, with any repeated identity removed.
+    ///
+    /// The snapshot needs unique identifiers (MATRIX-130). If the feed ever
+    /// holds a repeated identity, the newest copy stays and the drop is
+    /// logged, so the collection view shows one row fewer instead of
+    /// raising. Later index-based diffs that then disagree with `rows`
+    /// resync through the existing guards.
+    func uniqueDisplayRows() -> [TimelineRow] {
+        let deduplicated = TimelineRowIdentity.removingDuplicates(feed.displayRows) { (row: TimelineRow) -> String in
+            row.uniqueId
+        }
+        if !deduplicated.removedIds.isEmpty {
+            Logger.timelineIOS.error(
+                """
+                timeline repeats \(deduplicated.removedIds.count) row identity(ies), dropped: \
+                \(deduplicated.removedIds.joined(separator: ", "), privacy: .public)
+                """
+            )
+        }
+        return deduplicated.unique
     }
 
     func appendToSnapshot(_ ids: [String]) {
