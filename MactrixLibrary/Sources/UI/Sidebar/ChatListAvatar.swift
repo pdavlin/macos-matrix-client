@@ -2,45 +2,80 @@ import Models
 import SwiftUI
 import Tokens
 
-/// A round room avatar with the bridge-network badge on its bottom-right
-/// corner (MATRIX-67). Shared by `ChatListRow` and `PinnedChatTile`.
+/// A room avatar with the bridge-network badge on its bottom-right corner
+/// (MATRIX-67). Shared by `ChatListRow`, `PinnedChatTile`, the quick
+/// switcher, and the label sheet.
+///
+/// MATRIX-129: the view draws `ChatListRowModel.avatarChoice` and holds no
+/// rule of its own. An image or initials is clipped to a circle; a group's
+/// bubble cluster is not clipped, so no bubble is cut at the edge.
 struct ChatListAvatar: View {
     let model: ChatListRowModel
     let size: CGFloat
     let imageLoader: ImageLoader?
 
-    var body: some View {
-        AvatarImage(avatarUrl: model.avatarUrl, imageLoader: imageLoader) {
-            ChatListAvatarPlaceholder(title: model.title, size: size)
-        }
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay(alignment: .bottomTrailing) {
-            if let network = model.network {
-                ChatListNetworkBadge(network: network)
-                    .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
+    @ViewBuilder
+    private var content: some View {
+        switch model.avatarChoice {
+        case let .image(url: url, placeholder: placeholder):
+            AvatarImage(avatarUrl: url, imageLoader: imageLoader) {
+                ChatListAvatarPlaceholder(initials: placeholder, size: size)
             }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        case let .cluster(heroes: heroes):
+            ChatListAvatarClusterView(
+                cluster: ChatListAvatarCluster(
+                    heroes: heroes,
+                    otherMemberCount: model.otherMemberCount,
+                    mode: ChatListAvatarClusterView.mode(forSize: size)
+                ),
+                size: size,
+                imageLoader: imageLoader
+            )
+        case let .initials(initials):
+            ChatListAvatarPlaceholder(initials: initials, size: size)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
         }
-        .accessibilityHidden(true)
+    }
+
+    var body: some View {
+        content
+            .frame(width: size, height: size)
+            .overlay(alignment: .bottomTrailing) {
+                if let network = model.network {
+                    ChatListNetworkBadge(network: network, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
+                        .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
+                }
+            }
+            .accessibilityHidden(true)
     }
 }
 
-/// The avatar shown while the image loads, or when the room has none: the
-/// title's first letter on a neutral fill.
+/// Colored initials: white letters on a palette gradient (MATRIX-129).
+///
+/// Shown when a room or person has no image, and while an image loads. The
+/// caller clips it to a circle. The letters and the palette slot come from
+/// `Models.ChatListInitials`.
 struct ChatListAvatarPlaceholder: View {
-    let title: String
+    let initials: ChatListInitials
+    /// The circle's diameter. It sets the letter size.
     let size: CGFloat
 
-    private var initial: String {
-        title.first { $0.isLetter || $0.isNumber }.map { String($0).uppercased() } ?? "#"
+    private var fontSize: CGFloat {
+        let ratio = initials.text.count > 1 ? ChatListToken.initialsDoubleFontRatio : ChatListToken.initialsSingleFontRatio
+        return size * ratio
     }
 
     var body: some View {
         ZStack {
-            Color.gray.opacity(0.45)
-            Text(initial)
-                .font(.system(size: size * 0.4, weight: .semibold))
-                .foregroundStyle(.white)
+            AvatarPaletteToken.gradient(atSlot: initials.paletteIndex)
+            Text(initials.text)
+                .font(.system(size: fontSize, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .foregroundStyle(AvatarPaletteToken.textColor)
         }
     }
 }
@@ -49,11 +84,15 @@ struct ChatListAvatarPlaceholder: View {
 ///
 /// Deliberately not a brand logo: Beeper's network assets are not ours to
 /// copy, so each network gets a letter on a color from `badgeColor`.
+///
+/// MATRIX-129: the badge scales with its avatar
+/// (`ChatListToken.networkBadgeSize(forAvatarSize:)`).
 struct ChatListNetworkBadge: View {
     let network: ChatListNetwork
+    /// The badge's side in points.
+    let size: CGFloat
 
     var body: some View {
-        let size = ChatListToken.networkBadgeSize
         Text(network.badgeGlyph)
             .font(.system(size: size * 0.6, weight: .bold, design: .rounded))
             .minimumScaleFactor(0.5)
