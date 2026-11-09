@@ -54,6 +54,10 @@ final class TimelineCollectionController: NSObject {
 
     /// Content-only updates owed to the collection view (MATRIX-57).
     var pendingRowUpdates = TimelineRowUpdateQueue<TimelineRow>()
+    /// True once a reset, or a fallback resync, ran in the current batch.
+    /// The batch loop stops there: the rebuild already holds every later
+    /// change (MATRIX-130, MATRIX-132).
+    var batchDidResync = false
     var rowUpdateDisplayLink: CADisplayLink?
     var unpacedRowUpdateDrainScheduled = false
 
@@ -91,7 +95,7 @@ final class TimelineCollectionController: NSObject {
 
         // Start from the current display order and take ownership of the
         // change queue, so the first update applies only what happens next.
-        rows = feed.displayRows
+        rows = uniqueDisplayRows()
         _ = feed.drainRowChanges()
         refreshDecorationRows(applying: false)
         regroup(0 ..< rows.count)

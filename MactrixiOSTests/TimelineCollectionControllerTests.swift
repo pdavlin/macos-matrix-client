@@ -164,4 +164,47 @@ final class TimelineCollectionControllerTests: XCTestCase {
         XCTAssertEqual(controller.rows.map(\.uniqueId), [row.uniqueId])
         XCTAssertEqual(controller.snapshot.itemIdentifiers, [row.uniqueId])
     }
+
+    /// MATRIX-132: a reset rebuilds from the final display order, which
+    /// already holds the rest of the batch. Replaying the later remove would
+    /// drop a row the feed still has.
+    func testResetEndsTheBatch() {
+        let feed = ScriptedFeed()
+        let newest = message(from: "@ada")
+        let oldest = message(from: "@bob")
+        feed.displayRows = [newest, oldest]
+        let controller = makeController(feed)
+
+        // The final display order, after the remove the batch carries.
+        feed.displayRows = [oldest]
+        feed.pending = [
+            TimelineRowChange(change: .reset, rows: []),
+            TimelineRowChange(change: .remove(index: 0, count: 1), rows: []),
+        ]
+        controller.update()
+
+        XCTAssertTrue(controller.batchDidResync)
+        XCTAssertEqual(controller.rows.map(\.uniqueId), [oldest.uniqueId])
+        XCTAssertEqual(controller.snapshot.itemIdentifiers, [oldest.uniqueId])
+    }
+
+    /// MATRIX-132: the initial load and a reset keep the newest copy of a
+    /// repeated identity, so the snapshot never sees a duplicate.
+    func testRepeatedIdentityIsDroppedOnLoadAndReset() {
+        let feed = ScriptedFeed()
+        let repeated = message(from: "@ada")
+        let other = message(from: "@bob")
+        feed.displayRows = [repeated, other, repeated]
+        let controller = makeController(feed)
+
+        XCTAssertEqual(controller.rows.map(\.uniqueId), [repeated.uniqueId, other.uniqueId])
+        XCTAssertEqual(controller.snapshot.itemIdentifiers, controller.rows.map(\.uniqueId))
+
+        feed.displayRows = [other, repeated, other]
+        feed.pending = [TimelineRowChange(change: .reset, rows: [])]
+        controller.update()
+
+        XCTAssertEqual(controller.rows.map(\.uniqueId), [other.uniqueId, repeated.uniqueId])
+        XCTAssertEqual(controller.snapshot.itemIdentifiers, controller.rows.map(\.uniqueId))
+    }
 }
