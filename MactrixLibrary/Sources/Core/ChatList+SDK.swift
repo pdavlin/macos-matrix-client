@@ -235,12 +235,25 @@ public extension SidebarRoom {
             timestamp: latestEvent.map { ChatListTimestamp.text(for: $0.timestamp, now: now) },
             unread: unread,
             hasSendFailure: preview?.hasSendFailure ?? false,
-            network: roomInfo.flatMap { ChatListNetwork.detect(heroUserIds: $0.heroes.lazy.map(\.userId)) }
+            network: roomInfo.flatMap { ChatListNetwork.detect(heroUserIds: $0.heroes.lazy.map(\.userId)) },
+            heroes: roomInfo?.chatListHeroes ?? [],
+            otherMemberCount: roomInfo.map { (info: MatrixRustSDK.RoomInfo) -> Int in
+                ChatListRowModel.countOtherMembers(joinedMembersCount: info.joinedMembersCount)
+            } ?? 0
         )
     }
 }
 
 extension MatrixRustSDK.RoomInfo {
+    /// MATRIX-129: the heroes the chat-list avatar may show, in server order,
+    /// without service members and bridge bots (`ChatListHero.visible`).
+    var chatListHeroes: [Models.ChatListHero] {
+        let candidates = heroes.map { (hero: MatrixRustSDK.RoomHero) -> Models.ChatListHero in
+            Models.ChatListHero(userId: hero.userId, displayName: hero.displayName, avatarUrl: hero.avatarUrl)
+        }
+        return Models.ChatListHero.visible(candidates, serviceMembers: serviceMembers)
+    }
+
     /// The user set the room's notification mode to mute. Display only.
     var isMuted: Bool {
         if case .mute = cachedUserDefinedNotificationMode {

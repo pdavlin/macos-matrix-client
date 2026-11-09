@@ -15,6 +15,12 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     public var unread: ChatListUnread
     public var hasSendFailure: Bool
     public var network: ChatListNetwork?
+    /// MATRIX-129: the room's visible heroes (`ChatListHero.visible`), in
+    /// server order. They feed the bubble cluster and a direct chat's avatar.
+    public var heroes: [ChatListHero]
+    /// MATRIX-129: joined members other than the user, for the cluster's
+    /// "+N" label. Zero when unknown.
+    public var otherMemberCount: Int
 
     public init(
         id: String,
@@ -25,7 +31,9 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
         timestamp: String? = nil,
         unread: ChatListUnread = ChatListUnread(),
         hasSendFailure: Bool = false,
-        network: ChatListNetwork? = nil
+        network: ChatListNetwork? = nil,
+        heroes: [ChatListHero] = [],
+        otherMemberCount: Int = 0
     ) {
         self.id = id
         self.title = title
@@ -36,6 +44,22 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
         self.unread = unread
         self.hasSendFailure = hasSendFailure
         self.network = network
+        self.heroes = heroes
+        self.otherMemberCount = otherMemberCount
+    }
+
+    /// What the avatar draws (MATRIX-129). See `ChatListAvatarChoice.choose`.
+    public var avatarChoice: ChatListAvatarChoice {
+        ChatListAvatarChoice.choose(roomId: id, title: title, avatarUrl: avatarUrl, isDirect: isDirect, heroes: heroes)
+    }
+
+    /// Joined members other than the user: the SDK's joined count minus one,
+    /// never below zero (MATRIX-129).
+    ///
+    /// - Parameter joinedMembersCount: the SDK's `RoomInfo.joinedMembersCount`,
+    ///   which counts the user.
+    public static func countOtherMembers(joinedMembersCount: UInt64) -> Int {
+        joinedMembersCount > 0 ? Int(clamping: joinedMembersCount - 1) : 0
     }
 
     /// The VoiceOver label: title, then unread state, then mute.
