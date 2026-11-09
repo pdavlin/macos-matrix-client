@@ -148,8 +148,8 @@ public struct LabelEditSheet: View {
 
     private func chatRow(_ chat: ChatListRowModel) -> some View {
         let isSelected = draft.isSelected(chat.id)
-        // The network badge is sized for the chat list's 46 pt avatar and
-        // would cover this one.
+        // The network badge scales with the avatar, but on this 24 pt avatar it
+        // would cover most of the face.
         var avatarModel = chat
         avatarModel.network = nil
         return Button {
