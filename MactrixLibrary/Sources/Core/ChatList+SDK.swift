@@ -225,6 +225,13 @@ public extension SidebarRoom {
                 isMutedByLabel: mutedByLabel
             )
         } ?? ChatListUnread(isMutedByLabel: mutedByLabel)
+        // MATRIX-133: the loaded members stand in for missing heroes.
+        let people = ChatListRowPeople(
+            visibleHeroes: roomInfo?.chatListHeroes ?? [],
+            heroUserIds: roomInfo?.heroes.map(\.userId) ?? [],
+            joinedMembersCount: roomInfo?.joinedMembersCount,
+            members: memberCluster
+        )
 
         return ChatListRowModel(
             id: id,
@@ -235,11 +242,9 @@ public extension SidebarRoom {
             timestamp: latestEvent.map { ChatListTimestamp.text(for: $0.timestamp, now: now) },
             unread: unread,
             hasSendFailure: preview?.hasSendFailure ?? false,
-            network: roomInfo.flatMap { ChatListNetwork.detect(heroUserIds: $0.heroes.lazy.map(\.userId)) },
-            heroes: roomInfo?.chatListHeroes ?? [],
-            otherMemberCount: roomInfo.map { (info: MatrixRustSDK.RoomInfo) -> Int in
-                ChatListRowModel.countOtherMembers(joinedMembersCount: info.joinedMembersCount)
-            } ?? 0
+            network: people.network,
+            heroes: people.heroes,
+            otherMemberCount: people.otherMemberCount
         )
     }
 }
@@ -260,5 +265,55 @@ extension MatrixRustSDK.RoomInfo {
             return true
         }
         return false
+    }
+}
+
+extension MatrixRustSDK.RoomMembersIterator {
+    /// MATRIX-133: every member the iterator holds, mapped for the chat-list
+    /// member fallback. Reads one chunk the size of the whole list, as
+    /// `LiveRoom.syncMembers()` does.
+    func allChatListMembers() -> [Models.ChatListMember] {
+        let members = nextChunk(chunkSize: len()) ?? []
+        return members.map { (member: MatrixRustSDK.RoomMember) -> Models.ChatListMember in
+            member.chatListMember
+        }
+    }
+}
+
+extension MatrixRustSDK.RoomMember {
+    /// MATRIX-133: this member as the chat-list member fallback reads it.
+    var chatListMember: Models.ChatListMember {
+        Models.ChatListMember(
+            userId: userId,
+            displayName: displayName,
+            avatarUrl: avatarUrl,
+            isJoined: membership.isJoin,
+            isIgnored: isIgnored,
+            powerLevel: powerLevel.chatListPowerLevel
+        )
+    }
+}
+
+extension MatrixRustSDK.MembershipState {
+    /// True for `join`. Every other state is not in the chat.
+    var isJoin: Bool {
+        switch self {
+        case .join:
+            return true
+        case .ban, .invite, .knock, .leave, .custom:
+            return false
+        }
+    }
+}
+
+extension MatrixRustSDK.PowerLevel {
+    /// MATRIX-133: the power level as the member fallback sorts it.
+    var chatListPowerLevel: Models.ChatListMember.PowerLevel {
+        switch self {
+        case .infinite:
+            return .infinite
+        case let .value(value: value):
+            return .value(value)
+        }
     }
 }

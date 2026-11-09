@@ -15,5 +15,21 @@
 			</array>
 		</dict>
 	</array>
+	<key>OSLogPreferences</key>
+	<dict>
+		<key>io.davlin.matrixclient</key>
+		<dict>
+			<key>sidebar-room</key>
+			<dict>
+				<key>Level</key>
+				<dict>
+					<key>Enable</key>
+					<string>Debug</string>
+					<key>Persist</key>
+					<string>Debug</string>
+				</dict>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>
