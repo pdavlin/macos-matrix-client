@@ -150,6 +150,10 @@ struct SidebarView: View {
                         ) {
                             windowState.selectedRoomId = room.id
                         }
+                        // MATRIX-133: a visible row may load members for its
+                        // bubble cluster.
+                        .onAppear { room.chatListRowDidAppear() }
+                        .onDisappear { room.chatListRowDidDisappear() }
                         .contextMenu {
                             RoomContextMenu(room: room)
                         }
@@ -170,6 +174,8 @@ struct SidebarView: View {
                     // (measured for MATRIX-123), so the row adds no
                     // horizontal padding of its own.
                     .listRowInsets(EdgeInsets())
+                    .onAppear { room.chatListRowDidAppear() }
+                    .onDisappear { room.chatListRowDidDisappear() }
                     .contextMenu {
                         RoomContextMenu(room: room)
                     }
