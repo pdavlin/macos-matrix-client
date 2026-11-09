@@ -80,3 +80,38 @@ public enum TimelineDisplayOrder {
         index >= 0 && index <= count
     }
 }
+
+/// The queue of display changes that waits for the container's next view
+/// update (MATRIX-130).
+public enum TimelineDisplayChangeQueue {
+    /// Adds one update to `queue`.
+    ///
+    /// A reset replaces the queue. The container rebuilds from the final
+    /// display order, which already holds every change queued before it.
+    ///
+    /// For the same reason, an update that arrives while a reset waits is
+    /// dropped. The rebuild already holds its rows, so a replay would insert
+    /// them a second time: a clear and an append that land between two view
+    /// updates queue a reset and an insert of rows the reset already shows.
+    /// The duplicate identifiers make AppKit's diffable snapshot raise inside
+    /// SwiftUI's view update.
+    ///
+    /// - Parameters:
+    ///   - update: the update to queue.
+    ///   - queue: the pending updates, oldest first.
+    ///   - change: the display change an update carries.
+    public static func enqueue<Update>(
+        _ update: Update,
+        into queue: inout [Update],
+        change: (Update) -> TimelineDisplayChange
+    ) {
+        if change(update) == .reset {
+            queue = [update]
+            return
+        }
+        if let first = queue.first, change(first) == .reset {
+            return
+        }
+        queue.append(update)
+    }
+}

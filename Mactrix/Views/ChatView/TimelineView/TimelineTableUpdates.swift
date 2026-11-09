@@ -39,17 +39,21 @@ extension TimelineViewController {
 
         var touchedRows = 0
         var queuedRows = 0
-        var didReset = false
 
         batchRegroupIds.removeAll(keepingCapacity: true)
         batchInsertedIds.removeAll(keepingCapacity: true)
+        batchDidResync = false
 
         for update in updates {
+            // A resync rebuilds from the final display order, which already
+            // holds every later change in this batch. Replaying them would
+            // insert rows twice, and a duplicate identifier makes the snapshot
+            // raise inside SwiftUI's view update (MATRIX-130).
+            guard !batchDidResync else { break }
             touchedRows += update.change.rowCount
             switch update.change {
             case .reset:
                 applyReset()
-                didReset = true
             case let .insert(index, count):
                 applyInsert(at: index, count: count, items: update.items)
             case let .remove(index, count):
@@ -66,7 +70,7 @@ extension TimelineViewController {
         Logger.timelineTableView.info(
             """
             timeline update: \(updates.count) change(s) touching \(touchedRows) row(s) \
-            of \(self.timelineRows.count) (structural: \(isStructural), reset: \(didReset)), \
+            of \(self.timelineRows.count) (structural: \(isStructural), resync: \(self.batchDidResync)), \
             \(regroupedRows.count) neighbour(s) regrouped, \
             \(self.pendingRowUpdates.count) row(s) queued for the drain
             """
@@ -132,7 +136,8 @@ extension TimelineViewController {
     }
 
     private func applyReset() {
-        timelineRows = timeline.displayItems.map(\.row)
+        batchDidResync = true
+        timelineRows = uniqueDisplayRows()
         // Grouped before the rebuild below applies the snapshot, because that
         // apply is what measures the rows.
         TimelineRowRegrouping.regroupAll(&timelineRows, calendar: groupingCalendar)
@@ -156,13 +161,28 @@ extension TimelineViewController {
             return
         }
 
+        let rows = items.map(\.row)
+        // The snapshot raises an Objective-C exception on a duplicate
+        // identifier, and this runs inside SwiftUI's tracked view update
+        // (MATRIX-130). A diff that names a row the table already holds
+        // resynchronizes instead.
+        let canInsert = TimelineRowIdentity.canInsert(rows.map(\.uniqueId)) { (rowId: String) -> Bool in
+            snapshot.indexOfItem(TimelineUniqueId(id: rowId)) != nil
+        }
+        guard canInsert else {
+            Logger.timelineTableView.error(
+                "timeline insert of \(count) row(s) at \(index) repeats a row the table holds: resyncing"
+            )
+            applyReset()
+            return
+        }
+
         let tableIndex = index + leadingDecorationCount
         // Resolved before the splice: after it, this position holds a new row.
         let beforeId = tableIndex < timelineRows.count - trailingDecorationCount
             ? timelineRows[tableIndex].uniqueId
             : nil
 
-        let rows = items.map(\.row)
         timelineRows.insert(contentsOf: rows, at: tableIndex)
 
         // Each inserted row needs a grouping, and so does the row just newer
@@ -287,6 +307,30 @@ extension TimelineViewController {
 
         pendingRowUpdates.enqueue(uniqueId: row.uniqueId, payload: row)
         return true
+    }
+
+    /// The timeline's display order as rows, with any repeated identity
+    /// removed.
+    ///
+    /// The snapshot needs unique identifiers (MATRIX-130). If the timeline
+    /// ever holds a repeated identity, the newest copy stays and the drop is
+    /// logged, so the table shows one row fewer instead of raising inside
+    /// the view update. Later index-based diffs that then disagree with the
+    /// table resync through the existing guards.
+    func uniqueDisplayRows() -> [TimelineRow] {
+        let rows = timeline.displayItems.map(\.row)
+        let deduplicated = TimelineRowIdentity.removingDuplicates(rows) { (row: TimelineRow) -> String in
+            row.uniqueId
+        }
+        if !deduplicated.removedIds.isEmpty {
+            Logger.timelineTableView.error(
+                """
+                timeline repeats \(deduplicated.removedIds.count) row identity(ies), dropped: \
+                \(deduplicated.removedIds.joined(separator: ", "), privacy: .public)
+                """
+            )
+        }
+        return deduplicated.unique
     }
 
     /// Deletes snapshot items, ignoring identifiers the snapshot no longer
