@@ -387,12 +387,13 @@ extension LiveTimeline {
     }
 
     private func record(_ change: TimelineDisplayChange, items: [TimelineItem] = []) {
-        let update = TimelineDisplayUpdate(change: change, items: items)
-        if case .reset = change {
-            // A reset supersedes everything queued before it.
-            pendingDisplayChanges = [update]
-        } else {
-            pendingDisplayChanges.append(update)
+        // A queued reset covers every change before and after it, because the
+        // container rebuilds from the final `displayItems` (MATRIX-130).
+        TimelineDisplayChangeQueue.enqueue(
+            TimelineDisplayUpdate(change: change, items: items),
+            into: &pendingDisplayChanges
+        ) { (queued: TimelineDisplayUpdate) -> TimelineDisplayChange in
+            queued.change
         }
     }
 

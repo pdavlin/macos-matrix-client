@@ -63,6 +63,9 @@ class TimelineViewController: NSViewController {
     /// The rows the current batch inserted. They are new to the table, so a
     /// grouping is set before their first measure rather than re-measured.
     var batchInsertedIds: Set<String> = []
+    /// Set when the current batch rebuilt the table from the final display
+    /// order. The rest of the batch is then already applied (MATRIX-130).
+    var batchDidResync = false
 
     var itemRowCount: Int {
         timelineRows.count - leadingDecorationCount - trailingDecorationCount
@@ -109,7 +112,7 @@ class TimelineViewController: NSViewController {
 
         // Start from the current display order and take ownership of the
         // change queue, so the first update applies only what happens next.
-        timelineRows = timeline.displayItems.map(\.row)
+        timelineRows = uniqueDisplayRows()
         TimelineRowRegrouping.regroupAll(&timelineRows, calendar: groupingCalendar)
         _ = timeline.drainDisplayChanges()
         refreshDecorationRows(applyingSnapshot: false)
