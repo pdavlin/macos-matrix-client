@@ -3,46 +3,20 @@ import SwiftUI
 import Tokens
 
 public struct VirtualItemView: View {
-    @Environment(\.colorScheme) var colorScheme
     let item: VirtualTimelineItem
 
     public init(item: VirtualTimelineItem) {
         self.item = item
     }
 
-    func formatDate(_ date: Date) -> String {
-        let dayInSecs: Double = 60 * 60 * 24
-        if Date.now.timeIntervalSince(date).isLess(than: dayInSecs) {
-            return String(localized: "Today")
-        } else if Date.now.timeIntervalSince(date).isLess(than: dayInSecs * 2) {
-            return String(localized: "Yesterday")
-        } else {
-            return date.formatted(date: .long, time: .omitted)
-        }
-    }
-
     public var body: some View {
         switch item {
         case let .dateDivider(date):
-            Divider()
-                .overlay {
-                    Text(formatDate(date))
-                        .padding(.horizontal, DensityToken.dividerHorizontalPadding)
-                        .background(Color(PlatformColor.controlBackgroundColor))
-                }
-                .frame(height: DensityToken.dividerHeight)
-                .padding(.horizontal, DensityToken.dividerHorizontalPadding)
+            // MATRIX-136: a day pill over a separator line.
+            DayDividerRow(date: date)
         case .readMarker:
-            Divider()
-                .overlay {
-                    Text("Read Marker")
-                        .fontWeight(.medium)
-                        .padding(.horizontal, DensityToken.dividerHorizontalPadding)
-                        .background(Color(PlatformColor.controlBackgroundColor))
-                }
-                .frame(height: DensityToken.dividerHeight)
-                .padding(.horizontal, DensityToken.dividerHorizontalPadding)
-                .foregroundStyle(.red.mix(with: colorScheme == .light ? .black : .white, by: 0.1))
+            // MATRIX-136: the "New" divider, with its glow and dim.
+            NewDividerRow()
         case .timelineStart:
             Divider()
                 .overlay {
