@@ -4,17 +4,33 @@ import Tokens
 
 struct HoverButton<Icon: View>: View {
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ViewBuilder
     let icon: () -> Icon
     let tooltip: LocalizedStringKey
+    /// True for a quick-reaction emoji (MATRIX-135): it rests monochrome and
+    /// dimmed, and cross-fades to full color while the pointer is over it.
+    var restsMonochrome: Bool = false
     let action: () -> Void
 
     let size: CGFloat = DensityToken.hoverActionButtonSize
 
+    /// The icon is at rest when it is a quick reaction and not under the
+    /// pointer.
+    private var isResting: Bool {
+        restsMonochrome && !hovering
+    }
+
     var body: some View {
         Button(action: action) {
             icon()
+                .saturation(isResting ? ReactionToken.quickReactionRestingSaturation : 1)
+                .opacity(isResting ? ReactionToken.quickReactionRestingOpacity : 1)
+                .animation(
+                    MotionToken.animation(MotionToken.standard(duration: MotionToken.hoverDuration), reduceMotion: reduceMotion),
+                    value: isResting
+                )
         }
         .buttonStyle(.plain)
         .help(tooltip)
@@ -281,6 +297,7 @@ public struct MessageEventBodyView<
                 }
             },
             tooltip: MessageActionPresentation.hoverTooltip(of: item.action),
+            restsMonochrome: item.action.isQuickReaction,
             action: { actions.perform(item.action) }
         )
     }
@@ -314,7 +331,8 @@ public struct MessageEventBodyView<
         )
         .padding(.trailing, DensityToken.hoverActionsTrailingPadding)
         .padding(.top, DensityToken.hoverActionsTopOffset)
-        .opacity(hoverText && !items.isEmpty ? 1 : 0)
+        // MATRIX-135: fade and slide in, fade out.
+        .hoverReveal(hoverText && !items.isEmpty)
     }
 
     func reactionIsActive(_ reaction: Reaction) -> Bool {
@@ -322,37 +340,38 @@ public struct MessageEventBodyView<
     }
 
     public var body: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 0) {
-                MessageMainBody(
-                    event: event,
-                    message: message,
-                    hover: hoverText,
-                    focused: focused,
-                    select: actions.messageSelectionHandler
-                )
+        VStack(spacing: 0) {
+            MessageMainBody(
+                event: event,
+                message: message,
+                hover: hoverText,
+                focused: focused,
+                select: actions.messageSelectionHandler
+            )
 
-                // Always present to keep view tree stable (avoids NSHostingView layout loop)
-                HStack {
-                    Spacer().frame(width: DensityToken.leadingColumnWidth)
-                    ForEach(reactions) { reaction in
-                        MessageReactionView(
-                            reaction: reaction,
-                            active: Binding(
-                                get: { reactionIsActive(reaction) },
-                                set: { if $0 != reactionIsActive(reaction) { actions.toggleReaction(key: reaction.key) } }
-                            )
+            // Always present to keep view tree stable (avoids NSHostingView layout loop)
+            HStack {
+                Spacer().frame(width: DensityToken.leadingColumnWidth)
+                ForEach(reactions) { reaction in
+                    MessageReactionView(
+                        reaction: reaction,
+                        active: Binding(
+                            get: { reactionIsActive(reaction) },
+                            set: { if $0 != reactionIsActive(reaction) { actions.toggleReaction(key: reaction.key) } }
                         )
-                    }
-                    Spacer()
-                    if showsReadReceipts, !event.userReadReceipts.isEmpty {
-                        ReadReciptsView(receipts: event.userReadReceipts, imageLoader: imageLoader, roomMembers: roomMembers)
-                            .padding(.horizontal, DensityToken.rowHorizontalPadding)
-                    }
+                    )
                 }
-                .padding(.top, hasBottomContent ? DensityToken.reactionRowSpacing : 0)
+                Spacer()
+                if showsReadReceipts, !event.userReadReceipts.isEmpty {
+                    ReadReciptsView(receipts: event.userReadReceipts, imageLoader: imageLoader, roomMembers: roomMembers)
+                        .padding(.horizontal, DensityToken.rowHorizontalPadding)
+                }
             }
-
+            .padding(.top, hasBottomContent ? DensityToken.reactionRowSpacing : 0)
+        }
+        // An overlay takes the size of the view under it and never sizes it,
+        // so the bar and its motion cannot change the row height (MATRIX-135).
+        .overlay(alignment: .topTrailing) {
             hoverActions
         }
         .modifier(MessageRowContextMenu(actions: actions))
