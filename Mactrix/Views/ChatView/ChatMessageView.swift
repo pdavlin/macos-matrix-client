@@ -10,10 +10,6 @@ struct ChatMessageView: View, UI.MessageEventActions {
     @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
     @AppStorage(TypographyToken.fontSizeStorageKey) private var fontSize = TypographyToken.defaultBaseFontSize
-    /// The event the reaction picker is open for (MATRIX-111). Keyed by the
-    /// event, not a Bool, because the timeline table reuses row views: a
-    /// reused row shows another event, and its picker must not stay open.
-    @State private var reactionPickerEventKey: String?
 
     let timeline: LiveTimeline?
     let event: MatrixRustSDK.EventTimelineItem
@@ -32,19 +28,13 @@ struct ChatMessageView: View, UI.MessageEventActions {
     /// Toggles the own reaction `key` on this message. Every reaction that
     /// is added, from the hover row, a menu, the picker, or a reaction pill,
     /// counts as a use of the emoji in the account's recent list (D-3).
-    /// Removing a reaction is not a use.
+    /// `LiveTimeline.toggleReaction(key:on:recordingUseIn:)` holds that rule,
+    /// shared with the timeline controller's picker popover (MATRIX-138).
     func toggleReaction(key: String) {
+        let itemId = event.eventOrTransactionId
+        let client = appState.matrixClient
         Task {
-            guard let innerTimeline = timeline?.timeline else { return }
-            do {
-                let reactionWasAdded = try await innerTimeline.toggleReaction(itemId: event.eventOrTransactionId, key: key)
-                Logger.viewCycle.debug("reaction \(reactionWasAdded ? "added" : "removed"): \(key)")
-                if reactionWasAdded {
-                    appState.matrixClient?.recordRecentEmoji(key)
-                }
-            } catch {
-                Logger.viewCycle.error("Failed to toggle reaction: \(error)")
-            }
+            await timeline?.toggleReaction(key: key, on: itemId, recordingUseIn: client)
         }
     }
 
@@ -54,26 +44,25 @@ struct ChatMessageView: View, UI.MessageEventActions {
         appState.matrixClient?.recentEmojis.quickReactionKeys ?? MessageActionModel.defaultQuickReactionKeys
     }
 
-    /// Opens the reaction picker on this row (MATRIX-111). The recent-emoji
-    /// read runs here too, in case no room view started it yet; it is a
-    /// no-op once the list has loaded.
+    /// Opens the reaction picker on this row (MATRIX-111). The timeline
+    /// controller shows it as an AppKit popover (MATRIX-138): a SwiftUI
+    /// popover on a row in the timeline table did not open. The request
+    /// carries the hover row's layout, so the popover points at the picker
+    /// button. The recent-emoji read runs here too, in case no room view
+    /// started it yet; it is a no-op once the list has loaded.
     func openReactionPicker() {
-        reactionPickerEventKey = event.eventOrTransactionId.id
+        let hoverItems = MessageActionModel.items(
+            for: messageActionSubject,
+            on: .hoverRow,
+            quickReactionKeys: quickReactionKeys
+        )
+        timeline?.requestReactionPicker(
+            for: event.eventOrTransactionId,
+            hoverButtonsAfterPicker: UI.HoverActionBarGeometry.buttonsAfter(.openReactionPicker, in: hoverItems)
+        )
         Task {
             await appState.matrixClient?.loadRecentEmojisIfNeeded()
         }
-    }
-
-    private var isReactionPickerPresented: Binding<Bool> {
-        let key = event.eventOrTransactionId.id
-        return Binding(
-            get: { reactionPickerEventKey == key },
-            set: { isPresented in
-                if !isPresented, reactionPickerEventKey == key {
-                    reactionPickerEventKey = nil
-                }
-            }
-        )
     }
 
     func reply() {
@@ -288,14 +277,6 @@ struct ChatMessageView: View, UI.MessageEventActions {
         }
         .font(.system(size: typography.base))
         .environment(\.timelineTypography, typography)
-        // The picker hangs from the row's top trailing corner, where the
-        // hover row's picker button sits. A popover does not change the row
-        // height.
-        .popover(isPresented: isReactionPickerPresented, attachmentAnchor: .point(.topTrailing), arrowEdge: .top) {
-            UI.ReactionPickerView(catalog: .bundled, recents: appState.matrixClient?.recentEmojis.emojis ?? []) { emoji in
-                toggleReaction(key: emoji)
-            }
-        }
         // The Edit menu acts on the hovered or focused message (MATRIX-108).
         // None of these change layout, so the row is not re-measured.
         .onHover { hovering in
