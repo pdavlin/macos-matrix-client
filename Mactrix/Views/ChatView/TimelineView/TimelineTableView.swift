@@ -104,6 +104,12 @@ class TimelineViewController: NSViewController {
     /// Set while a check for selected rows that left the timeline is pending.
     var messageSelectionPruneScheduled = false
 
+    /// Which row shows the jump-to-message flash (MATRIX-136). The drawing
+    /// lives in `TimelineChrome.swift`.
+    var jumpFlash = TimelineJumpFlash(duration: MotionToken.jumpFlashDuration)
+    /// The floating day pill over the top of the timeline (MATRIX-136).
+    let stickyDayPill = TimelineStickyDayPillOverlay()
+
     init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline) {
         self.coordinator = coordinator
         self.timeline = timeline
@@ -200,6 +206,7 @@ class TimelineViewController: NSViewController {
         scrollView.drawsBackground = false
         tableView.backgroundColor = .clear
         view = scrollView
+        installStickyDayPill()
 
         // Subscribe to view resize notifications
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -363,7 +370,8 @@ class TimelineViewController: NSViewController {
 
         self.pendingFocusEventId = nil
         Logger.timelineTableView.info("focus event resolved to row \(rowIndex): scrolling")
-        tableView.animateRowToVisible(rowIndex)
+        // MATRIX-136: the row flashes when the scroll lands.
+        scrollToFocusedRow(rowIndex)
     }
 
     /// The last scroll-to-bottom request this controller acted on. Requests

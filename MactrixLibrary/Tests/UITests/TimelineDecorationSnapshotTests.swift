@@ -15,7 +15,11 @@ import Testing
 /// compile and logic suites.
 @MainActor
 struct TimelineDecorationSnapshotTests {
-    private func snapshot(of view: some View, width: CGFloat = 420) -> NSHostingController<AnyView> {
+    private func snapshot(
+        of view: some View,
+        width: CGFloat? = 420,
+        appearance: NSAppearance.Name = .aqua
+    ) -> NSHostingController<AnyView> {
         let controller = NSHostingController(
             rootView: AnyView(
                 view
@@ -27,7 +31,7 @@ struct TimelineDecorationSnapshotTests {
         // Pin the appearance: NSHostingController renders in the current system
         // appearance, so an unpinned snapshot flips with light/dark mode and
         // fails by time of day.
-        controller.view.appearance = NSAppearance(named: .aqua)
+        controller.view.appearance = NSAppearance(named: appearance)
         return controller
     }
 
@@ -64,8 +68,52 @@ struct TimelineDecorationSnapshotTests {
         )
     }
 
+    /// MATRIX-136: the read marker as the "New" divider, after its glow
+    /// has faded and before it dims. End states only: the glow is a moment.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func readMarkerRow() {
-        assertSnapshot(of: snapshot(of: VirtualItemView(item: .readMarker)), as: .scaledImage)
+        assertSnapshot(of: snapshot(of: NewDividerRow(phase: .lit)), as: .scaledImage)
+    }
+
+    /// MATRIX-136: the "New" divider after the dim delay.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func readMarkerRowDimmed() {
+        assertSnapshot(of: snapshot(of: NewDividerRow(phase: .dimmed)), as: .scaledImage)
+    }
+
+    /// 2024-03-14 12:00 UTC: far enough in the past to show the long date,
+    /// and noon, so the date is the same in every time zone a test runs in.
+    private static let pillDate = Date(timeIntervalSince1970: 1_710_417_600)
+
+    /// MATRIX-136: the date divider as a day pill over a separator line.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func dateDividerRowLight() {
+        assertSnapshot(
+            of: snapshot(of: VirtualItemView(item: .dateDivider(date: Self.pillDate))),
+            as: .scaledImage
+        )
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func dateDividerRowDark() {
+        assertSnapshot(
+            of: snapshot(of: VirtualItemView(item: .dateDivider(date: Self.pillDate)), appearance: .darkAqua),
+            as: .scaledImage
+        )
+    }
+
+    /// MATRIX-136: the floating sticky day pill, at its own size, as the
+    /// timeline container hosts it.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func stickyDayPillLight() {
+        assertSnapshot(of: snapshot(of: StickyDayPill(date: Self.pillDate), width: nil), as: .scaledImage)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func stickyDayPillDark() {
+        assertSnapshot(
+            of: snapshot(of: StickyDayPill(date: Self.pillDate), width: nil, appearance: .darkAqua),
+            as: .scaledImage
+        )
     }
 }

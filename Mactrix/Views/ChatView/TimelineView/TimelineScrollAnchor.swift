@@ -42,8 +42,15 @@ extension TimelineViewController {
         // That move is not the user scrolling, and reporting it mid-update would
         // write observable timeline state inside SwiftUI's view update pass;
         // `scheduleScrollReport` sends the report once the pass is over.
-        guard !isAdjustingScrollAnchor else { return }
+        guard !isAdjustingScrollAnchor else {
+            // Not scrolling either: the sticky day pill (MATRIX-136) only
+            // records the new origin, so it does not take the next bounds
+            // change for a scroll.
+            _ = stickyDayPill.originDidMove(to: scrollView.contentView.bounds.origin.y)
+            return
+        }
         updateScrollPosition()
+        updateStickyDayPill()
     }
 
     private func updateScrollPosition() {
