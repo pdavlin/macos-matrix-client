@@ -82,8 +82,7 @@ Stability fixes of note
 
 | Issue | What is needed |
 |---|---|
-| MATRIX-129, 133 | Smoke the chat list. Check that Pizza Box Audit Committee shows bubbles |
-| MATRIX-123 | Beeper comparison of the chat list (now covered by the MATRIX-129 smoke) |
+| MATRIX-123, 129, 133 | Smoke passed 2026-11-09. Move to Done |
 | MATRIX-130 | One day of use with no SIGBUS in `SidebarRoom.updateRoom` |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
@@ -115,7 +114,8 @@ Stability fixes of note
 - The member-list fallback reads the local store first, so "+N" can be low
   until the full member list loads.
 - The pinned "+N" text can touch the third bubble. Tiny bubbles show
-  initials that are hard to read. Both are polish items on MATRIX-129.
+  initials that are hard to read. Both are polish items noted on MATRIX-129,
+  not filed.
 - Local `scripts/test.sh` stays red on the three scrollChip snapshots
   (MATRIX-126). CI is green.
 
