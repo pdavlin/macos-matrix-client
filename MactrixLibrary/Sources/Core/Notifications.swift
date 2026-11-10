@@ -19,6 +19,13 @@ import UserNotifications
     /// each notification, so a change in Settings applies at once.
     @ObservationIgnored private let settingsStore: UserDefaults
 
+    /// MATRIX-144: the account's merged chats, read for each notification. A
+    /// message from a member room then shows with the merged chat's name and
+    /// stacks with its siblings (`MergedNotificationRemap`). Defaults to no
+    /// merges, which shows every notification as before MATRIX-144; the M2.5
+    /// integration story sets it to the merged-chats model's document.
+    @ObservationIgnored public var mergedChats: @MainActor () -> MergedChatDocument = { MergedChatDocument() }
+
     public typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
 
     @ObservationIgnored private let notificationContinuation: AsyncStream<NotificationEvent>.Continuation
@@ -90,7 +97,11 @@ public extension MatrixNotifications {
         Logger.notification.debug("sending notification from room \(roomId)")
 
         let content = UNMutableNotificationContent()
-        content.title = notificationTitle(for: notification)
+        let remap = mergedRemap(for: notification, roomId: roomId)
+        content.title = remap?.title ?? notificationTitle(for: notification)
+        if let threadIdentifier = remap?.threadIdentifier {
+            content.threadIdentifier = threadIdentifier
+        }
         content.subtitle = notificationBody(for: notification)
         content.sound = playsSound ? UNNotificationSound.default : nil
         content.interruptionLevel = .timeSensitive
@@ -112,9 +123,26 @@ public extension MatrixNotifications {
             return "\(sender) invited you to a room"
         case let .timeline(event: event):
             let sender = notification.senderInfo.displayName ?? event.senderId()
-            let roomName = notification.roomInfo.displayName
-            return "\(sender) (\(roomName))"
+            return MergedNotificationRemap.title(senderDisplayName: sender, chatName: notification.roomInfo.displayName)
         }
+    }
+
+    /// MATRIX-144: the merged-chat presentation of a message notification, or
+    /// nil for an invite. An invite is never for a member room (members are
+    /// joined rooms), so it keeps its own title.
+    ///
+    /// - Parameters:
+    ///   - notification: the SDK notification.
+    ///   - roomId: the room it comes from.
+    /// - Returns: the title and thread identifier to use.
+    func mergedRemap(for notification: NotificationItem, roomId: String) -> MergedNotificationRemap? {
+        guard case let .timeline(event: event) = notification.event else { return nil }
+        return MergedNotificationRemap.remap(
+            roomId: roomId,
+            roomDisplayName: notification.roomInfo.displayName,
+            senderDisplayName: notification.senderInfo.displayName ?? event.senderId(),
+            document: mergedChats()
+        )
     }
 
     func notificationBody(for notification: NotificationItem) -> String {
