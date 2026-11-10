@@ -61,3 +61,36 @@ struct BundledEmojiCatalogTests {
         #expect(catalog.entry(for: "🎉")?.name == "party popper")
     }
 }
+
+/// MATRIX-138: the Mac timeline closes the picker through `onClose`, because
+/// SwiftUI's `dismiss` has no presentation to end in an AppKit popover.
+@MainActor
+struct ReactionPickerCloseTests {
+    @Test func aPickCallsOnPickThenOnClose() {
+        var calls: [String] = []
+        let picker = ReactionPickerView(
+            catalog: EmojiCatalog(categories: []),
+            recents: [],
+            onClose: { calls.append("close") },
+            onPick: { calls.append("pick \($0)") }
+        )
+
+        picker.pick("👍")
+
+        #expect(calls == ["pick 👍", "close"])
+    }
+
+    @Test func closeCallsOnClose() {
+        var closed = 0
+        let picker = ReactionPickerView(
+            catalog: EmojiCatalog(categories: []),
+            recents: [],
+            onClose: { closed += 1 },
+            onPick: { _ in }
+        )
+
+        picker.close()
+
+        #expect(closed == 1)
+    }
+}
