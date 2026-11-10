@@ -75,7 +75,7 @@ Rationale: the same person reaches Patrick through several bridged chats (two Sl
 - Merge two or more one-to-one chats into one merged chat: a name, an avatar from a member, a default room. Merge and unmerge from the chat-list context menu and the room inspector. Stored in one account-data event through the SDK.
 - Chat list: one row per merged chat with summed unread, the newest preview and sort time, and the merged chat's own mute; member rows hidden.
 - Timeline: member rooms interleaved by server timestamp, a source note where the room changes, back-pagination clamped so no gap shows.
-- Composer: sends to the room with the newest message, or to the default room when the user's own last message is more than 30 minutes old; a visible target picker overrides and pins. Replies, reactions, edits, redactions, and read receipts go to the room that holds the event.
+- Composer: sends to the room that holds the newest message by anyone; only when that newest message is the user's own and more than 30 minutes old does it send to the default room (Beeper's rule; corrected 2026-11-10, MATRIX-143). A visible target picker overrides and pins. Replies, reactions, edits, redactions, and read receipts go to the room that holds the event.
 - Notifications: member messages notify with the merged chat's name and avatar and respect its mute.
 - Exit criteria: Patrick's two Seth chats (DevObsessed and pizza box audit committee) read and answered as one chat for a day; the Mac timeline gate shows no regression with a merged timeline open.
 
