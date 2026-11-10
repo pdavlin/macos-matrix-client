@@ -158,6 +158,42 @@ struct TimelineRowHeightFingerprintTests {
     }
 
     @Test
+    func editFromJumboEmojiToTextIsNotHeightNeutral() {
+        // MATRIX-137: a jumbo body draws at 40pt, so an edit that flips it to
+        // body-size text, or back, changes the height and must re-measure.
+        let jumbo = MessageBodyGeometry(variant: "text", text: "👍")
+        let text = MessageBodyGeometry(variant: "text", text: "ok 👍", isEdited: true)
+        let jumboAgain = MessageBodyGeometry(variant: "text", text: "👍", isEdited: true)
+        #expect(jumbo.isJumboEmoji)
+        #expect(!text.isJumboEmoji)
+        #expect(jumboAgain.isJumboEmoji)
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(
+            from: messageRow(.stub(body: jumbo)),
+            to: messageRow(.stub(body: text))
+        ))
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(
+            from: messageRow(.stub(body: text)),
+            to: messageRow(.stub(body: jumboAgain))
+        ))
+    }
+
+    @Test
+    func formattedBodyThatEndsJumboIsNotHeightNeutral() {
+        // The plain body stays "👍", but an HTML body with markup now decides
+        // the render, and it is no longer jumbo.
+        let before = MessageBodyGeometry(variant: "text", text: "👍")
+        let after = MessageBodyGeometry(variant: "text", text: "👍", formattedText: "<b>👍</b>")
+        #expect(before.isJumboEmoji)
+        #expect(!after.isJumboEmoji)
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(
+            from: messageRow(.stub(body: before)),
+            to: messageRow(.stub(body: after))
+        ))
+    }
+
+    @Test
     func sameBodyTextInADifferentBranchIsNotHeightNeutral() {
         // `MessageRowKind` cannot separate a poll from a redaction — both are
         // `.other` — so the variant has to.
