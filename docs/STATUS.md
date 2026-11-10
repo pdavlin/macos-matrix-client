@@ -82,7 +82,6 @@ Stability fixes of note
 
 | Issue | What is needed |
 |---|---|
-| MATRIX-123, 129, 133 | Smoke passed 2026-11-09. Move to Done |
 | MATRIX-130 | One day of use with no SIGBUS in `SidebarRoom.updateRoom` |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
