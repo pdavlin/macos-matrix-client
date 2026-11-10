@@ -1,6 +1,6 @@
 # Project status
 
-Snapshot of 2026-11-09, main at `84b4f11` (PR #101). Plane holds the live
+Snapshot of 2026-11-10, main at `135863a` (PR #105). Plane holds the live
 state of each story. The contract (`docs/PROJECT_CONTRACT.md`) holds scope and
 decisions. Update this file when a milestone or an epic changes state.
 
@@ -42,6 +42,13 @@ Timeline
 - Back-pagination. Unable-to-decrypt and error rows.
 - Inline images and video, Quick Look, save to Downloads.
 - Threads and pins in the inspector (inherited from Mactrix).
+- Jumbo emoji: 1 to 9 emoji alone render at 40 pt (MATRIX-137).
+- A jumped-to message flashes. An accent "New" divider glows, then dims.
+  Capsule day dividers with a sticky copy at the top while you scroll
+  (MATRIX-136).
+- Capsule reaction chips with an own-reaction ring and a press scale. The
+  hover action bar fades and slides in. One motion token set with Reduce
+  Motion support (MATRIX-135).
 
 Composer and message actions
 
@@ -83,7 +90,8 @@ Stability fixes of note
 | Issue | What is needed |
 |---|---|
 | MATRIX-130 | One day of use with no SIGBUS in `SidebarRoom.updateRoom` |
-| MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display |
+| MATRIX-135, 136, 137 | Smoke the visual flair batch on the running app |
+| MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
 | MATRIX-92 | Apple Developer enrollment, Team ID, keys. Then MATRIX-90, 91 |
 | MATRIX-71 | Confirm Slack backfill depth and a send from Mactrix |
@@ -95,7 +103,6 @@ Stability fixes of note
 
 | Issue | Work |
 |---|---|
-| MATRIX-131 | Integration test target does not compile |
 | MATRIX-126 | scrollChip snapshots fail on this Mac only |
 | MATRIX-127 | Split `MatrixClient.swift` (544 lines) |
 | MATRIX-128 | Remove stale worktrees (48) and DerivedData folders (89) |
@@ -122,5 +129,7 @@ Stability fixes of note
 
 - M3: local FTS5 index, in-room and global search, media browser.
 - M4: custom emoji, share extension, App Intents, app icon, invites.
-- Epics MATRIX-36 (design system), 37 (broadcast composer),
+- Deferred flair (contract §11, 2026-11-09): bubble setting, single-hue
+  theme, sounds, send animation, typing bubble, send-state styling.
+- Epics MATRIX-36 (design system, first flair batch in Review), 37 (broadcast composer),
   38 (native integration and on-device models).
