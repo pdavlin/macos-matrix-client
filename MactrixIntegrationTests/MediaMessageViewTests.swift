@@ -1,6 +1,7 @@
 import Foundation
 @testable import Mactrix
 import MatrixRustSDK
+import Models
 import UniformTypeIdentifiers
 import XCTest
 
@@ -16,6 +17,20 @@ final class MediaMessageViewTests: XCTestCase {
         try MediaSource.fromUrl(url: "mxc://example.org/abcdef")
     }
 
+    /// The row actions the media views now take (MATRIX-108). These tests
+    /// read only the views' derived values, so the actions do nothing.
+    private func makeRowActions(_ content: MessageActionSubject.Content) -> MessageActionTarget {
+        let subject = MessageActionSubject(
+            content: content,
+            isOwn: false,
+            eventId: "$event",
+            canBeRepliedTo: true,
+            isPinned: false,
+            copyableText: nil
+        )
+        return MessageActionTarget(key: "$event", subject: subject) { _ in }
+    }
+
     func testFileViewResolvesMimeTypeToUTType() throws {
         let content = try FileMessageContent(
             filename: "report.pdf",
@@ -25,7 +40,7 @@ final class MediaMessageViewTests: XCTestCase {
             info: FileInfo(mimetype: "application/pdf", size: 1234, thumbnailInfo: nil, thumbnailSource: nil)
         )
 
-        let view = MessageFileView(content: content)
+        let view = MessageFileView(content: content, rowActions: makeRowActions(.file))
 
         XCTAssertEqual(view.contentType, .pdf)
         XCTAssertEqual(view.sizeText, UInt64(1234).formatted(.byteCount(style: .file)))
@@ -40,7 +55,7 @@ final class MediaMessageViewTests: XCTestCase {
             info: FileInfo(mimetype: nil, size: nil, thumbnailInfo: nil, thumbnailSource: nil)
         )
 
-        let view = MessageFileView(content: content)
+        let view = MessageFileView(content: content, rowActions: makeRowActions(.file))
 
         XCTAssertNil(view.contentType)
         XCTAssertNil(view.sizeText)
@@ -57,7 +72,7 @@ final class MediaMessageViewTests: XCTestCase {
             voice: nil
         )
 
-        let view = MessageAudioView(content: content)
+        let view = MessageAudioView(content: content, rowActions: makeRowActions(.audio))
 
         let expectedDuration = Duration.seconds(42.0).formatted(.time(pattern: .minuteSecond))
         let expectedSize = UInt64(131_072).formatted(.byteCount(style: .file))
@@ -75,7 +90,7 @@ final class MediaMessageViewTests: XCTestCase {
             voice: nil
         )
 
-        let view = MessageAudioView(content: content)
+        let view = MessageAudioView(content: content, rowActions: makeRowActions(.audio))
 
         XCTAssertNil(view.subtitle)
     }
