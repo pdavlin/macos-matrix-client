@@ -1,127 +1,57 @@
 <img width="128" height="128" src="./docs/mactrix-icon.webp">
 
-# Mactrix
+# Matrix client for macOS (Mactrix fork)
 
-[![Mactrix chatroom](https://img.shields.io/badge/matrix-%23mactrix-blue?logo=matrix)](https://matrix.to/#/%23mactrix:qpqp.dk)
+A single-user, Mac-native [Matrix](https://matrix.org) client for one account
+on one self-hosted homeserver (davlin.io) with mautrix bridges. The goal is to
+uninstall Beeper and Element Desktop.
 
-A native macOS client for [Matrix](https://matrix.org) – an open protocol for decentralised, secure communications.
+This is a hard fork of [Mactrix](https://github.com/viktorstrate/mactrix).
+It is a SwiftUI and AppKit shell over the
+[matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk) FFI bindings
+(`matrix-rust-components-swift`, pinned at 26.04.01). The SDK owns sync,
+encryption, verification, and timeline state.
 
-## Overview
+## Status
 
-Mactrix is built with Apple's [SwiftUI](https://developer.apple.com/swiftui/) framework to provide seamless native integration with macOS. It leverages the robust [matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk) for stability and performance.
+- M0 (foundation), M1 (read path), and M2 (send path and Mac integration)
+  are built and merged. The M2 exit checks are open.
+- M3 (local search and archive) has not started.
+- An iOS/iPadOS port shares the `Core` library. It waits on an Apple
+  Developer account for device builds.
 
-Feel free to join our Matrix room at [#mactrix:qpqp.dk](https://matrix.to/#/#mactrix:qpqp.dk).
+[`docs/STATUS.md`](docs/STATUS.md) lists the full feature set and the open
+work by issue. [`docs/PROJECT_CONTRACT.md`](docs/PROJECT_CONTRACT.md) holds
+scope, the roadmap, and the decision log.
 
-![Screenshot of the app](docs/screenshot-main.png)
+## Feature set (macOS)
 
-## Installation
+- Sign-in (password, SSO), keychain session restore, emoji verification,
+  recovery.
+- Dense chat list with pinned favourites, labels, filters, bridge network
+  badges, and group bubble avatars.
+- AppKit-backed timeline: sender grouping, day separators, reactions, read
+  receipts, back-pagination, inline media, Quick Look.
+- Composer: replies, edits, redaction, reaction picker, mentions, media send
+  with upload progress, forwarding, drafts, configurable Enter key.
+- Mac platform: real menus, ⌘K quick switcher, ⌘1 to ⌘9, room windows with
+  restoration, Settings, local notifications, Dock badge.
 
-Mactrix is currently in early development, which means that distribution with auto-updates does not exist yet. However, the latest version is built automatically and can be [downloaded here](https://github.com/viktorstrate/mactrix/actions/workflows/xcode-build.yml?query=branch%3Amain+event%3Apush). Simply select the latest build and download `Mactrix.app` under Artifacts.
+## Build
 
-## Build From Source
-
-### Requirements
-
-- macOS 15.7 or later
-- Up-to-date Xcode installed
-
-Xcode will automatically download all dependencies when building the project for the first time.
-
-### Building
+Requirements: macOS 26 or later (development uses macOS 27 and Xcode 27).
 
 ```bash
-git clone https://github.com/viktorstrate/mactrix.git
-cd mactrix
-xed .
+scripts/build.sh   # macOS app, then the iOS app for the simulator
+scripts/test.sh    # unit and snapshot tests
+scripts/lint.sh    # SwiftFormat --lint and SwiftLint
 ```
 
-Then open the project in Xcode and build using `Cmd+B`.
+Each script finds `DEVELOPER_DIR` itself (Xcode-beta.app, else Xcode.app)
+unless you set it.
 
-### Completed Feature List
+## License
 
-- [ ] Authentication
-  - [x] Password
-  - [x] OAuth
-  - [ ] Email and Phone
-- [ ] Multi account
-- [ ] Timeline
-  - [x] Messages
-    - [ ] Send attachments
-    - [x] Markdown formatting
-  - [ ] Message actions
-    - [x] Add reactions
-    - [x] Reply to
-    - [x] Pin
-    - [ ] Edit
-  - [x] Show reactions
-  - [ ] Group timeline virtual items:
-    - Removed messages, user join / leave, username change, profile picture change
-  - [x] Show read receipts
-  - [ ] Attachments
-    - [ ] Support all formats (video, audio, files)
-    - [ ] Download attachment to file
-    - [x] Preview attachments
-- [ ] Rooms
-  - [x] New room,
-  - [ ] Room settings,
-  - [ ] Invite to room
-- [x] Threads
-  - [x] Focus thread
-  - [x] Reply in thread
-- [ ] Spaces
-  - [x] Show spaces in sidebar
-  - [ ] Details view when selecting a space
-  - [ ] Drag and drop to organize spaces
-- [ ] Search bar
-  - [ ] Search in joined rooms and directs
-  - [x] Search for users
-  - [x] Search for public rooms
-  - [ ] Search for messages
-  - [x] Search for room or user ID directly
-- [ ] Settings
-  - [x] Account details
-  - [x] Sign out
-  - [ ] Sessions
-    - [x] Emoji verification
-    - [x] See verified / unverified status
-    - [ ] Verify with recovery key
-    - [ ] Change recovery key
-    - [ ] Rename current and other sessions
-    - [ ] Sign out other sessions
-    - [ ] Send only to verified users
-    - [ ] Export / import encryption keys
-  - [ ] Start on login
-  - [ ] Presence
-    - [ ] Read receipts and typing indicator toggles
-- [ ] Notifications
-  - [x] Message notification
-  - [ ] Verify session notification
-- [x] Multiple windows and tabs
-- [ ] Navigation: forwards and backwards button
-- [x] Support matrix URLs
-- [ ] Keyboard navigation and accessibility
-- [ ] Video and voice chat
-
-## Screenshots
-
-### Main Chat Interface
-
-![Screenshot of the app](docs/screenshot-main.png)
-
-### Device Verification
-
-The app supports device verification by comparing emojis with another client.
-
-![Screenshot of device emoji verification](docs/screenshot-verification.png)
-
-### Create Room
-
-Creation
-
-![Screenshot of room creation page](docs/screenshot-create-room.png)
-
-### Search
-
-Find specific rooms, users, and public communities directly from the search bar.
-
-![Screenshot of search for specific room](docs/screenshot-search.png)
+GPL-3.0-only, inherited from Mactrix. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the dependency
+licenses and the distribution terms.

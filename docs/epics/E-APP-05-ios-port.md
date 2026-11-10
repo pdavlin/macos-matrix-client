@@ -5,7 +5,7 @@
 | **Epic** | E-APP-05 (Plane MATRIX-31) |
 | **Contract basis** | §11 amendment 2026-10-27: iOS/iPadOS as a secondary target, fenced to M1 parity plus push. No trade named (Patrick's decision); the iOS phases run before M2. |
 | **Stories** | MATRIX-80 … MATRIX-92 |
-| **Status** | Approved 2026-10-27 — Patrick: "build everything as described" |
+| **Status** | Approved 2026-10-27 — Patrick: "build everything as described". 2026-11-09: P1 to P4 code merged (MATRIX-80 to 89, 94, 96, 98, 102, 104, 132). Blocked on MATRIX-92 (developer account), then 90 (Sygnal) and 91 (TestFlight). No device test has run |
 
 ## 1. Goal
 

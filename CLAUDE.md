@@ -6,9 +6,10 @@ Single-user, Mac-native Matrix client. Hard fork of Mactrix (SwiftUI + matrix-ru
 
 The Mactrix fork has landed. Current layout:
 
-- `Mactrix/` — the app target: SwiftUI shell, views, models, extensions.
-- `MactrixLibrary/` — a local Swift Package Manager package with the `UI`, `Models`, `Utils`, and `MessageFormatting` libraries and their tests.
-- `docs/` — `PROJECT_CONTRACT.md` (the source of truth for scope, read it before any planning work) and `docs/epics/E-M0-01-foundation.md` (the active epic).
+- `Mactrix/` — the macOS app target: SwiftUI shell, views, menus, windows.
+- `MactrixiOS/` — the iOS/iPadOS app target (E-APP-05), plus its Notification Service Extension.
+- `MactrixLibrary/` — a local Swift Package Manager package with the `Core`, `UI`, `Models`, `Utils`, `Tokens`, and `MessageFormatting` libraries and their tests.
+- `docs/` — `PROJECT_CONTRACT.md` (the source of truth for scope, read it before any planning work), `STATUS.md` (feature set and open work, by issue), and the epic PRDs in `docs/epics/` (active: `E-M2-01-send-path.md` exit checks, `E-APP-05-ios-port.md`).
 - `scripts/` — `build.sh`, `test.sh`, `lint.sh`.
 
 ## Hard rules

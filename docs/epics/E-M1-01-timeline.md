@@ -6,7 +6,7 @@
 | **Roadmap bullets** | M1: timeline v1 (per M0 decision), compose v1, media, design tokens (2026-09-01 constraint) |
 | **Risks retired** | R-1 residual (production re-verification via S-12 harness) |
 | **Open questions closed** | Q-6 is decided at this PRD (D-4); M1 PRD questions from the seed → D-1…D-6 below |
-| **Status** | Approved 2026-09-01 — Patrick adopted all recommendations (D-1…D-6); stories S-31…S-39 seeded in Plane |
+| **Status** | Approved 2026-09-01 — Patrick adopted all recommendations (D-1…D-6); stories S-31…S-39 seeded in Plane. 2026-11-09: all stories merged. Open §8 items: the re-derived gate bars (MATRIX-66) and Patrick's day, which runs with the M2 exit day (MATRIX-125) |
 
 ## 1. Goal
 

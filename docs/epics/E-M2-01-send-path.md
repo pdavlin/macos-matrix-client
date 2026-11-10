@@ -5,7 +5,7 @@
 | **Milestone** | M2 — Full send path + Mac platform integration (Contract §4) |
 | **Roadmap bullets** | All seven M2 bullets: authoring actions, media send, markdown and mentions, menus and shortcuts, context menus and selection, windows and restoration, Settings |
 | **Contract basis** | §4 M2, §5 order, 2026-09-01 M1 PRD (D-1, D-3), 2026-09-02 S-37 and S-38 rows, 2026-10-27 iOS amendment |
-| **Status** | Approved 2026-11-04 — Patrick resolved D-1…D-8 in session (§5). A1 (MATRIX-100) merged. Remaining stories seeded in Plane under MATRIX-99. |
+| **Status** | Approved 2026-11-04 — Patrick resolved D-1…D-8 in session (§5). 2026-11-09: all 14 stories merged (#72 to #93). The §8 exit checks are open: MATRIX-124 (gate on 120 Hz, now also after #99) and MATRIX-125 (keyboard checklist, day with Beeper closed). Follow-ups: see `docs/STATUS.md`. |
 
 ## 1. Goal
 
