@@ -107,6 +107,8 @@ struct SidebarView: View {
             guard active else { return }
             applyChatListFilter()
             Task { await labels?.refresh() }
+            // MATRIX-140: merged chats have no change listener either.
+            Task { await appState.matrixClient?.mergedChats?.refresh() }
         }
         .sheet(item: $windowState.labelEditor) { request in
             LabelEditorHost(request: request)
