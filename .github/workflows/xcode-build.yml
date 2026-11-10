@@ -70,6 +70,24 @@ jobs:
             echo "::endgroup::"
             exit "$status"
           fi
+      # MATRIX-131: compile the integration test target so an API change
+      # cannot break it unnoticed. Do not run it here: the live login test
+      # needs the network and dev-account credentials, which CI does not
+      # have. scripts/test.sh runs it locally.
+      - name: Build integration tests (no run)
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -scheme MactrixIntegrationTests \
+            -project Mactrix.xcodeproj \
+            -destination 'platform=macOS' \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" 2>&1 | tee integration-build.log | xcbeautify --renderer github-actions || status=$?
+          if [ "${status:-0}" -ne 0 ]; then
+            echo "::group::Raw xcodebuild output (tail of integration-build.log)"
+            tail -n 200 integration-build.log
+            echo "::endgroup::"
+            exit "$status"
+          fi
       # MATRIX-82: the iOS app target. Simulator builds need no signing, so
       # CODE_SIGNING_ALLOWED=NO replaces the ad-hoc override used above.
       - name: Build iOS (Simulator)
@@ -164,6 +182,7 @@ jobs:
           path: |
             build.log
             test.log
+            integration-build.log
             ios-build.log
             ios-test.log
             archive.log
