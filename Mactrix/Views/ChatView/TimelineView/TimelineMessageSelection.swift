@@ -13,7 +13,8 @@ import Tokens
 
 /// The row view behind every timeline row (MATRIX-113, M2-B6, D-2).
 ///
-/// It draws the whole-message selection behind the row's hosting view. The
+/// It draws the whole-message selection behind the row's hosting view, and
+/// the jump-to-message flash (MATRIX-136) in a subview below it. The
 /// selection is drawn, not laid out: the tint never changes the row height,
 /// and a selection change never touches the height cache or the MATRIX-63
 /// fingerprints.
@@ -36,6 +37,47 @@ final class TimelineMessageRowView: NSTableRowView {
         let rect = bounds.insetBy(dx: DensityToken.rowHorizontalPadding, dy: 0)
         NSColor.controlAccentColor.withAlphaComponent(CGFloat(AccentToken.selectionBackgroundOpacity)).setFill()
         NSBezierPath(roundedRect: rect, xRadius: BubbleToken.cornerRadius, yRadius: BubbleToken.cornerRadius).fill()
+    }
+
+    // MARK: Jump-to-message flash (MATRIX-136)
+
+    /// The flash wash, made on the first flash this row view shows. Most row
+    /// views never flash, so they never pay for it.
+    private var jumpFlashView: TimelineJumpFlashView?
+
+    /// The wash covers the same rect as the selection background. A row
+    /// view that is not sized yet gets its bounds, never a null rect.
+    private var jumpFlashFrame: NSRect {
+        let inset = DensityToken.rowHorizontalPadding
+        guard bounds.width > inset * 2 else { return bounds }
+        return bounds.insetBy(dx: inset, dy: 0)
+    }
+
+    /// The table sizes row views through their frame, so the wash follows
+    /// here rather than in a layout pass that may not run.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        jumpFlashView?.frame = jumpFlashFrame
+    }
+
+    /// Shows the flash that started at `startTime`, `elapsed` seconds in.
+    func showJumpFlash(startTime: TimeInterval, elapsed: TimeInterval) {
+        let flashView: TimelineJumpFlashView
+        if let jumpFlashView {
+            flashView = jumpFlashView
+        } else {
+            flashView = TimelineJumpFlashView(frame: jumpFlashFrame)
+            // Below the row's hosting view: the wash tints behind the content.
+            addSubview(flashView, positioned: .below, relativeTo: nil)
+            jumpFlashView = flashView
+        }
+        flashView.frame = jumpFlashFrame
+        flashView.play(startTime: startTime, elapsed: elapsed)
+    }
+
+    /// Removes any flash, for a row view bound to a row that does not flash.
+    func clearJumpFlash() {
+        jumpFlashView?.stop()
     }
 }
 
@@ -69,6 +111,7 @@ extension TimelineViewController: TimelineMessageSelectionCommands {
         let rowView = recycled as? TimelineMessageRowView ?? TimelineMessageRowView()
         rowView.identifier = TimelineMessageRowView.reuseIdentifier
         rowView.isMessageSelected = isMessageSelected(atRow: row)
+        applyJumpFlash(to: rowView, atRow: row)
         return rowView
     }
 

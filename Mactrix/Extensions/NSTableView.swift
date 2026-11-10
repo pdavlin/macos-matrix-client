@@ -2,7 +2,14 @@ import AppKit
 
 extension NSTableView {
     /// Animates scrolling to row with a given index.
-    func animateRowToVisible(_ index: Int) {
+    ///
+    /// - Parameters:
+    ///   - index: the row to show.
+    ///   - completion: runs on the main actor once the row is in view: after
+    ///     the scroll animation ends, or at once when the row is already fully
+    ///     visible. It does not run for an index outside the table or for a
+    ///     table outside a scroll view (MATRIX-136 flashes the row here).
+    func animateRowToVisible(_ index: Int, completion: (@MainActor () -> Void)? = nil) {
         guard index >= 0, index < numberOfRows else { return }
         guard let scrollView = enclosingScrollView else { return }
 
@@ -19,6 +26,7 @@ extension NSTableView {
             targetY = rowRect.maxY - visibleRect.height
         } else {
             // Row is already fully visible: Exit
+            completion?()
             return
         }
 
@@ -30,6 +38,10 @@ extension NSTableView {
             var newBounds = clipView.bounds
             newBounds.origin.y = targetY
             clipView.animator().bounds = newBounds
+        } completionHandler: {
+            MainActor.assumeIsolated {
+                completion?()
+            }
         }
     }
 }
