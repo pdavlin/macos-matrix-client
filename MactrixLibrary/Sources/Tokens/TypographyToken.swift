@@ -41,6 +41,12 @@ public enum TypographyToken {
     /// Paragraph spacing multiplier applied before headings.
     public static let paragraphSpacingBeforeScale: CGFloat = 0.8
 
+    /// Point size of an emoji-only message body (MATRIX-137): 1 to 9 emoji
+    /// and nothing else draw at this size instead of the base size. Fixed,
+    /// not scaled from the base, so the jumbo look is the same at every
+    /// user font size.
+    public static let jumboEmojiSize: CGFloat = 40
+
     /// Caption/footnote size derived from the active base size.
     public static func footnote(relativeTo base: CGFloat) -> CGFloat {
         max(9, base - 3)
