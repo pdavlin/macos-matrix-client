@@ -39,7 +39,7 @@ struct ChatListMergingTests {
 
     private let seth = MergedChat(id: "m-seth", name: "Seth", rooms: ["!s1", "!s2"])
 
-    private func merged(_ items: [ChatListItem], _ id: String = "m-seth") -> MergedChatListEntry? {
+    private func mergedEntry(_ items: [ChatListItem], _ id: String = "m-seth") -> MergedChatListEntry? {
         items.first { $0.id == id }?.mergedChat
     }
 
@@ -75,7 +75,7 @@ struct ChatListMergingTests {
         ]
         let items = ChatListMerging.items(entries: entries, document: document(seth))
         #expect(items.map(\.id) == ["!a", "m-seth"])
-        #expect(merged(items)?.newestRoomId == "!s2")
+        #expect(mergedEntry(items)?.newestRoomId == "!s2")
     }
 
     @Test
@@ -84,16 +84,16 @@ struct ChatListMergingTests {
             entries: [entry("!s1"), entry("!s2", minutesAgo: 30)],
             document: document(seth)
         )
-        #expect(merged(missing)?.newestRoomId == "!s2")
+        #expect(mergedEntry(missing)?.newestRoomId == "!s2")
 
         let tie = ChatListMerging.items(
             entries: [entry("!s2", minutesAgo: 3), entry("!s1", minutesAgo: 3)],
             document: document(seth)
         )
-        #expect(merged(tie)?.newestRoomId == "!s2")
+        #expect(mergedEntry(tie)?.newestRoomId == "!s2")
 
         let bothMissing = ChatListMerging.items(entries: [entry("!s1"), entry("!s2")], document: document(seth))
-        #expect(merged(bothMissing)?.newestRoomId == "!s1")
+        #expect(mergedEntry(bothMissing)?.newestRoomId == "!s1")
     }
 
     // MARK: Row values
@@ -104,7 +104,7 @@ struct ChatListMergingTests {
             entries: [entry("!s1", minutesAgo: 10), entry("!s2", minutesAgo: 2)],
             document: document(seth)
         )
-        let merged = try #require(merged(items))
+        let merged = try #require(mergedEntry(items))
         #expect(merged.row.id == "m-seth")
         #expect(merged.row.title == "Seth")
         #expect(merged.row.preview == "Preview !s2")
@@ -121,14 +121,14 @@ struct ChatListMergingTests {
             entries: [entry("!s1", minutesAgo: 1, title: "Seth R"), entry("!s2", minutesAgo: 2)],
             document: document(blank)
         )
-        #expect(merged(items)?.row.title == "Seth R")
+        #expect(mergedEntry(items)?.row.title == "Seth R")
     }
 
     @Test
     func nameIsTrimmed() {
         let padded = MergedChat(id: "m-seth", name: " Seth \n", rooms: ["!s1", "!s2"])
         let items = ChatListMerging.items(entries: [entry("!s1"), entry("!s2")], document: document(padded))
-        #expect(merged(items)?.row.title == "Seth")
+        #expect(mergedEntry(items)?.row.title == "Seth")
     }
 
     @Test
@@ -137,7 +137,7 @@ struct ChatListMergingTests {
             entries: [entry("!s1", minutesAgo: 1), entry("!s2", minutesAgo: 9, hasSendFailure: true)],
             document: document(seth)
         )
-        #expect(merged(items)?.row.hasSendFailure == true)
+        #expect(mergedEntry(items)?.row.hasSendFailure == true)
     }
 
     // MARK: Unread and mute
@@ -151,7 +151,7 @@ struct ChatListMergingTests {
             ],
             document: document(seth)
         )
-        let unread = try #require(merged(items)?.row.unread)
+        let unread = try #require(mergedEntry(items)?.row.unread)
         #expect(unread == ChatListUnread(count: 7, hasMention: true, isUnread: true))
     }
 
@@ -245,7 +245,7 @@ struct ChatListMergingTests {
         var muted = entry("!s2", minutesAgo: 2, unread: ChatListUnread(count: 3, isUnread: true, isMuted: true))
         muted.isMarkedUnread = true
         let items = ChatListMerging.items(entries: [entry("!s1", minutesAgo: 1), muted], document: document(seth))
-        #expect(merged(items)?.row.unread == ChatListUnread(count: 0, isUnread: true))
+        #expect(mergedEntry(items)?.row.unread == ChatListUnread(count: 0, isUnread: true))
     }
 
     @Test
@@ -267,7 +267,7 @@ struct ChatListMergingTests {
             ],
             document: document(merge)
         )
-        let merged = try #require(merged(items, "m"))
+        let merged = try #require(mergedEntry(items, "m"))
         #expect(merged.networks == [.slack, .googleChat])
         #expect(merged.row.network == .slack)
         #expect(merged.row.additionalNetworks == [.googleChat])
@@ -303,7 +303,7 @@ extension ChatListMergingTests {
             entries: [entry("!s1", avatarUrl: "mxc://a/1"), entry("!s2")],
             document: document(merge)
         )
-        let merged = merged(items, "m")
+        let merged = mergedEntry(items, "m")
         #expect(merged?.avatarRoomId == "!s2")
         #expect(merged?.row.avatarUrl == nil)
     }
@@ -315,7 +315,7 @@ extension ChatListMergingTests {
             entries: [entry("!s3", avatarUrl: "mxc://a/3"), entry("!s1"), entry("!s2", avatarUrl: "mxc://a/2")],
             document: document(merge)
         )
-        let merged = merged(items, "m")
+        let merged = mergedEntry(items, "m")
         #expect(merged?.avatarRoomId == "!s2")
         #expect(merged?.row.avatarUrl == "mxc://a/2")
     }
@@ -326,7 +326,7 @@ extension ChatListMergingTests {
         var withHero = entry("!s2")
         withHero.row.heroes = [ChatListHero(userId: "@slack_u1:x", displayName: "Seth", avatarUrl: "mxc://a/h")]
         let items = ChatListMerging.items(entries: [entry("!s1"), withHero], document: document(merge))
-        let merged = merged(items, "m")
+        let merged = mergedEntry(items, "m")
         #expect(merged?.avatarRoomId == "!s2")
         #expect(merged?.row.heroes == withHero.row.heroes)
     }
@@ -337,7 +337,7 @@ extension ChatListMergingTests {
             entries: [entry("!s2", minutesAgo: 1), entry("!s1", minutesAgo: 2)],
             document: document(seth)
         )
-        #expect(merged(items)?.avatarRoomId == "!s1")
+        #expect(mergedEntry(items)?.avatarRoomId == "!s1")
     }
 
     @Test
@@ -347,7 +347,7 @@ extension ChatListMergingTests {
             entries: [entry("!s1"), entry("!s2", avatarUrl: "mxc://a/2")],
             document: document(merge)
         )
-        #expect(merged(items, "m")?.avatarRoomId == "!s2")
+        #expect(mergedEntry(items, "m")?.avatarRoomId == "!s2")
     }
 
     // MARK: Absent members
@@ -359,7 +359,7 @@ extension ChatListMergingTests {
             document: document(seth)
         )
         #expect(items.map(\.id) == ["!a", "m-seth"])
-        let merged = try #require(merged(items))
+        let merged = try #require(mergedEntry(items))
         #expect(merged.memberRoomIds == ["!s2"])
         #expect(merged.row.unread.count == 2)
         #expect(merged.merge.rooms == ["!s1", "!s2"])
@@ -374,7 +374,7 @@ extension ChatListMergingTests {
     @Test
     func aMutedAbsentMemberDoesNotMuteTheRow() {
         let items = ChatListMerging.items(entries: [entry("!s1")], document: document(seth))
-        #expect(merged(items)?.row.unread.isMuted == false)
+        #expect(mergedEntry(items)?.row.unread.isMuted == false)
     }
 
     // MARK: Favourites
@@ -414,8 +414,8 @@ extension ChatListMergingTests {
             document: document(first, second)
         )
         #expect(items.map(\.id) == ["m1", "m2"])
-        #expect(merged(items, "m1")?.memberRoomIds == ["!x", "!y"])
-        #expect(merged(items, "m2")?.memberRoomIds == ["!z"])
+        #expect(mergedEntry(items, "m1")?.memberRoomIds == ["!x", "!y"])
+        #expect(mergedEntry(items, "m2")?.memberRoomIds == ["!z"])
     }
 
     @Test
@@ -429,14 +429,14 @@ extension ChatListMergingTests {
             document: document(seth)
         )
         #expect(items.map(\.id) == ["m-seth"])
-        #expect(merged(items)?.row.unread.count == 2)
+        #expect(mergedEntry(items)?.row.unread.count == 2)
     }
 
     @Test
     func aRepeatedRoomInAMergeIsOneMember() {
         let merge = MergedChat(id: "m", name: "Seth", rooms: ["!s1", "!s1", "!s2"])
         let items = ChatListMerging.items(entries: [entry("!s1"), entry("!s2")], document: document(merge))
-        #expect(merged(items, "m")?.memberRoomIds == ["!s1", "!s2"])
+        #expect(mergedEntry(items, "m")?.memberRoomIds == ["!s1", "!s2"])
     }
 
     @Test
