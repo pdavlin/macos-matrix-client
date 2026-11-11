@@ -192,6 +192,63 @@ struct ChatListMergingTests {
     }
 
     @Test
+    func aMutedMemberAddsNoCountAndNoMention() {
+        let unread = ChatListMerging.unread(of: [
+            ChatListUnread(count: 3, isUnread: true),
+            ChatListUnread(count: 4, hasMention: true, isUnread: true, isMuted: true),
+        ])
+        #expect(unread == ChatListUnread(count: 3, isUnread: true))
+    }
+
+    @Test
+    func aLabelMutedMemberAddsNoCount() {
+        let unread = ChatListMerging.unread(of: [
+            ChatListUnread(count: 2, isUnread: true),
+            ChatListUnread(count: 6, hasMention: true, isUnread: true, isMutedByLabel: true),
+        ])
+        #expect(unread == ChatListUnread(count: 2, isUnread: true))
+    }
+
+    @Test
+    func onlyAMutedMemberUnreadLeavesTheRowRead() {
+        let unread = ChatListMerging.unread(of: [
+            ChatListUnread(),
+            ChatListUnread(count: 5, isUnread: true, isMuted: true),
+        ])
+        #expect(unread == ChatListUnread())
+    }
+
+    @Test
+    func everyMemberMutedShowsTheMutedSum() {
+        let unread = ChatListMerging.unread(of: [
+            ChatListUnread(count: 1, isUnread: true, isMuted: true),
+            ChatListUnread(count: 4, hasMention: true, isUnread: true, isMutedByLabel: true),
+        ])
+        #expect(unread == ChatListUnread(count: 5, hasMention: true, isUnread: true, isMuted: true))
+    }
+
+    @Test
+    func markedUnreadOnAMutedMemberStillMakesTheRowUnread() {
+        let flagged = ChatListMerging.unread(
+            of: [ChatListUnread(), ChatListUnread(count: 2, isUnread: true, isMuted: true)],
+            anyMarkedUnread: true
+        )
+        #expect(flagged == ChatListUnread(count: 0, isUnread: true))
+
+        // Unread with a zero count can only be the marked-unread flag.
+        let derived = ChatListMerging.unread(of: [ChatListUnread(), ChatListUnread(isUnread: true, isMuted: true)])
+        #expect(derived == ChatListUnread(count: 0, isUnread: true))
+    }
+
+    @Test
+    func theEntryMarkedUnreadFlagReachesTheRow() {
+        var muted = entry("!s2", minutesAgo: 2, unread: ChatListUnread(count: 3, isUnread: true, isMuted: true))
+        muted.isMarkedUnread = true
+        let items = ChatListMerging.items(entries: [entry("!s1", minutesAgo: 1), muted], document: document(seth))
+        #expect(merged(items)?.row.unread == ChatListUnread(count: 0, isUnread: true))
+    }
+
+    @Test
     func noMembersIsTheReadUnmutedState() {
         #expect(ChatListMerging.unread(of: []) == ChatListUnread())
     }

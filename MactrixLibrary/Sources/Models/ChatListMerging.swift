@@ -14,15 +14,25 @@ public struct ChatListEntry: Equatable, Sendable, Identifiable {
     public var lastActivity: Date?
     /// The room is a favourite, so it shows in the pinned grid.
     public var isFavourite: Bool
+    /// The SDK's marked-unread flag (`RoomInfo.isMarkedUnread`). The row's
+    /// `ChatListUnread` folds it into `isUnread`, so a merged row could not
+    /// tell it apart from a count on a muted member without it.
+    public var isMarkedUnread: Bool
 
     public var id: String {
         row.id
     }
 
-    public init(row: ChatListRowModel, lastActivity: Date? = nil, isFavourite: Bool = false) {
+    public init(
+        row: ChatListRowModel,
+        lastActivity: Date? = nil,
+        isFavourite: Bool = false,
+        isMarkedUnread: Bool = false
+    ) {
         self.row = row
         self.lastActivity = lastActivity
         self.isFavourite = isFavourite
+        self.isMarkedUnread = isMarkedUnread
     }
 }
 
@@ -128,10 +138,13 @@ public enum ChatListItem: Equatable, Sendable, Identifiable {
 ///   the SDK's recency order. The newest member is the one with the latest
 ///   `lastActivity`; a nil time is the oldest, and a tie goes to the member
 ///   the SDK put first.
-/// - Unread: the counts add up, a mention or an unread flag on any member
-///   counts. The row is muted only when every present member is muted, and
-///   "muted by label" only when every present member is muted by a label
-///   (orchestrator decision 2026-11-10: the document has no mute of its own).
+/// - Unread (orchestrator decision 2026-11-10, the MATRIX-144 Dock badge
+///   rule): the counts and the mention add up over the members that are not
+///   muted (room mute or label mute). When every present member is muted,
+///   the row is muted and shows the sum over all of them, as a muted single
+///   row shows its count. A marked-unread flag on any member makes the row
+///   unread. "Muted by label" needs every present member muted by a label.
+///   The document has no mute of its own.
 /// - Preview, timestamp, and sort time come from the newest member. A send
 ///   failure on any member shows the red dot, because the failed message
 ///   needs the user whichever member holds it.
@@ -244,7 +257,10 @@ public enum ChatListMerging {
             isDirect: avatarMember.row.isDirect,
             preview: newest.row.preview,
             timestamp: newest.row.timestamp,
-            unread: unread(of: ordered.map(\.row.unread)),
+            unread: unread(
+                of: ordered.map(\.row.unread),
+                anyMarkedUnread: ordered.contains(where: \.isMarkedUnread)
+            ),
             hasSendFailure: ordered.contains { $0.row.hasSendFailure },
             network: networks.first,
             heroes: avatarMember.row.heroes,
@@ -266,21 +282,31 @@ public enum ChatListMerging {
 
     /// The unread state of a merged row from its members' states.
     ///
-    /// The counts add up (saturating at `UInt64.max`). A mention or an
-    /// unread flag on any member counts. Muted needs every member muted;
-    /// muted by label needs every member muted by a label. No members gives
-    /// the read, unmuted state.
-    public static func unread(of members: [ChatListUnread]) -> ChatListUnread {
+    /// The members that count are the unmuted ones, or every member when all
+    /// are muted (the row is then muted). Their counts add up (saturating at
+    /// `UInt64.max`), and a mention on one of them shows the "@". The row is
+    /// unread when the sum is above zero or any member is marked unread,
+    /// muted or not. Muted by label needs every member muted by a label. No
+    /// members gives the read, unmuted state.
+    ///
+    /// - Parameters:
+    ///   - members: the members' unread states.
+    ///   - anyMarkedUnread: any member carries the SDK's marked-unread flag.
+    ///     A member that is unread with a zero count is marked unread too.
+    public static func unread(of members: [ChatListUnread], anyMarkedUnread: Bool = false) -> ChatListUnread {
         guard !members.isEmpty else { return ChatListUnread() }
-        let count = members.reduce(UInt64(0)) { total, unread in
+        let isMuted = members.allSatisfy(\.isMuted)
+        let counted = isMuted ? members : members.filter { !$0.isMuted }
+        let count = counted.reduce(UInt64(0)) { total, unread in
             let (sum, overflow) = total.addingReportingOverflow(unread.count)
             return overflow ? UInt64.max : sum
         }
+        let isMarkedUnread = anyMarkedUnread || members.contains { $0.isUnread && $0.count == 0 }
         return ChatListUnread(
             count: count,
-            hasMention: members.contains(where: \.hasMention),
-            isUnread: members.contains(where: \.isUnread),
-            isMuted: members.allSatisfy(\.isMuted),
+            hasMention: counted.contains(where: \.hasMention),
+            isUnread: count > 0 || isMarkedUnread,
+            isMuted: isMuted,
             isMutedByLabel: members.allSatisfy(\.isMutedByLabel)
         )
     }
