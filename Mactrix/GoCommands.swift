@@ -9,6 +9,9 @@ import SwiftUI
 /// - ⌘1…⌘9 open the favourites in grid order, then the first chat-list
 ///   rows (D-7b).
 ///
+/// MATRIX-141: the walk is over the sidebar's rows, so a merged chat is one
+/// step and its member rooms are not steps of their own.
+///
 /// A key with no room has no item: a fixed "⌘7" placeholder would show a
 /// title for nothing, and the key does nothing either way. With fewer than
 /// nine visible rooms the list is short anyway (a narrow filter or label).
@@ -37,16 +40,16 @@ struct GoCommands: Commands {
             // as "}". SwiftUI passes `"]"` + Shift through unchanged, and an
             // item bound that way never fires on a US layout.
             Button("Next Chat") {
-                open(navigation?.nextRoomId)
+                open(navigation?.next)
             }
             .keyboardShortcut("}", modifiers: [.command])
-            .disabled(navigation?.nextRoomId == nil)
+            .disabled(navigation?.next == nil)
 
             Button("Previous Chat") {
-                open(navigation?.previousRoomId)
+                open(navigation?.previous)
             }
             .keyboardShortcut("{", modifiers: [.command])
-            .disabled(navigation?.previousRoomId == nil)
+            .disabled(navigation?.previous == nil)
 
             let shortcutRooms = navigation?.shortcutRooms ?? []
             if !shortcutRooms.isEmpty {
@@ -55,17 +58,17 @@ struct GoCommands: Commands {
 
             ForEach(Array(shortcutRooms.enumerated()), id: \.offset) { index, room in
                 Button(room.name) {
-                    open(room.id)
+                    open(room.selection)
                 }
                 .keyboardShortcut(Self.digitKey(forShortcutAt: index), modifiers: [.command])
             }
         }
     }
 
-    /// Selects `roomId` in the key window, as a click on its sidebar row does.
-    private func open(_ roomId: String?) {
-        guard let roomId else { return }
-        windowState?.selectedRoomId = roomId
+    /// Selects a row's chat in the key window, as a click on the row does.
+    private func open(_ selection: ChatSelection?) {
+        guard let selection else { return }
+        windowState?.chatSelection = selection
     }
 
     /// ⌘1 for index 0, up to ⌘9 for index 8.
@@ -74,10 +77,10 @@ struct GoCommands: Commands {
     }
 }
 
-/// A room a ⌘-digit item opens.
+/// A chat a ⌘-digit item opens: a room or a merged chat (MATRIX-141).
 struct GoShortcutRoom: Equatable {
-    let id: String
-    /// The room's display name, as the sidebar shows it. The item title.
+    let selection: ChatSelection
+    /// The row's title, as the sidebar shows it. The item title.
     let name: String
 }
 
@@ -87,10 +90,10 @@ struct GoShortcutRoom: Equatable {
 struct GoNavigation: Equatable {
     /// ⌘1…⌘9 in key order. Shorter than nine when fewer rooms show.
     let shortcutRooms: [GoShortcutRoom]
-    /// The room ⇧⌘] opens, or `nil` at the end of the list.
-    let nextRoomId: String?
-    /// The room ⇧⌘[ opens, or `nil` at the start or with no selection.
-    let previousRoomId: String?
+    /// The chat ⇧⌘] opens, or `nil` at the end of the list.
+    let next: ChatSelection?
+    /// The chat ⇧⌘[ opens, or `nil` at the start or with no selection.
+    let previous: ChatSelection?
 }
 
 /// Publishes the window's `GoNavigation` for the Go menu.
@@ -109,16 +112,17 @@ struct GoNavigationPublisher: ViewModifier {
     /// `nil` when no account is signed in, which disables the items.
     private var navigation: GoNavigation? {
         guard let client = appState.matrixClient else { return nil }
-        let ordered = SidebarView.visibleChatList(client: client, windowState: windowState).ordered
+        let ordered = SidebarView.visibleChatList(client: client, windowState: windowState).visible.ordered
         let orderedIds = ordered.map(\.id)
-        let selectedRoomId = windowState.selectedRoomId
+        let selectedItemId = windowState.chatSelection?.itemId
+        let selectionById = Dictionary(ordered.map { ($0.id, $0.selection) }, uniquingKeysWith: { first, _ in first })
         return GoNavigation(
-            shortcutRooms: ChatListNavigation.shortcutTargets(in: ordered).map { room in
+            shortcutRooms: ChatListNavigation.shortcutTargets(in: ordered).map { item in
                 // The row's own title, so the item reads as the sidebar does.
-                GoShortcutRoom(id: room.id, name: room.chatListRow().title)
+                GoShortcutRoom(selection: item.selection, name: item.row.title)
             },
-            nextRoomId: ChatListNavigation.next(after: selectedRoomId, in: orderedIds),
-            previousRoomId: ChatListNavigation.previous(before: selectedRoomId, in: orderedIds)
+            next: ChatListNavigation.next(after: selectedItemId, in: orderedIds).flatMap { selectionById[$0] },
+            previous: ChatListNavigation.previous(before: selectedItemId, in: orderedIds).flatMap { selectionById[$0] }
         )
     }
 }

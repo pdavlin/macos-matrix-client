@@ -34,20 +34,28 @@ struct SidebarView: View {
         SidebarWidthRecorder.idealWidth(minimumWidth: SidebarView.minimumWidth, defaultWidth: SidebarView.defaultWidth)
     )
 
-    /// The rooms a window's sidebar shows: the favourites grid, then the
-    /// chat list (MATRIX-115).
+    /// The chats a window's sidebar shows: the favourites grid, then the
+    /// chat list (MATRIX-115), with merged chats folded in (MATRIX-141).
     ///
     /// The sidebar draws this and the Go menu's ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ walk it
     /// (`GoNavigationPublisher`), so the two cannot disagree. Spaces are
-    /// left out: they live in the Spaces section.
-    static func visibleChatList(client: MatrixClient?, windowState: WindowState) -> VisibleChatList<SidebarRoom> {
+    /// left out: they live in the Spaces section. The rules (filter, then
+    /// merge, then split favourites) are in
+    /// `ChatListMerging.visible(entries:labels:selectedLabelId:document:)`.
+    ///
+    /// - Parameter now: decides the rows' timestamp buckets.
+    static func visibleChatList(client: MatrixClient?, windowState: WindowState, now: Date = .now) -> SidebarChatList {
         let chatRooms = (client?.rooms ?? []).filter { !$0.room.isSpace() }
-        return .visible(
-            rooms: chatRooms,
-            labels: client?.labels?.document ?? ChatLabelDocument(),
+        let labels = client?.labels?.document ?? ChatLabelDocument()
+        let mutedByLabel = labels.labelMutedRoomIds
+        let entries = chatRooms.map { $0.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains($0.id)) }
+        let visible = ChatListMerging.visible(
+            entries: entries,
+            labels: labels,
             selectedLabelId: windowState.selectedLabelId,
-            isFavourite: { $0.roomInfo?.isFavourite == true }
+            document: client?.mergedChats?.document ?? MergedChatDocument()
         )
+        return SidebarChatList(visible: visible, rooms: chatRooms)
     }
 
     private var labels: LabelsModel? {
@@ -127,15 +135,27 @@ struct SidebarView: View {
         return "\(selectedLabel.name) · \(windowState.chatListFilter.title)"
     }
 
+    /// The List's selection: the selected row's ID, a room ID or a merged
+    /// chat's ID (MATRIX-141). A click on a merged row selects the merged
+    /// chat.
+    private var listSelection: Binding<String?> {
+        Binding(
+            get: { windowState.chatSelection?.itemId },
+            set: { itemId in
+                let document = appState.matrixClient?.mergedChats?.document ?? MergedChatDocument()
+                windowState.chatSelection = itemId.map { MergedChatSelection.selection(forItemId: $0, document: document) }
+            }
+        )
+    }
+
     private var chatList: some View {
         @Bindable var windowState = windowState
-        let mutedByLabel = labelDocument.labelMutedRoomIds
-        let visible = Self.visibleChatList(client: appState.matrixClient, windowState: windowState)
-        let favorites = visible.favorites
-        let inbox = visible.list
-        let now = Date.now
+        let chats = Self.visibleChatList(client: appState.matrixClient, windowState: windowState)
+        let favorites = chats.visible.favorites
+        let inbox = chats.visible.list
+        let selectedItemId = windowState.chatSelection?.itemId
 
-        return List(selection: $windowState.selectedRoomId) {
+        return List(selection: listSelection) {
             SidebarSyncStateView()
 
             SessionVerificationStatusView()
@@ -144,20 +164,20 @@ struct SidebarView: View {
                 // Tiles are buttons, not List rows: a grid cell cannot carry
                 // List selection, so each tile draws its own selected state.
                 LazyVGrid(columns: pinnedColumns, spacing: 0) {
-                    ForEach(favorites) { room in
+                    ForEach(favorites) { item in
                         PinnedChatTile(
-                            model: room.chatListRow(now: now, mutedByLabel: mutedByLabel.contains(room.id)),
-                            isSelected: windowState.selectedRoomId == room.id,
+                            model: item.row,
+                            isSelected: selectedItemId == item.id,
                             imageLoader: appState.matrixClient
                         ) {
-                            windowState.selectedRoomId = room.id
+                            windowState.chatSelection = item.selection
                         }
                         // MATRIX-133: a visible row may load members for its
                         // bubble cluster.
-                        .onAppear { room.chatListRowDidAppear() }
-                        .onDisappear { room.chatListRowDidDisappear() }
+                        .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
+                        .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
                         .contextMenu {
-                            RoomContextMenu(room: room)
+                            ChatListItemContextMenu(item: item, chats: chats)
                         }
                     }
                 }
@@ -166,21 +186,18 @@ struct SidebarView: View {
             }
 
             Section {
-                ForEach(inbox) { room in
-                    ChatListRow(
-                        model: room.chatListRow(now: now, mutedByLabel: mutedByLabel.contains(room.id)),
-                        imageLoader: appState.matrixClient
-                    )
-                    // The row pads itself to the Beeper geometry. The macOS
-                    // sidebar List still insets each row 16 pt on each side
-                    // (measured for MATRIX-123), so the row adds no
-                    // horizontal padding of its own.
-                    .listRowInsets(EdgeInsets())
-                    .onAppear { room.chatListRowDidAppear() }
-                    .onDisappear { room.chatListRowDidDisappear() }
-                    .contextMenu {
-                        RoomContextMenu(room: room)
-                    }
+                ForEach(inbox) { item in
+                    ChatListRow(model: item.row, imageLoader: appState.matrixClient)
+                        // The row pads itself to the Beeper geometry. The macOS
+                        // sidebar List still insets each row 16 pt on each side
+                        // (measured for MATRIX-123), so the row adds no
+                        // horizontal padding of its own.
+                        .listRowInsets(EdgeInsets())
+                        .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
+                        .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
+                        .contextMenu {
+                            ChatListItemContextMenu(item: item, chats: chats)
+                        }
                 }
             } header: {
                 Text(listTitle)

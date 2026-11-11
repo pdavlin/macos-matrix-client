@@ -57,21 +57,26 @@ struct MactrixApp: App {
     }
 
     func focusNotification() {
-        guard let windowState, let notificationRoomId = appState.matrixClient?.notifications.selectedRoomId else { return }
+        guard let windowState, let client = appState.matrixClient,
+              let notificationRoomId = client.notifications.selectedRoomId else { return }
 
         // A room window shows only its own room (MATRIX-116). A notification
         // for another room goes to a main window: bring one forward, and
-        // this method runs again when it becomes key.
-        if let singleRoomId = windowState.singleRoomId {
-            if singleRoomId == notificationRoomId {
-                appState.matrixClient?.notifications.selectedRoomId = nil
-            } else {
-                NSApp.frontmostMainWindow?.makeKeyAndOrderFront(nil)
-            }
-            return
+        // this method runs again when it becomes key. A main window shows a
+        // member room's merged chat (MATRIX-141).
+        let focus = MergedChatSelection.notificationFocus(
+            roomId: notificationRoomId,
+            singleRoomId: windowState.singleRoomId,
+            document: client.mergedChats?.document ?? MergedChatDocument()
+        )
+        switch focus {
+        case .alreadyShown:
+            client.notifications.selectedRoomId = nil
+        case .bringMainWindowForward:
+            NSApp.frontmostMainWindow?.makeKeyAndOrderFront(nil)
+        case let .select(selection):
+            windowState.chatSelection = selection
+            client.notifications.selectedRoomId = nil
         }
-
-        windowState.selectedRoomId = notificationRoomId
-        appState.matrixClient?.notifications.selectedRoomId = nil
     }
 }

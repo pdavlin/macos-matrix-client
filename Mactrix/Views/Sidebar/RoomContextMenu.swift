@@ -5,6 +5,7 @@ import OSLog
 import SwiftUI
 
 struct RoomContextMenu: View {
+    @Environment(AppState.self) private var appState
     @Environment(WindowState.self) var windowState
     @Environment(\.openWindow) private var openWindow
 
@@ -78,6 +79,8 @@ struct RoomContextMenu: View {
 
             AddToLabelMenu(roomId: room.id)
 
+            mergeButton(isDirect: roomInfo.isDirect)
+
             Button {
                 Task {
                     do {
@@ -100,6 +103,10 @@ struct RoomContextMenu: View {
                 do {
                     Logger.viewCycle.info("leaving room: \(room.room.id())")
                     try await room.room.leave()
+                    // MATRIX-141 (orchestrator decision 2026-11-11): a room
+                    // the user leaves here leaves its merged chat. There is
+                    // no automatic prune of rooms left elsewhere.
+                    appState.matrixClient?.mergedChats?.removeLeftRoom(room.id)
                     try await room.room.forget()
 
                     if windowState.selectedRoomId == room.room.id() {
@@ -111,6 +118,22 @@ struct RoomContextMenu: View {
             }
         } label: {
             Label("Leave Room", systemImage: "minus.circle")
+        }
+    }
+
+    /// "Merge with…" (MATRIX-141): opens the Merge Chats sheet with this
+    /// chat. Only a one-to-one chat in no merged chat offers it (v1 limit).
+    @ViewBuilder
+    private func mergeButton(isDirect: Bool) -> some View {
+        let mergedChats = appState.matrixClient?.mergedChats
+        let document = mergedChats?.document ?? MergedChatDocument()
+        if let mergedChats, RoomMergeStatus.of(roomId: room.id, isDirect: isDirect, document: document) == .mergeable {
+            Button {
+                windowState.mergeEditor = .create(roomId: room.id)
+            } label: {
+                Label("Merge with…", systemImage: "rectangle.stack.badge.plus")
+            }
+            .disabled(!mergedChats.isEditable)
         }
     }
 }
