@@ -43,6 +43,12 @@ echo "Using DEVELOPER_DIR=${DEVELOPER_DIR}"
 
 cd "$repo_root"
 
+# MATRIX-128: the build data lives in the checkout (build/ is gitignored), so
+# `git worktree remove` deletes it with the worktree. Xcode's default, one
+# ~5 GB folder per checkout path under ~/Library/Developer/Xcode/DerivedData,
+# outlived every removed agent worktree. Set DERIVED_DATA_PATH to override.
+derived_data="${DERIVED_DATA_PATH:-$repo_root/build/DerivedData}"
+
 echo "==> swift test --package-path MactrixLibrary"
 swift test --package-path MactrixLibrary
 
@@ -54,14 +60,16 @@ xcodebuild test \
     -project Mactrix.xcodeproj \
     -scheme MactrixTests \
     -destination "platform=macOS,arch=arm64" \
-    -disableAutomaticPackageResolution
+    -disableAutomaticPackageResolution \
+    -derivedDataPath "$derived_data"
 
 echo "==> xcodebuild test -scheme MactrixIntegrationTests"
 xcodebuild test \
     -project Mactrix.xcodeproj \
     -scheme MactrixIntegrationTests \
     -destination "platform=macOS,arch=arm64" \
-    -disableAutomaticPackageResolution
+    -disableAutomaticPackageResolution \
+    -derivedDataPath "$derived_data"
 
 ios_destination="$("$script_dir/ios-sim-destination.sh")"
 
@@ -71,4 +79,5 @@ xcodebuild test \
     -scheme MactrixiOS \
     -destination "$ios_destination" \
     -disableAutomaticPackageResolution \
+    -derivedDataPath "$derived_data" \
     CODE_SIGNING_ALLOWED=NO
