@@ -73,7 +73,7 @@ struct ProductionTimelineRepresentable: NSViewControllerRepresentable {
                 appState: context.coordinator.appState,
                 windowState: context.coordinator.windowState
             ),
-            timeline: context.coordinator.bridge
+            source: context.coordinator.bridge
         )
         context.coordinator.attach(to: controller)
         return controller

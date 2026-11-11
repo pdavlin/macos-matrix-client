@@ -24,10 +24,24 @@
     /// One popover at a time: a new request closes the open one. The
     /// presenter also remembers which requests it took, so a timeline view
     /// made again (the user comes back to a room) does not replay an old one.
+    ///
+    /// A merged chat's timeline (MATRIX-142) shows rows of several member
+    /// rooms, and each member `LiveTimeline` has its own request channel, so
+    /// the presenter keeps one cursor per room timeline.
     @MainActor
     final class TimelineReactionPickerPresenter: NSObject, NSPopoverDelegate {
-        /// The requests this timeline has taken from `LiveTimeline`.
-        var requests: NoncedRequestCursor
+        /// Identifies one request: the room timeline it came from and its
+        /// nonce in that timeline's channel.
+        struct RequestToken: Equatable {
+            let timeline: ObjectIdentifier
+            let nonce: Int
+        }
+
+        /// The requests this view has taken from each room timeline, by the
+        /// timeline's identity.
+        private var cursors: [ObjectIdentifier: NoncedRequestCursor]
+        /// The request taken last. A newer one retires it.
+        private var newestRequest: RequestToken?
 
         /// The open popover, or nil.
         private(set) var popover: NSPopover? {
@@ -42,18 +56,38 @@
         /// floating hover bar hides while the picker is open (MATRIX-145).
         var onOpenChange: (@MainActor (Bool) -> Void)?
 
-        /// - Parameter current: The timeline's latest request when the
-        ///   controller starts. It counts as handled.
-        init(startingAt current: NoncedRequest<ReactionPickerRequest>?) {
-            requests = NoncedRequestCursor(startingAt: current)
+        /// - Parameter timelines: The room timelines whose requests the
+        ///   controller serves. Each one's latest request when the controller
+        ///   starts counts as handled.
+        init(startingAt timelines: [LiveTimeline]) {
+            var cursors: [ObjectIdentifier: NoncedRequestCursor] = [:]
+            for timeline in timelines {
+                cursors[ObjectIdentifier(timeline)] = NoncedRequestCursor(startingAt: timeline.reactionPickerRequests.latest)
+            }
+            self.cursors = cursors
             super.init()
         }
 
-        /// Whether `nonce` is still the newest request. A row scroll runs
+        /// Takes `timeline`'s latest request if this presenter has not taken
+        /// it yet, and makes it the newest one.
+        ///
+        /// - Returns: The request and its token, or nil for a request already
+        ///   taken.
+        func take(from timeline: LiveTimeline) -> (request: ReactionPickerRequest, token: RequestToken)? {
+            let key = ObjectIdentifier(timeline)
+            var cursor = cursors[key] ?? NoncedRequestCursor(startingAt: nil as NoncedRequest<ReactionPickerRequest>?)
+            guard let request = cursor.take(timeline.reactionPickerRequests.latest) else { return nil }
+            cursors[key] = cursor
+            let token = RequestToken(timeline: key, nonce: cursor.handledNonce)
+            newestRequest = token
+            return (request, token)
+        }
+
+        /// Whether `token` is still the newest request. A row scroll runs
         /// before the popover shows, and a newer request in that time
         /// retires the older one.
-        func isCurrent(nonce: Int) -> Bool {
-            requests.handledNonce == nonce
+        func isCurrent(_ token: RequestToken) -> Bool {
+            newestRequest == token
         }
 
         /// Shows `content` in a transient popover that hangs from `rect`.
@@ -110,18 +144,31 @@
     }
 
     extension TimelineViewController {
-        /// Observes the timeline's reaction picker requests and serves each
-        /// new one. Re-arms itself on every change, like the focus and
-        /// scroll-to-bottom listeners.
+        /// Observes the reaction picker requests of every room timeline of
+        /// the source (one, or each member of a merged chat).
         func listenForReactionPickerRequests() {
-            let latest = withObservationTracking {
-                timeline.reactionPickerRequests.latest
-            } onChange: { [weak self] in
-                Task { @MainActor in self?.listenForReactionPickerRequests() }
+            for timeline in source.actionTimelines {
+                listenForReactionPickerRequests(on: timeline)
+            }
+        }
+
+        /// Observes one room timeline's reaction picker requests and serves
+        /// each new one. Re-arms itself on every change, like the focus and
+        /// scroll-to-bottom listeners. The timeline is held weakly: the
+        /// tracking closure stays in its observation registrar until the
+        /// next change.
+        private func listenForReactionPickerRequests(on timeline: LiveTimeline) {
+            withObservationTracking {
+                _ = timeline.reactionPickerRequests.latest
+            } onChange: { [weak self, weak timeline] in
+                Task { @MainActor [weak self, weak timeline] in
+                    guard let self, let timeline else { return }
+                    listenForReactionPickerRequests(on: timeline)
+                }
             }
 
-            guard let request = reactionPicker.requests.take(latest) else { return }
-            presentReactionPicker(request, nonce: reactionPicker.requests.handledNonce)
+            guard let taken = reactionPicker.take(from: timeline) else { return }
+            presentReactionPicker(taken.request, from: timeline, token: taken.token)
         }
 
         /// Closes an open picker, finds the request's row, scrolls it into
@@ -132,20 +179,29 @@
         /// (MATRIX-145). The anchor is taken now, in the table's coordinates,
         /// before the picker hides the bar; a scroll moves the anchor with
         /// the row. A request from a menu, with no bar, hangs from the row.
-        private func presentReactionPicker(_ request: ReactionPickerRequest, nonce: Int) {
+        ///
+        /// - Parameter timeline: The room timeline that sent the request: the
+        ///   reaction goes to its room (MATRIX-142).
+        private func presentReactionPicker(
+            _ request: ReactionPickerRequest,
+            from timeline: LiveTimeline,
+            token: TimelineReactionPickerPresenter.RequestToken
+        ) {
             let barAnchor = hoverBarPickerAnchor(
                 forMessageKey: request.eventId.id,
                 buttonsAfter: request.hoverButtonsAfterPicker
             )
             reactionPicker.close()
-            guard let rowIndex = rowIndex(forEvent: request.eventId) else {
+            let event = TimelineEventReference(eventId: request.eventId, roomId: timeline.room.id)
+            guard let rowIndex = rowIndex(of: event) else {
                 Logger.timelineTableView.error("reaction picker: no row for \(request.eventId.id)")
                 return
             }
             // Identity, not index: rows can renumber during the scroll.
             let rowId = timelineRows[rowIndex].uniqueId
-            tableView.animateRowToVisible(rowIndex) { [weak self] in
-                self?.showReactionPicker(request, onRowId: rowId, nonce: nonce, barAnchor: barAnchor)
+            tableView.animateRowToVisible(rowIndex) { [weak self, weak timeline] in
+                guard let timeline else { return }
+                self?.showReactionPicker(request, from: timeline, onRowId: rowId, token: token, barAnchor: barAnchor)
             }
         }
 
@@ -155,11 +211,12 @@
         ///   table's coordinates, or nil to hang the picker from the row.
         private func showReactionPicker(
             _ request: ReactionPickerRequest,
+            from timeline: LiveTimeline,
             onRowId rowId: String,
-            nonce: Int,
+            token: TimelineReactionPickerPresenter.RequestToken,
             barAnchor: CGRect?
         ) {
-            guard reactionPicker.isCurrent(nonce: nonce) else { return }
+            guard reactionPicker.isCurrent(token) else { return }
             guard let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == rowId }),
                   let rowView = tableView.view(atColumn: 0, row: rowIndex, makeIfNecessary: false)
             else {
@@ -177,7 +234,6 @@
                 return
             }
 
-            let timeline = timeline
             let client = coordinator.appState.matrixClient
             let itemId = request.eventId
             let content = TimelineReactionPickerContent(

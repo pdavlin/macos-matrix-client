@@ -95,12 +95,16 @@ final class TimelineMessageRowView: NSTableRowView {
 /// The selection clears on Esc, and with the room: each room gets a new
 /// `LiveTimeline` and a new controller (`ChatView` is keyed by the room ID).
 extension TimelineViewController: TimelineMessageSelectionCommands {
-    /// Connects the table's ⌘C and Esc, and the rows' gutter clicks.
+    /// Connects the table's ⌘C and Esc, and the rows' gutter clicks. A
+    /// merged chat's rows report through their member timeline's slot, so
+    /// every room timeline of the source gets the handler (MATRIX-142).
     func installMessageSelection() {
         tableView.messageSelectionCommands = self
         #if canImport(Core)
-            timeline.messageActionTarget.selectionGestureHandler = { [weak self] key, gesture in
-                self?.handleMessageSelectionGesture(gesture, onMessageKey: key)
+            for timeline in source.actionTimelines {
+                timeline.messageActionTarget.selectionGestureHandler = { [weak self] key, gesture in
+                    self?.handleMessageSelectionGesture(gesture, onMessageKey: key)
+                }
             }
         #endif
     }
@@ -193,19 +197,25 @@ extension TimelineViewController: TimelineMessageSelectionCommands {
             messageSelectionDidChange()
         }
 
-        /// Tells the action slot what is selected, so the Edit menu and the
-        /// row menus offer Copy Messages and act on the selected message.
+        /// Tells the action slots what is selected, so the Edit menu and the
+        /// row menus offer Copy Messages and act on the selected message. A
+        /// merged chat's selection can span member rooms, so every member's
+        /// slot gets the whole selection (MATRIX-142).
         func publishMessageSelection() {
-            let slot = timeline.messageActionTarget
+            let slots = source.actionTimelines.map(\.messageActionTarget)
             guard !messageSelection.isEmpty else {
-                slot.clearSelection()
+                for slot in slots {
+                    slot.clearSelection()
+                }
                 return
             }
             let keys: [String] = timelineRows
                 .filter { messageSelection.contains($0.uniqueId) }
                 .compactMap { messageKey(of: $0) }
-            slot.showSelection(keys: keys) { [weak self] in
-                self?.copyMessageSelection()
+            for slot in slots {
+                slot.showSelection(keys: keys) { [weak self] in
+                    self?.copyMessageSelection()
+                }
             }
         }
 

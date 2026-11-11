@@ -39,10 +39,12 @@ class TimelineViewController: NSViewController {
     let scrollView = NSScrollView()
     let tableView = BottomStickyTableView()
 
-    let timeline: LiveTimeline
+    /// What the table shows: one room's `LiveTimeline`, or a merged chat's
+    /// `MergedLiveTimeline` (MATRIX-142 Wave 2). See `TimelineRowSource`.
+    let source: any TimelineRowSource
 
     /// Every row the table shows, newest first: the typing indicator (when
-    /// someone is typing), then the SDK item rows, then the pagination
+    /// someone is typing), then the source's rows, then the pagination
     /// activity row (while a back-pagination is in flight).
     ///
     /// One array, one index space. Heights, the height cache, and the scroll
@@ -114,14 +116,14 @@ class TimelineViewController: NSViewController {
 
     #if canImport(Core)
         /// The reaction picker popover (MATRIX-138). The behaviour lives in
-        /// `TimelineReactionPicker.swift`. Lazy, so it starts at the request
-        /// that is current when the view loads and does not replay it.
-        lazy var reactionPicker = TimelineReactionPickerPresenter(startingAt: timeline.reactionPickerRequests.latest)
+        /// `TimelineReactionPicker.swift`. Lazy, so it starts at the requests
+        /// that are current when the view loads and does not replay them.
+        lazy var reactionPicker = TimelineReactionPickerPresenter(startingAt: source.actionTimelines)
     #endif
 
-    init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline) {
+    init(coordinator: TimelineViewRepresentable.Coordinator, source: any TimelineRowSource) {
         self.coordinator = coordinator
-        self.timeline = timeline
+        self.source = source
         self.activeTypography = Self.storedTypography()
         super.init(nibName: nil, bundle: nil)
 
@@ -129,7 +131,7 @@ class TimelineViewController: NSViewController {
         // change queue, so the first update applies only what happens next.
         timelineRows = uniqueDisplayRows()
         TimelineRowRegrouping.regroupAll(&timelineRows, calendar: groupingCalendar)
-        _ = timeline.drainDisplayChanges()
+        source.discardRowUpdates()
         refreshDecorationRows(applyingSnapshot: false)
     }
 
@@ -168,7 +170,8 @@ class TimelineViewController: NSViewController {
             var didRecycle = false
             let model = timelineRows[row]
             let isHovered = model.uniqueId == hoverBar.highlightedRowId
-            let view = TimelineItemRowView(row: model, timeline: timeline, coordinator: coordinator, isHovered: isHovered)
+            let rowTimeline = source.timeline(for: model)
+            let view = TimelineItemRowView(row: model, timeline: rowTimeline, coordinator: coordinator, isHovered: isHovered)
 
             let hostView: NSHostingView<TimelineItemRowView>
             if let recycledView = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(model.reuseId), owner: self)
@@ -345,83 +348,16 @@ class TimelineViewController: NSViewController {
     /// search jump) sets the focus before the SDK delivers the item, so the
     /// first attempt usually finds no row. The request is held here and retried
     /// after each timeline update instead of being dropped.
-    var pendingFocusEventId: MatrixRustSDK.EventOrTransactionId?
-    private var focusScrollScheduled = false
-
-    /// Retries the pending focus scroll off the current runloop cycle.
-    ///
-    /// Callers run inside SwiftUI's view update pass; scrolling reports a new
-    /// position, and that report writes observable timeline state (S-54).
-    func scheduleFocusScroll() {
-        guard pendingFocusEventId != nil, !focusScrollScheduled else { return }
-        focusScrollScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            focusScrollScheduled = false
-            scrollToPendingFocusIfPossible()
-        }
-    }
-
-    func listenForFocusTimelineItem() {
-        Logger.timelineTableView.debug("Listen for focus timeline item")
-
-        let focusedTimelineEventId = withObservationTracking {
-            timeline.focusedTimelineEventId
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.listenForFocusTimelineItem() }
-        }
-
-        guard let focusedTimelineEventId else { return }
-        pendingFocusEventId = focusedTimelineEventId
-        scrollToPendingFocusIfPossible()
-    }
-
-    /// Scrolls to the focused row once it exists, and clears the request.
-    ///
-    /// A no-op while the row is absent, so it is safe to call after every
-    /// update.
-    func scrollToPendingFocusIfPossible() {
-        guard let pendingFocusEventId, let rowIndex = rowIndex(forEvent: pendingFocusEventId) else { return }
-
-        self.pendingFocusEventId = nil
-        Logger.timelineTableView.info("focus event resolved to row \(rowIndex): scrolling")
-        // MATRIX-136: the row flashes when the scroll lands.
-        scrollToFocusedRow(rowIndex)
-    }
-
-    /// The table row that shows an event, or nil while the event has no row.
-    ///
-    /// One pass, not two: the item index is the table index shifted by the
-    /// newest-end decorations, the same mapping the diff path applies. The
-    /// second scan this replaces re-found the row by identifier (MATRIX-58).
-    /// The focus jump and the reaction picker (MATRIX-138) both use it.
-    func rowIndex(forEvent eventId: MatrixRustSDK.EventOrTransactionId) -> Int? {
-        guard let itemIndex = timeline.displayItems.firstIndex(where: { item in
-            item.asEvent()?.eventOrTransactionId == eventId
-        }) else { return nil }
-        let rowIndex = itemIndex + leadingDecorationCount
-        return timelineRows.indices.contains(rowIndex) ? rowIndex : nil
-    }
+    var pendingFocus: TimelineEventReference?
+    var focusScrollScheduled = false
 
     /// The last scroll-to-bottom request this controller acted on. Requests
-    /// are a monotonic counter on `LiveTimeline`; observing the counter
-    /// instead of a flag keeps repeated taps working.
-    private var handledScrollToBottomRequests: Int = 0
+    /// are a monotonic counter on the source; observing the counter instead
+    /// of a flag keeps repeated taps working.
+    var handledScrollToBottomRequests: Int = 0
 
-    func listenForScrollToBottomRequests() {
-        let requests = withObservationTracking {
-            timeline.scrollToBottomRequests
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.listenForScrollToBottomRequests() }
-        }
-
-        guard requests > handledScrollToBottomRequests else { return }
-        handledScrollToBottomRequests = requests
-
-        // Row 0 is the newest message: rows are display-ordered newest-first
-        // and the table is not flipped, so row 0 sits at the bottom.
-        tableView.animateRowToVisible(0)
-    }
+    /// Set while a report of the newest visible row is pending (MATRIX-142).
+    var newestVisibleRowReportScheduled = false
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
@@ -490,7 +426,8 @@ extension TimelineViewController: NSTableViewDelegate {
     /// source behind the cache, called only on a miss.
     private func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
         let started = TimelineStormProfiler.now()
-        measurementHostingView.rootView = AnyView(TimelineItemRowView(row: row, timeline: timeline, coordinator: coordinator))
+        let rowTimeline = source.timeline(for: row)
+        measurementHostingView.rootView = AnyView(TimelineItemRowView(row: row, timeline: rowTimeline, coordinator: coordinator))
 
         let proposedSize = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         let height = measurementHostingView.sizeThatFits(in: proposedSize).height

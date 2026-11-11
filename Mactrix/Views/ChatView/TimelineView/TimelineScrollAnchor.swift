@@ -62,7 +62,7 @@ extension TimelineViewController {
         let viewHeight = scrollView.contentView.documentVisibleRect.height
 
         // The table is not flipped, so y = 0 is the newest (bottom) end.
-        timeline.setAtBottom(currentOffset <= Self.bottomThreshold)
+        source.setAtBottom(currentOffset <= Self.bottomThreshold)
 
         let distanceFromTop = timelineHeight - viewHeight - currentOffset
         let threshold: CGFloat = 200.0 // Pixels from the top to trigger load
@@ -70,9 +70,13 @@ extension TimelineViewController {
         if distanceFromTop <= threshold, timelineFetchTask == nil {
             Logger.timelineTableView.info("Fetching older messages (scroll near top)")
             timelineFetchTask = Task {
-                await timeline.fetchOlderMessages()
+                await source.paginateBackwards()
                 timelineFetchTask = nil
             }
+        }
+
+        if source.reportsNewestVisibleRow {
+            reportNewestVisibleRow()
         }
     }
 
@@ -167,5 +171,107 @@ extension TimelineViewController {
         isAdjustingScrollAnchor = false
 
         scheduleScrollReport()
+    }
+}
+
+// MARK: - Focus, scroll to bottom, and the newest visible row
+
+/// The scrolls the source asks for: a focused event (a notification, a
+/// reply jump, the M3 search jump) and the newest row. Moved here from
+/// `TimelineTableView.swift` with MATRIX-142 Wave 2, when the controller
+/// started to read them from its `TimelineRowSource`.
+extension TimelineViewController {
+    /// Retries the pending focus scroll off the current runloop cycle.
+    ///
+    /// Callers run inside SwiftUI's view update pass; scrolling reports a new
+    /// position, and that report writes observable timeline state (S-54).
+    func scheduleFocusScroll() {
+        guard pendingFocus != nil, !focusScrollScheduled else { return }
+        focusScrollScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            focusScrollScheduled = false
+            scrollToPendingFocusIfPossible()
+        }
+    }
+
+    func listenForFocusTimelineItem() {
+        Logger.timelineTableView.debug("Listen for focus timeline item")
+
+        let focusTarget = withObservationTracking {
+            source.focusTarget
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.listenForFocusTimelineItem() }
+        }
+
+        guard let focusTarget else { return }
+        pendingFocus = focusTarget
+        scrollToPendingFocusIfPossible()
+    }
+
+    /// Scrolls to the focused row once it exists, and clears the request.
+    ///
+    /// A no-op while the row is absent, so it is safe to call after every
+    /// update.
+    func scrollToPendingFocusIfPossible() {
+        guard let pendingFocus, let rowIndex = rowIndex(of: pendingFocus) else { return }
+
+        self.pendingFocus = nil
+        Logger.timelineTableView.info("focus event resolved to row \(rowIndex): scrolling")
+        // MATRIX-136: the row flashes when the scroll lands.
+        scrollToFocusedRow(rowIndex)
+    }
+
+    /// The table row that shows an event, or nil while the table has no row
+    /// for it.
+    ///
+    /// One pass over the source to find the row identifier, then the
+    /// snapshot's identity lookup (`rowIndex(ofRowId:)`), which also confirms
+    /// that the table already shows the row. The focus jump and the reaction
+    /// picker (MATRIX-138) both use it.
+    func rowIndex(of event: TimelineEventReference) -> Int? {
+        source.rowId(of: event).flatMap(rowIndex(ofRowId:))
+    }
+
+    func listenForScrollToBottomRequests() {
+        let requests = withObservationTracking {
+            source.scrollToBottomRequests
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.listenForScrollToBottomRequests() }
+        }
+
+        guard requests > handledScrollToBottomRequests else { return }
+        handledScrollToBottomRequests = requests
+
+        // Row 0 is the newest message: rows are display-ordered newest-first
+        // and the table is not flipped, so row 0 sits at the bottom.
+        tableView.animateRowToVisible(0)
+    }
+
+    /// Reports the newest visible row after the current pass, for a source
+    /// that sends read receipts per visible row (MATRIX-142). A structural
+    /// batch calls it, because new rows can move the newest visible row
+    /// without a scroll. The report reaches observable state, so it waits
+    /// for the end of the SwiftUI update (S-54).
+    func scheduleNewestVisibleRowReport() {
+        guard source.reportsNewestVisibleRow, !newestVisibleRowReportScheduled else { return }
+        newestVisibleRowReportScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            newestVisibleRowReportScheduled = false
+            reportNewestVisibleRow()
+        }
+    }
+
+    /// Tells the source the newest visible row that is not a decoration.
+    /// Only while the window is key: a read receipt says the user saw it.
+    func reportNewestVisibleRow() {
+        guard unsafe view.window?.isKeyWindow == true else { return }
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return }
+        let newest = max(visible.location, leadingDecorationCount)
+        let end = min(visible.location + visible.length, timelineRows.count - trailingDecorationCount)
+        guard newest < end else { return }
+        source.noteNewestVisibleRow(id: timelineRows[newest].uniqueId)
     }
 }
