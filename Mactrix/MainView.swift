@@ -1,5 +1,6 @@
 import Core
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 import UI
@@ -35,6 +36,8 @@ struct MainView: View {
             NewChatContainerView(mode: mode, openRoom: openRoom)
         case .loadMatrixUrl(let matrixUri):
             LoadMatrixUriScreen(matrixUri: matrixUri)
+        case .mergedChat(let mergedChatId):
+            MergedChatDetailContainer(mergedChatId: mergedChatId)
         case .user(profile: let profile):
             UserProfileView(
                 profile: profile,
@@ -115,13 +118,31 @@ struct MainView: View {
                 showWelcomeSheet = true
                 // The client and its room handles are torn down; drop the selection so the
                 // detail pane doesn't stay bound to a dead room.
-                windowState.selectedRoomId = nil
+                windowState.chatSelection = nil
                 windowState.selectedScreen = .none
             }
         }
-        .task(id: windowState.selectedRoomId) {
+        .task(id: windowState.chatSelection) {
             await onRoomSelected()
         }
+        // MATRIX-141: a merge, an unmerge, or the first read of the merged
+        // chats can move the selection (a member room shows its merged chat;
+        // an unmerged chat shows its default room).
+        .onChange(of: appState.matrixClient?.mergedChats?.document) { previous, current in
+            // No model: signed out. The client handler above clears the
+            // selection; moving it to a member room here would open a room
+            // on a client that is going away.
+            guard let current else { return }
+            let resolved = MergedChatSelection.resolve(
+                windowState.chatSelection,
+                document: current,
+                previous: previous ?? MergedChatDocument()
+            )
+            if resolved != windowState.chatSelection {
+                windowState.chatSelection = resolved
+            }
+        }
+        .modifier(MergeChatsSheetPresenter(windowState: windowState))
         .onChange(of: appState.matrixClient?.authenticationFailed) { _, authFailed in
             if authFailed == true {
                 Logger.viewCycle.info("Auth failed: tearing down the session and presenting sign-in")
@@ -203,21 +224,41 @@ struct MainView: View {
         }
     }
 
-    /// Shows `roomId`, leaving whatever screen is up.
+    /// Shows `roomId`, or its merged chat when the room is a member
+    /// (MATRIX-141), leaving whatever screen is up.
     ///
-    /// Setting the selection alone is not enough when the room is already
-    /// selected (for example a New Chat that resolves to the DM the window
-    /// last showed): `.task(id:)` does not fire for an unchanged ID.
+    /// Setting the selection alone is not enough when it is already selected
+    /// (for example a New Chat that resolves to the DM the window last
+    /// showed): `.task(id:)` does not fire for an unchanged value.
     func openRoom(_ roomId: String) async {
-        if windowState.selectedRoomId == roomId {
+        let document = appState.matrixClient?.mergedChats?.document ?? MergedChatDocument()
+        let target = MergedChatSelection.selection(showing: roomId, document: document)
+        if windowState.chatSelection == target {
             await onRoomSelected()
         } else {
-            windowState.selectedRoomId = roomId
+            windowState.chatSelection = target
         }
     }
 
     func onRoomSelected() async {
         guard let matrixClient = appState.matrixClient else { return }
+
+        // MATRIX-141: every path that selects a room (a click, a
+        // notification, a matrix: URL, ⌘K, the Go menu, restoration) lands
+        // here. A member room moves to its merged chat; the task then runs
+        // again for the new selection.
+        let resolved = MergedChatSelection.resolve(
+            windowState.chatSelection,
+            document: matrixClient.mergedChats?.document ?? MergedChatDocument()
+        )
+        if resolved != windowState.chatSelection {
+            windowState.chatSelection = resolved
+            return
+        }
+        if let mergedChatId = windowState.selectedMergedChatId {
+            windowState.selectedScreen = .mergedChat(id: mergedChatId)
+            return
+        }
 
         do {
             Logger.viewCycle.debug("Selected room: \(windowState.selectedRoomId.debugDescription)")

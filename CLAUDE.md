@@ -18,7 +18,7 @@ The Mactrix fork has landed. Current layout:
 2. **Glass on the navigation layer only.** Toolbar, sidebar, sheets, popovers. Never `.glassEffect()` on scrollable content. The timeline is opaque.
 3. **The prod account is never used for automated or agent-driven testing.** Use the dev account only. If credentials are ambiguous, stop and ask.
 4. **Scope comes from the contract.** Deferred means deferred. Do not add calls, threads, spaces, or multi-account work without a §11 amendment.
-5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/`. If the signature is not there, read the package sources in `DerivedData`/SPM checkouts. Never write an SDK call from memory.
+5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/`. If the signature is not there, read the package sources in the SPM checkout under `build/DerivedData/SourcePackages/checkouts/`. Never write an SDK call from memory.
 6. **Pin discipline.** `matrix-rust-components-swift` is pinned by exact version. Do not bump it inside a feature story. SDK bumps are their own story with a changelog review.
 
 ## Build and test
@@ -30,6 +30,8 @@ scripts/lint.sh     # SwiftFormat --lint + SwiftLint
 ```
 
 Each script auto-detects `DEVELOPER_DIR` (existing env value, else Xcode-beta.app, else Xcode.app) unless it is already set.
+
+`build.sh` and `test.sh` put the Xcode build data in `build/DerivedData/` inside the checkout (gitignored), not in `~/Library/Developer/Xcode/DerivedData`. Removing a worktree removes its build data. The built app is `build/DerivedData/Build/Products/Debug/Mactrix.app`. Set `DERIVED_DATA_PATH` to use another folder.
 
 ## Definition of done (every story)
 
@@ -66,9 +68,9 @@ Stories live in Plane. Coordinates (base URL, workspace/project UUIDs, state map
 Workflow (orchestrator-only: in multi-agent sessions, ONLY the main session calls the Plane API; subagents never touch Plane or read its key — they report back and the orchestrator updates the board):
 - Stories in Plane are self-contained: the description carries the full story text (all steps, outputs, sequencing, known findings, and the definition of done), not a summary plus a pointer. Update the description when the story's scope or known facts change.
 - On starting a story: PATCH the issue to the "In Progress" state AND post a start-of-work comment: who picked it up (which session/agent), the planned approach, and any known blocker.
-- On tests green: move to "Review". Never move anything to "Done" — that's Patrick's click.
+- On tests green: move to "Review". Move an issue to "Done" once it is merged and verified (delegated by Patrick, 2026-11-11). An issue that waits on Patrick's smoke test or his usability or feature input stays in "Review", assigned to him.
 - Assign an issue to Patrick the moment it needs manual work from him — a terminal action, a hardware or account credential, a physical check, or a decision only he can make. Do not wait to be asked and do not just mention it in chat: put his UUID in `assignees` (see `.plane.local.md`) and say in the comment exactly what is needed from him. Unassign when the blocker clears.
 - Every move to "Review" must carry a resolution comment on the issue: what was done, key findings/decisions, output artifacts (files, commits), and anything deferred. Post the comment before or with the state change.
 - Contract §11 rows are append-only and WILL conflict between concurrent branches. On a PR conflict in docs/PROJECT_CONTRACT.md, rebase onto main and keep all rows, earliest-merged first. Verify the build after any rebase before force-pushing (--force-with-lease only).
-- Stories that change code are done on a branch named `s-XX/short-slug`, not on main. Moving such a story to "Review" requires an open PR against main; put the PR link in the resolution comment AND attach it to the issue via the links API (`POST .../issues/<id>/links/` with `url` and `title`). Docs-only changes may commit straight to main. Merging is delegated (Patrick, 2026-11-04): the orchestrator merges a PR with a merge commit (`gh pr merge <n> --merge`) after it has read the diff and CI passes Build, Test, the library tests, and Lint; a stacked PR merges after its base; if the branch is behind main, merge main into it and verify the build and lint before the merge. Subagents never merge. Moving an issue to "Done" is still Patrick's click. Never put Claude session links in PR bodies or comments.
+- Stories that change code are done on a branch named `s-XX/short-slug`, not on main. Moving such a story to "Review" requires an open PR against main; put the PR link in the resolution comment AND attach it to the issue via the links API (`POST .../issues/<id>/links/` with `url` and `title`). Docs-only changes may commit straight to main. Merging is delegated (Patrick, 2026-11-04): the orchestrator merges a PR with a merge commit (`gh pr merge <n> --merge`) after it has read the diff and CI passes Build, Test, the library tests, and Lint; a stacked PR merges after its base; if the branch is behind main, merge main into it and verify the build and lint before the merge. Subagents never merge. Usability and feature decisions are Patrick's: ask for his input, but where a sensible default is cheap to change, ship it and record the choice instead of waiting. Never put Claude session links in PR bodies or comments.
 - States have per-project UUIDs. If the map in `.plane.local.md` is empty, GET `.../projects/<uuid>/states/` once and record it there.

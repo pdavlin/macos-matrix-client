@@ -16,7 +16,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 FFI_DOCS_DIR="$REPO_ROOT/docs/ffi"
 XCODE_PROJECT="$REPO_ROOT/Mactrix.xcodeproj"
 PACKAGE_NAME="matrix-rust-components-swift"
-DERIVED_DATA_DIR="$HOME/Library/Developer/Xcode/DerivedData"
+# MATRIX-128: scripts/build.sh and test.sh keep the build data in the checkout.
+DERIVED_DATA_DIR="${DERIVED_DATA_PATH:-$REPO_ROOT/build/DerivedData}"
 
 find_checkout() {
   find "$DERIVED_DATA_DIR" -maxdepth 5 -type d \
@@ -28,7 +29,8 @@ CHECKOUT_DIR="$(find_checkout || true)"
 
 if [ -z "$CHECKOUT_DIR" ]; then
   echo "Package checkout not found. Resolving package dependencies..." >&2
-  xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT" -scheme Mactrix
+  xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT" -scheme Mactrix \
+    -derivedDataPath "$DERIVED_DATA_DIR"
   CHECKOUT_DIR="$(find_checkout || true)"
 fi
 

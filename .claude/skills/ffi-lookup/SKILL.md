@@ -19,7 +19,7 @@ Hard rule 5 says: never write an SDK call from memory. This skill says how to re
    - The smaller files (`matrix_sdk.swift`, `matrix_sdk_crypto.swift`, etc.) hold base/crypto types; grep them the same way.
 2. Read only the matching region: `sed -n '<start>,<end>p'` or the Read tool with offset/limit, at most ~100 lines. Protocol declarations carry the doc comment; the `open func` implementation confirms async/throws.
 3. Record what you verified (signature, file, line) in the story's PR body or resolution comment, so the next session does not repeat the lookup.
-4. If the signature is not in `docs/ffi/`, grep the SPM checkout sources under DerivedData the same way. Never guess.
+4. If the signature is not in `docs/ffi/`, grep the SPM checkout sources under `build/DerivedData/SourcePackages/checkouts/` the same way (run `scripts/build.sh` once if the folder is missing). Never guess.
 
 Worked example (MATRIX-48): `grep -n "func stop(" docs/ffi/matrix_sdk_ffi.swift` → line 14573 `func stop() async` on `SyncService` — non-throwing, async. One grep, one 20-line read.
 

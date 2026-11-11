@@ -11,20 +11,33 @@ struct RoomInspectorMemberRow<RoomMember: Models.RoomMember>: View {
     }
 }
 
-public struct RoomInspectorView<Room: Models.Room, RoomMember: Models.RoomMember>: View {
+public struct RoomInspectorView<Room: Models.Room, RoomMember: Models.RoomMember, Accessory: View>: View {
     let room: Room
     let members: [RoomMember]
 
     let roomInfo: RoomInfo?
     let imageLoader: ImageLoader?
+    /// Rows the app adds below the header (MATRIX-141: the merged-chat
+    /// section).
+    let accessory: Accessory
 
     @Binding var inspectorVisible: Bool
 
-    public init(room: Room, members: [RoomMember], roomInfo: RoomInfo?, imageLoader: ImageLoader?, inspectorVisible: Binding<Bool>) {
+    /// - Parameter accessory: list content shown below the header, before
+    ///   the members. The app puts the merged-chat section here.
+    public init(
+        room: Room,
+        members: [RoomMember],
+        roomInfo: RoomInfo?,
+        imageLoader: ImageLoader?,
+        inspectorVisible: Binding<Bool>,
+        @ViewBuilder accessory: () -> Accessory
+    ) {
         self.room = room
         self.members = members
         self.imageLoader = imageLoader
         self.roomInfo = roomInfo
+        self.accessory = accessory()
         _inspectorVisible = inspectorVisible
     }
 
@@ -92,6 +105,8 @@ public struct RoomInspectorView<Room: Models.Room, RoomMember: Models.RoomMember
         List {
             header
 
+            accessory
+
             userSection(title: "Admins", allMembers: members, withRole: .administrator)
             userSection(title: "Moderators", allMembers: members, withRole: .moderator)
             userSection(title: "Users", allMembers: members, withRole: .user)
@@ -114,7 +129,26 @@ public struct RoomInspectorView<Room: Models.Room, RoomMember: Models.RoomMember
     }
 }
 
+public extension RoomInspectorView where Accessory == EmptyView {
+    init(room: Room, members: [RoomMember], roomInfo: RoomInfo?, imageLoader: ImageLoader?, inspectorVisible: Binding<Bool>) {
+        self.init(
+            room: room,
+            members: members,
+            roomInfo: roomInfo,
+            imageLoader: imageLoader,
+            inspectorVisible: inspectorVisible,
+            accessory: { EmptyView() }
+        )
+    }
+}
+
 #Preview {
-    RoomInspectorView<MockRoom, MockRoomMember>(room: MockRoom.previewRoom, members: [], roomInfo: MockRoomInfo(), imageLoader: nil, inspectorVisible: .constant(true))
-        .frame(width: 250, height: 500)
+    RoomInspectorView<MockRoom, MockRoomMember, EmptyView>(
+        room: MockRoom.previewRoom,
+        members: [],
+        roomInfo: MockRoomInfo(),
+        imageLoader: nil,
+        inspectorVisible: .constant(true)
+    )
+    .frame(width: 250, height: 500)
 }

@@ -120,6 +120,9 @@ struct RoomWindowView: View {
                 openElsewhere(newRoomId)
             }
             .modifier(ToolbarViewModifier())
+            // MATRIX-141: the inspector's "Merge with…" and "Edit Merged
+            // Chat…" open the sheet in this window.
+            .modifier(MergeChatsSheetPresenter(windowState: windowState))
             .environment(windowState)
             .focusedSceneValue(windowState)
             .background(WindowFrameAutosave(name: "RoomWindow \(roomId)"))
