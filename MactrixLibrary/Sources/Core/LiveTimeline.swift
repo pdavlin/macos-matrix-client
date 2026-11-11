@@ -55,6 +55,13 @@ public final class LiveTimeline {
     /// the sheets. See `requestForward(of:)` and `MatrixClient.forward`.
     public let forwarding = LiveMessageForwardFlow()
 
+    /// Requests to show the reaction picker on a message (MATRIX-138). Rows
+    /// send them through `requestReactionPicker(for:hoverButtonsAfterPicker:)`;
+    /// the Mac timeline controller observes the channel and shows the picker
+    /// as an AppKit popover. A channel, not a plain value, so the same
+    /// message can be requested twice in a row.
+    public internal(set) var reactionPickerRequests = NoncedRequestChannel<ReactionPickerRequest>()
+
     public private(set) var timelineItems: [TimelineItem] = []
 
     /// The same items in display order, newest first — the order the timeline
