@@ -379,6 +379,13 @@ public class MatrixClient {
         }
         await mergedChats?.refresh()
 
+        // MATRIX-144 hookup (MATRIX-141 Phase B): notifications and the Dock
+        // badge read the merged chats live. The badge reads the observable
+        // document inside Observation tracking, so a merge or an unmerge
+        // recomputes it. After a sign-out `mergedChats` is nil: no merges.
+        notifications.mergedChats = { [weak self] in self?.mergedChats?.document ?? MergedChatDocument() }
+        dockBadge.mergedChats = { [weak self] in self?.mergedChats?.document ?? MergedChatDocument() }
+
         // MATRIX-119: a no-op on iOS. Restart sync calls this again with
         // the new room list service.
         await dockBadge.start(roomListService: _roomListService, labels: labels)

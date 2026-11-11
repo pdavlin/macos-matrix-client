@@ -13,7 +13,8 @@ import UI
 /// made here that New Chat or the label sheet does not already make.
 ///
 /// In picker mode (MATRIX-112 forward) it offers rooms only and hands the
-/// picked room ID back to the caller.
+/// picked room ID back to the caller. A caller can narrow the rooms it
+/// offers (MATRIX-141: the Merge Chats sheet offers one-to-one chats only).
 struct QuickSwitcherContainerView: View {
     /// What the switcher is for.
     enum Purpose {
@@ -21,7 +22,12 @@ struct QuickSwitcherContainerView: View {
         case navigate(openRoom: (_ roomId: String) async -> Void)
         /// Picker mode (MATRIX-112 forward): hands the picked room ID back.
         /// `currentRoomId` is the room the message comes from, listed last.
-        case pickRoom(currentRoomId: String?, onPick: @MainActor (_ roomId: String) -> Void)
+        /// Only rooms `isOffered` accepts are listed.
+        case pickRoom(
+            currentRoomId: String?,
+            isOffered: @MainActor (QuickSwitcherRoom) -> Bool,
+            onPick: @MainActor (_ roomId: String) -> Void
+        )
     }
 
     @Environment(AppState.self) private var appState
@@ -38,14 +44,23 @@ struct QuickSwitcherContainerView: View {
     }
 
     /// Picker mode: rooms only, and the picked room goes to `onPick`.
-    init(pickRoomFrom currentRoomId: String?, onPick: @escaping @MainActor (_ roomId: String) -> Void) {
-        self.purpose = .pickRoom(currentRoomId: currentRoomId, onPick: onPick)
+    ///
+    /// - Parameters:
+    ///   - currentRoomId: the room the pick starts from, listed last.
+    ///   - isOffered: the rooms to list. All rooms by default.
+    ///   - onPick: gets the picked room ID. The switcher then closes.
+    init(
+        pickRoomFrom currentRoomId: String?,
+        offering isOffered: @escaping @MainActor (QuickSwitcherRoom) -> Bool = { _ in true },
+        onPick: @escaping @MainActor (_ roomId: String) -> Void
+    ) {
+        self.purpose = .pickRoom(currentRoomId: currentRoomId, isOffered: isOffered, onPick: onPick)
     }
 
     var body: some View {
         if let matrixClient = appState.matrixClient {
             UI.QuickSwitcherView(
-                rooms: directory.rooms,
+                rooms: offeredRooms,
                 currentRoomId: currentRoomId,
                 ownUserId: try? matrixClient.client.userId(),
                 imageLoader: matrixClient,
@@ -70,7 +85,15 @@ struct QuickSwitcherContainerView: View {
     private var currentRoomId: String? {
         switch purpose {
         case .navigate: windowState.selectedRoomId
-        case let .pickRoom(currentRoomId, _): currentRoomId
+        case let .pickRoom(currentRoomId, _, _): currentRoomId
+        }
+    }
+
+    /// Every room in ⌘K; the rooms the caller accepts in picker mode.
+    private var offeredRooms: [QuickSwitcherRoom] {
+        switch purpose {
+        case .navigate: directory.rooms
+        case let .pickRoom(_, isOffered, _): directory.rooms.filter(isOffered)
         }
     }
 
@@ -87,7 +110,7 @@ struct QuickSwitcherContainerView: View {
                 // ⌥-Return: the room in its own window (MATRIX-116).
                 openRoomInNewWindow: { openWindow(value: RoomWindowID(roomId: $0)) }
             )
-        case let .pickRoom(_, onPick):
+        case let .pickRoom(_, _, onPick):
             .picker(onPick: onPick)
         }
     }

@@ -28,6 +28,8 @@ public struct MergeChatsSheet: View {
     let onCancel: () -> Void
     let onSubmit: (MergedChatDraft) -> Void
     let onUnmerge: () -> Void
+    let errorMessage: String?
+    let isBusy: Bool
 
     /// - Parameters:
     ///   - mode: create or edit.
@@ -42,6 +44,10 @@ public struct MergeChatsSheet: View {
     ///   - onSubmit: Merge (create) or Save (edit), with the draft. Enabled
     ///     only when `MergedChatDraft.canSubmit` holds.
     ///   - onUnmerge: Unmerge, shown in edit mode only.
+    ///   - errorMessage: why the last Merge, Save, or Unmerge did not land
+    ///     (Phase B), shown above the buttons. Nil shows nothing.
+    ///   - isBusy: a write runs. The buttons that write are disabled, so a
+    ///     second click does not queue a second write.
     public init(
         mode: Mode,
         draft: Binding<MergedChatDraft>,
@@ -50,7 +56,9 @@ public struct MergeChatsSheet: View {
         onAddChat: @escaping () -> Void,
         onCancel: @escaping () -> Void,
         onSubmit: @escaping (MergedChatDraft) -> Void,
-        onUnmerge: @escaping () -> Void = {}
+        onUnmerge: @escaping () -> Void = {},
+        errorMessage: String? = nil,
+        isBusy: Bool = false
     ) {
         self.mode = mode
         _draft = draft
@@ -60,6 +68,8 @@ public struct MergeChatsSheet: View {
         self.onCancel = onCancel
         self.onSubmit = onSubmit
         self.onUnmerge = onUnmerge
+        self.errorMessage = errorMessage
+        self.isBusy = isBusy
     }
 
     /// The draft's chats as rows, in draft order.
@@ -89,6 +99,17 @@ public struct MergeChatsSheet: View {
             if !members.isEmpty {
                 avatarPicker(members, labels: labels)
                 defaultChatPicker(members, labels: labels)
+            }
+
+            if let errorMessage {
+                Label {
+                    Text(verbatim: errorMessage)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .font(.callout)
+                .foregroundStyle(.red)
             }
 
             footer
@@ -217,6 +238,7 @@ public struct MergeChatsSheet: View {
         HStack {
             if mode == .edit {
                 Button("Unmerge", role: .destructive, action: onUnmerge)
+                    .disabled(isBusy)
             }
             Spacer()
             Button("Cancel", action: onCancel)
@@ -227,7 +249,7 @@ public struct MergeChatsSheet: View {
                 onSubmit(submitted)
             }
             .keyboardShortcut(.defaultAction)
-            .disabled(!draft.canSubmit)
+            .disabled(!draft.canSubmit || isBusy)
         }
     }
 }

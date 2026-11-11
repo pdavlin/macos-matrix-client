@@ -32,7 +32,22 @@ struct InspectorScreen: View {
         case .roomInfo:
             switch windowState.selectedScreen {
             case let .joinedRoom(timeline: timeline):
-                UI.RoomInspectorView(room: timeline.room, members: timeline.room.members, roomInfo: timeline.room.roomInfo, imageLoader: appState.matrixClient, inspectorVisible: $windowState.inspectorVisible)
+                UI.RoomInspectorView(
+                    room: timeline.room,
+                    members: timeline.room.members,
+                    roomInfo: timeline.room.roomInfo,
+                    imageLoader: appState.matrixClient,
+                    inspectorVisible: $windowState.inspectorVisible
+                ) {
+                    mergeSection(roomId: timeline.room.id, isDirect: timeline.room.roomInfo?.isDirect == true)
+                }
+            case .mergedChat:
+                // MATRIX-141 Phase B: the merged chat view (Wave 2) brings
+                // its own inspector.
+                Text("Merged chat details arrive in the next build")
+                    .multilineTextAlignment(.center)
+                    .padding()
+                    .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
             case .none, .newRoom, .newChat, .previewRoom, .loadMatrixUrl, .user:
                 Text("No room selected")
                     .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
@@ -46,6 +61,39 @@ struct InspectorScreen: View {
         case .roomPins:
             InspectorRoomPins()
                 .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+        }
+    }
+
+    /// MATRIX-141: "Merge with…" for a one-to-one chat; "Merged into
+    /// <name>" with Edit and Unmerge for a member room.
+    @ViewBuilder
+    private func mergeSection(roomId: String, isDirect: Bool) -> some View {
+        if let mergedChats = appState.matrixClient?.mergedChats {
+            let status = RoomMergeStatus.of(roomId: roomId, isDirect: isDirect, document: mergedChats.document)
+            if status != .unavailable {
+                Section("Merged Chat") {
+                    MergedChatInspectorSection(
+                        status: status,
+                        isEditable: mergedChats.isEditable,
+                        onMerge: { windowState.mergeEditor = .create(roomId: roomId) },
+                        onEdit: {
+                            if case let .member(merge) = status {
+                                windowState.mergeEditor = .edit(mergedChatId: merge.id)
+                            }
+                        },
+                        onUnmerge: {
+                            guard case let .member(merge) = status else { return }
+                            Task {
+                                let outcome = await mergedChats.unmerge(merge.id)
+                                if outcome != .saved {
+                                    let reason = String(describing: outcome)
+                                    Logger.viewCycle.error("unmerge from the inspector did not land: \(reason, privacy: .public)")
+                                }
+                            }
+                        }
+                    )
+                }
+            }
         }
     }
 

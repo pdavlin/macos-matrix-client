@@ -30,6 +30,9 @@ public enum SelectedScreen {
     case newRoom
     /// The Beeper-style new chat draft in the detail pane (MATRIX-75).
     case newChat(mode: NewChatMode)
+    /// A merged chat (MATRIX-141), by its ID. Phase B shows a placeholder;
+    /// the merged timeline replaces it.
+    case mergedChat(id: String)
     case none
 }
 
@@ -37,7 +40,43 @@ public enum SelectedScreen {
 public final class WindowState {
     public var selectedScreen: SelectedScreen = .none
 
-    public var selectedRoomId: String?
+    /// What the window selects: a room or a merged chat (MATRIX-141). The
+    /// one stored value, so a room and a merged chat are never selected at
+    /// once. `selectedRoomId` and `selectedMergedChatId` read and write it.
+    ///
+    /// In a main window, a member room never stays selected: `MainView` moves
+    /// the selection to the room's merged chat
+    /// (`MergedChatSelection.resolve`).
+    public var chatSelection: ChatSelection?
+
+    /// The selected room, or nil when no room or a merged chat is selected.
+    /// Setting a room ID replaces any selection. Setting nil clears a
+    /// selected room and leaves a selected merged chat alone.
+    public var selectedRoomId: String? {
+        get { chatSelection?.roomId }
+        set {
+            if let newValue {
+                chatSelection = .room(newValue)
+            } else if chatSelection?.roomId != nil {
+                chatSelection = nil
+            }
+        }
+    }
+
+    /// The selected merged chat's ID (MATRIX-141), or nil. Setting an ID
+    /// replaces any selection. Setting nil clears a selected merged chat and
+    /// leaves a selected room alone.
+    public var selectedMergedChatId: String? {
+        get { chatSelection?.mergedChatId }
+        set {
+            if let newValue {
+                chatSelection = .merged(newValue)
+            } else if chatSelection?.mergedChatId != nil {
+                chatSelection = nil
+            }
+        }
+    }
+
     public var inspectorVisible: Bool = false
 
     public var inspectorContent: InspectorContent = .roomInfo
@@ -62,6 +101,9 @@ public final class WindowState {
     /// The label sheet to show, if any (MATRIX-77). Not restored.
     public var labelEditor: LabelEditorRequest?
 
+    /// The Merge Chats sheet to show, if any (MATRIX-141). Not restored.
+    public var mergeEditor: MergedChatEditorRequest?
+
     /// The one room a single-room window shows (MATRIX-116), or `nil` for a
     /// main window. A single-room window never shows another room, so the
     /// menu commands that change the selection skip it.
@@ -76,7 +118,7 @@ public final class WindowState {
     ///   (the default) for a main window.
     public init(singleRoomId: String? = nil) {
         self.singleRoomId = singleRoomId
-        self.selectedRoomId = singleRoomId
+        self.chatSelection = singleRoomId.map(ChatSelection.room)
     }
 
     public var searchFocused: Binding<Bool> {
@@ -163,6 +205,8 @@ public final class WindowState {
 extension WindowState: @MainActor RawRepresentable {
     public struct SceneStorageRepresentation: Codable {
         public let selectedRoomId: String?
+        /// MATRIX-141. Optional, so older windows restore their room.
+        public let selectedMergedChatId: String?
         public let inspectorVisible: Bool
         public let sidebarSections: SidebarSectionCollapsibility
         /// Optional so a window saved before MATRIX-67, which has no filter,
@@ -173,6 +217,7 @@ extension WindowState: @MainActor RawRepresentable {
 
         @MainActor public init(windowState: WindowState) {
             self.selectedRoomId = windowState.selectedRoomId
+            self.selectedMergedChatId = windowState.selectedMergedChatId
             self.inspectorVisible = windowState.inspectorVisible
             self.sidebarSections = windowState.sidebarSections
             self.chatListFilter = windowState.chatListFilter
@@ -180,7 +225,7 @@ extension WindowState: @MainActor RawRepresentable {
         }
 
         @MainActor public func restore(windowState: WindowState) {
-            windowState.selectedRoomId = selectedRoomId
+            windowState.chatSelection = selectedMergedChatId.map(ChatSelection.merged) ?? selectedRoomId.map(ChatSelection.room)
             windowState.inspectorVisible = inspectorVisible
             windowState.sidebarSections = sidebarSections
             windowState.chatListFilter = chatListFilter ?? .inbox
