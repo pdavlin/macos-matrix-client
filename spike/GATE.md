@@ -235,8 +235,14 @@ spike/TimelineSpike/Sources/ProductionTimeline/Production/
   BottomStickyTableView.swift  -> Mactrix/Views/ChatView/TimelineView/BottomStickyTableView.swift
   TimelineMessageSelection.swift -> Mactrix/Views/ChatView/TimelineView/TimelineMessageSelection.swift
   TimelineChrome.swift         -> Mactrix/Views/ChatView/TimelineView/TimelineChrome.swift
+  TimelineHoverBar.swift       -> Mactrix/Views/ChatView/TimelineView/TimelineHoverBar.swift
+  TimelineHoverBarController.swift -> Mactrix/Views/ChatView/TimelineView/TimelineHoverBarController.swift
   NSTableView.swift            -> Mactrix/Extensions/NSTableView.swift
 ```
+
+The two hover bar files (MATRIX-145) run their pointer tracking, scroll hide, and layout hook
+in the gate. Without Core there is no message target, so the floating bar itself never shows
+in the spike.
 
 Change the container and the next gate run measures the change. No copy is kept, so the two
 cannot drift apart.
