@@ -27,12 +27,30 @@ public enum TimelineRowMeasurement {
     /// The width is clamped to a minimum of 1 before measuring so a
     /// zero-width layout pass (a table mid-setup) cannot produce degenerate
     /// heights, and the result is normalized via `normalizedHeight(_:)`.
+    ///
+    /// A row with a fixed height (`TimelineRow.fixedHeight`) is not measured.
     public static func height(
         of row: TimelineRow,
         width: CGFloat,
         measuredBy measure: (TimelineRow, CGFloat) -> CGFloat
     ) -> CGFloat {
-        normalizedHeight(measure(row, max(width, 1)))
+        if let fixed = row.fixedHeight {
+            return fixed
+        }
+        return normalizedHeight(measure(row, max(width, 1)))
+    }
+}
+
+public extension TimelineRow {
+    /// The row's height when it is the same at every width and for every
+    /// content, so the container need not measure it. Nil for every row that
+    /// must be measured.
+    ///
+    /// Only the merged timeline's source note has one (MATRIX-142): its view
+    /// (`UI.MergedSourceNote`) is one truncating line in a fixed frame.
+    var fixedHeight: CGFloat? {
+        guard case .virtual(_, .mergedSource) = self else { return nil }
+        return MergedSourceLabel.rowHeight
     }
 }
 

@@ -280,16 +280,25 @@ public extension MatrixRustSDK.TimelineItem {
             return .unsupported(uniqueId: uniqueId().id)
         }
 
+        return Self.row(for: event, uniqueId: uniqueId().id)
+    }
+
+    /// The row of an event item, with the row identifier `uniqueId`.
+    ///
+    /// `row` uses it with the item's own identifier. The merged timeline
+    /// (MATRIX-142) uses it with the merged identifier, after it read the
+    /// event once.
+    static func row(for event: MatrixRustSDK.EventTimelineItem, uniqueId: String) -> Models.TimelineRow {
         switch event.content {
         case let .msgLike(content: content):
             return .message(
-                uniqueId: uniqueId().id,
+                uniqueId: uniqueId,
                 event: event,
                 kind: content.rowKind,
                 heightFingerprint: content.heightFingerprint(event: event)
             )
         default:
-            return .state(uniqueId: uniqueId().id, event: event, name: event.content.description)
+            return .state(uniqueId: uniqueId, event: event, name: event.content.description)
         }
     }
 }

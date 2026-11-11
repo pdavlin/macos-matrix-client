@@ -151,6 +151,8 @@ public extension VirtualTimelineItem {
             return "readMarker"
         case .timelineStart:
             return "timelineStart"
+        case .mergedSource:
+            return "mergedSource"
         }
     }
 }
