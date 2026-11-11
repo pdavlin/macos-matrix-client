@@ -44,7 +44,12 @@ struct ChatListAvatar: View {
         content
             .frame(width: size, height: size)
             .overlay(alignment: .bottomTrailing) {
-                if let network = model.network {
+                let networks = model.badgeNetworks
+                if networks.count > 1 {
+                    // MATRIX-141: a merged chat's networks.
+                    ChatListNetworkBadgeStack(networks: networks, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
+                        .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
+                } else if let network = model.network {
                     ChatListNetworkBadge(network: network, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
                         .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
                 }
@@ -107,6 +112,31 @@ struct ChatListNetworkBadge: View {
                 .fill(network.badgeColor)
             )
             .help(network.displayName)
+    }
+}
+
+/// Several network badges in a row on the avatar's bottom-right corner, for
+/// a merged chat (MATRIX-141).
+///
+/// The first network sits where a single badge sits and draws on top; each
+/// further badge steps toward the leading edge by
+/// `MergedChatToken.badgeStepRatio` of a badge and hides behind the one
+/// after it.
+struct ChatListNetworkBadgeStack: View {
+    /// The networks, first on top. The caller caps the count
+    /// (`ChatListRowModel.badgeNetworks`).
+    let networks: [ChatListNetwork]
+    /// Each badge's side in points.
+    let size: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            ForEach(Array(networks.enumerated()), id: \.element) { index, network in
+                ChatListNetworkBadge(network: network, size: size)
+                    .offset(x: -CGFloat(index) * size * MergedChatToken.badgeStepRatio)
+                    .zIndex(Double(networks.count - index))
+            }
+        }
     }
 }
 

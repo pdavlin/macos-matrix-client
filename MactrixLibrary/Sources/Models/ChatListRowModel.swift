@@ -21,6 +21,9 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     /// MATRIX-129: joined members other than the user, for the cluster's
     /// "+N" label. Zero when unknown.
     public var otherMemberCount: Int
+    /// MATRIX-141: a merged chat's other member networks, drawn as further
+    /// badges after `network` (see `badgeNetworks`). Empty for a plain room.
+    public var additionalNetworks: [ChatListNetwork] = []
 
     public init(
         id: String,
@@ -65,9 +68,7 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     /// The VoiceOver label: title, then unread state, then mute.
     public var accessibilityLabel: String {
         var parts = [title]
-        if let network {
-            parts.append(network.displayName)
-        }
+        parts.append(contentsOf: badgeNetworks.map(\.displayName))
         if unread.hasMention {
             parts.append("mentioned")
         }

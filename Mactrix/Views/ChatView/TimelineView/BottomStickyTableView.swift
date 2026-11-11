@@ -20,6 +20,10 @@ class BottomStickyTableView: NSTableView {
     /// settle heights for rows that were offscreen during the resize.
     var onLiveResizeEnd: (() -> Void)?
 
+    /// Called after every layout pass, once the rows have their places. The
+    /// floating hover bar (MATRIX-145) follows its row from here.
+    var onLayout: (() -> Void)?
+
     /// Handles ⌘C and Esc while a message selection exists (MATRIX-113).
     ///
     /// A gutter click makes the table the first responder, so Edit > Copy
@@ -36,6 +40,11 @@ class BottomStickyTableView: NSTableView {
     override func viewDidEndLiveResize() {
         super.viewDidEndLiveResize()
         onLiveResizeEnd?()
+    }
+
+    override func layout() {
+        super.layout()
+        onLayout?()
     }
 
     // MARK: - Message selection (MATRIX-113)
