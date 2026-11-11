@@ -225,13 +225,7 @@ public extension SidebarRoom {
                 isMutedByLabel: mutedByLabel
             )
         } ?? ChatListUnread(isMutedByLabel: mutedByLabel)
-        // MATRIX-133: the loaded members stand in for missing heroes.
-        let people = ChatListRowPeople(
-            visibleHeroes: roomInfo?.chatListHeroes ?? [],
-            heroUserIds: roomInfo?.heroes.map(\.userId) ?? [],
-            joinedMembersCount: roomInfo?.joinedMembersCount,
-            members: memberCluster
-        )
+        let people = chatListPeople
 
         return ChatListRowModel(
             id: id,
@@ -245,6 +239,19 @@ public extension SidebarRoom {
             network: people.network,
             heroes: people.heroes,
             otherMemberCount: people.otherMemberCount
+        )
+    }
+
+    /// The faces, "+N" count, and network badge of this room's chat-list
+    /// row. MATRIX-133: the loaded members stand in for missing heroes. The
+    /// merged timeline's source note (MATRIX-142) reads the network from
+    /// here too, so both show the same badge.
+    var chatListPeople: Models.ChatListRowPeople {
+        ChatListRowPeople(
+            visibleHeroes: roomInfo?.chatListHeroes ?? [],
+            heroUserIds: roomInfo?.heroes.map(\.userId) ?? [],
+            joinedMembersCount: roomInfo?.joinedMembersCount,
+            members: memberCluster
         )
     }
 }

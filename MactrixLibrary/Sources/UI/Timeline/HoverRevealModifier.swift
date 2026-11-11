@@ -1,8 +1,8 @@
 import SwiftUI
 import Tokens
 
-/// Fades and slides a hover overlay into place (MATRIX-135). The message
-/// row's hover action bar uses it.
+/// Fades and slides a hover overlay into place (MATRIX-135). The hover
+/// action bar uses it (`HoverActionBar`).
 ///
 /// On reveal the content fades in and slides `MotionToken.revealOffset` up
 /// into its resting place over `MotionToken.revealDuration`. On hide it fades
@@ -10,9 +10,13 @@ import Tokens
 /// ends, so it does not drift down as it goes. With Reduce Motion on, the
 /// content shows and hides at once and does not slide.
 ///
+/// Content that appears already revealed also fades and slides in. The
+/// timeline's floating bar gives each row's bar its own identity, so the
+/// bar reveals again when the pointer moves to another row (MATRIX-145), as
+/// it did when each row drew its own bar.
+///
 /// Opacity and offset are render effects: the modifier never changes the
-/// layout of the view it wraps, so a timeline row's measured height holds.
-/// Hidden content takes no clicks.
+/// layout of the view it wraps. Hidden content takes no clicks.
 struct HoverRevealModifier: ViewModifier {
     /// Whether the content shows.
     let isRevealed: Bool
@@ -29,6 +33,11 @@ struct HoverRevealModifier: ViewModifier {
             .offset(y: offset)
             .opacity(isShown ? 1 : 0)
             .allowsHitTesting(isShown)
+            .onAppear {
+                if isRevealed {
+                    update(revealed: true)
+                }
+            }
             .onChange(of: isRevealed) { _, revealed in
                 update(revealed: revealed)
             }

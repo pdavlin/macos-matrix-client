@@ -101,10 +101,28 @@ public struct TimelineRowGrouping: Equatable, Hashable, Sendable {
         after predecessor: TimelineGroupingAnchor?,
         calendar: Calendar
     ) -> TimelineRowGrouping {
+        derive(anchor, after: predecessor) { (date: Date, other: Date) -> Bool in
+            calendar.isDate(date, inSameDayAs: other)
+        }
+    }
+
+    /// `derive(_:after:calendar:)`, with the day rule passed in.
+    ///
+    /// A caller that groups many rows in time order can answer "the same
+    /// day" from a cached day interval (`TimelineDayCache`) instead of one
+    /// calendar call per row (MATRIX-142).
+    ///
+    /// - Parameter isSameDay: true when the row's date and the predecessor's
+    ///   date fall on the same calendar day.
+    public static func derive(
+        _ anchor: TimelineGroupingAnchor,
+        after predecessor: TimelineGroupingAnchor?,
+        isSameDay: (Date, Date) -> Bool
+    ) -> TimelineRowGrouping {
         guard let predecessor else { return .standalone }
         // A date divider sits between messages on different days, and it is
         // a run break and a gap of its own.
-        guard calendar.isDate(anchor.date, inSameDayAs: predecessor.date) else { return .standalone }
+        guard isSameDay(anchor.date, predecessor.date) else { return .standalone }
 
         let sameSender = anchor.senderId == predecessor.senderId
         let interval = anchor.date.timeIntervalSince(predecessor.date)
@@ -142,12 +160,20 @@ public extension TimelineRow {
     /// This row with its grouping re-derived against `predecessor`, the row
     /// before it in time. Rows that are not messages come back unchanged.
     func regrouped(after predecessor: TimelineRow?, calendar: Calendar) -> TimelineRow {
+        regrouped(after: predecessor) { (date: Date, other: Date) -> Bool in
+            calendar.isDate(date, inSameDayAs: other)
+        }
+    }
+
+    /// `regrouped(after:calendar:)`, with the day rule passed in (see
+    /// `TimelineRowGrouping.derive(_:after:isSameDay:)`).
+    func regrouped(after predecessor: TimelineRow?, isSameDay: (Date, Date) -> Bool) -> TimelineRow {
         guard case let .message(uniqueId, event, kind, fingerprint) = self,
               let anchor = groupingAnchor
         else {
             return self
         }
-        let grouping = TimelineRowGrouping.derive(anchor, after: predecessor?.groupingAnchor, calendar: calendar)
+        let grouping = TimelineRowGrouping.derive(anchor, after: predecessor?.groupingAnchor, isSameDay: isSameDay)
         guard grouping != fingerprint.grouping else { return self }
         return .message(uniqueId: uniqueId, event: event, kind: kind, heightFingerprint: fingerprint.with(grouping: grouping))
     }

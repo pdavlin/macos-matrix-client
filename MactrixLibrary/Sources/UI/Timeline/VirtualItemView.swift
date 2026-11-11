@@ -27,6 +27,10 @@ public struct VirtualItemView: View {
                 }
                 .frame(height: DensityToken.dividerHeight)
                 .padding(.horizontal, DensityToken.dividerHorizontalPadding)
+        case let .mergedSource(label):
+            // MATRIX-142: the merged timeline's source note. Its height is
+            // fixed, so the row measurement skips it (`TimelineRow.fixedHeight`).
+            MergedSourceNote(network: label.network, title: label.title, detail: label.detail)
         }
     }
 }

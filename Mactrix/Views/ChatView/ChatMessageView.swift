@@ -25,70 +25,35 @@ struct ChatMessageView: View, UI.MessageEventActions {
         return event.sender
     }
 
-    /// Toggles the own reaction `key` on this message. Every reaction that
-    /// is added, from the hover row, a menu, the picker, or a reaction pill,
-    /// counts as a use of the emoji in the account's recent list (D-3).
-    /// `LiveTimeline.toggleReaction(key:on:recordingUseIn:)` holds that rule,
-    /// shared with the timeline controller's picker popover (MATRIX-138).
+    /// The message's actions, apart from the view (MATRIX-145). The timeline
+    /// controller builds the same value for its floating hover bar.
+    var rowActions: ChatMessageActions {
+        ChatMessageActions(timeline: timeline, event: event, msg: msg, appState: appState, windowState: windowState)
+    }
+
     func toggleReaction(key: String) {
-        let itemId = event.eventOrTransactionId
-        let client = appState.matrixClient
-        Task {
-            await timeline?.toggleReaction(key: key, on: itemId, recordingUseIn: client)
-        }
+        rowActions.toggleReaction(key: key)
     }
 
-    /// The hover row's and the menus' quick reactions: the top three recent
-    /// emoji, or the three defaults before the list loads (MATRIX-111).
+    /// The menus' quick reactions (MATRIX-111).
     var quickReactionKeys: [String] {
-        appState.matrixClient?.recentEmojis.quickReactionKeys ?? MessageActionModel.defaultQuickReactionKeys
-    }
-
-    /// Opens the reaction picker on this row (MATRIX-111). The timeline
-    /// controller shows it as an AppKit popover (MATRIX-138): a SwiftUI
-    /// popover on a row in the timeline table did not open. The request
-    /// carries the hover row's layout, so the popover points at the picker
-    /// button. The recent-emoji read runs here too, in case no room view
-    /// started it yet; it is a no-op once the list has loaded.
-    func openReactionPicker() {
-        let hoverItems = MessageActionModel.items(
-            for: messageActionSubject,
-            on: .hoverRow,
-            quickReactionKeys: quickReactionKeys
-        )
-        timeline?.requestReactionPicker(
-            for: event.eventOrTransactionId,
-            hoverButtonsAfterPicker: UI.HoverActionBarGeometry.buttonsAfter(.openReactionPicker, in: hoverItems)
-        )
-        Task {
-            await appState.matrixClient?.loadRecentEmojisIfNeeded()
-        }
+        rowActions.quickReactionKeys
     }
 
     func reply() {
-        Logger.viewCycle.info("Reply to event: \(event.eventOrTransactionId.id)")
-        timeline?.sendReplyTo = event
+        rowActions.reply()
     }
 
     func replyInThread() {
-        windowState.focusThread(rootEventId: event.eventOrTransactionId.id)
+        rowActions.replyInThread()
     }
 
     func pin() {
-        Logger.viewCycle.info("Pinning message")
-        guard case let .eventId(eventId: eventId) = event.eventOrTransactionId else { return }
-        Task {
-            do {
-                _ = try await timeline?.timeline?.pinEvent(eventId: eventId)
-            } catch {
-                Logger.viewCycle.error("Failed to ping message: \(error)")
-            }
-        }
+        rowActions.pin()
     }
 
     func focusUser() {
-        Logger.viewCycle.info("Focusing user \(event.sender)")
-        windowState.focusUser(userId: event.sender)
+        rowActions.focusUser()
     }
 
     /// Retries a failed local echo. The SDK owns retry semantics: a
@@ -278,10 +243,10 @@ struct ChatMessageView: View, UI.MessageEventActions {
         .font(.system(size: typography.base))
         .environment(\.timelineTypography, typography)
         // The Edit menu acts on the hovered or focused message (MATRIX-108).
-        // None of these change layout, so the row is not re-measured.
-        .onHover { hovering in
-            if hovering { offerAsTarget() }
-        }
+        // The timeline controller offers the hovered message, the one its
+        // floating hover bar shows for (MATRIX-145); the row offers itself
+        // when it is focused. None of these change layout, so the row is not
+        // re-measured.
         .onChange(of: isEventFocused) { _, focused in
             if focused { offerAsTarget() }
         }

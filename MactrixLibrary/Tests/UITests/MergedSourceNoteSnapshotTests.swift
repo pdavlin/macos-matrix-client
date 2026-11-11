@@ -63,6 +63,19 @@ struct MergedSourceNoteSnapshotTests {
         assertSnapshot(of: host(note, width: 200), as: .scaledImage)
     }
 
+    /// MATRIX-142 Phase B: the timeline draws the note as a virtual row, and
+    /// the row measurement skips that row at `MergedSourceLabel.rowHeight`
+    /// (Models). The constant, the token, and the drawn row must agree.
+    @Test(arguments: [80, 420] as [CGFloat])
+    func virtualRowHasTheFixedRowHeight(width: CGFloat) {
+        let label = MergedSourceLabel(roomId: "!a:davlin.io", network: .slack, roomName: "Seth")
+        let row = TimelineRow.virtual(uniqueId: "merged:source:!a:davlin.io|1", item: .mergedSource(label))
+
+        #expect(MergedSourceLabel.rowHeight == MergedSourceNoteToken.height)
+        #expect(row.fixedHeight == MergedSourceNoteToken.height)
+        #expect(host(VirtualItemView(item: .mergedSource(label)), width: width).view.fittingSize.height == MergedSourceNoteToken.height)
+    }
+
     /// The row measurement relies on one height at every width, with or
     /// without a badge, and for a label too long for the row.
     @Test(arguments: [80, 200, 420, 900] as [CGFloat])

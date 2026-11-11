@@ -16,4 +16,10 @@ public enum VirtualTimelineItem {
      * The timeline start, that is, the *oldest* event in time for that room.
      */
     case timelineStart
+    /**
+     * The source note of a merged timeline (MATRIX-142): the rows below it, up
+     * to the next source note, come from the member room the label names.
+     * Its row height is fixed (`MergedSourceLabel.rowHeight`).
+     */
+    case mergedSource(MergedSourceLabel)
 }

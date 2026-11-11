@@ -51,6 +51,9 @@ extension TimelineViewController {
         }
         updateScrollPosition()
         updateStickyDayPill()
+        // MATRIX-145: the content moves under the pointer, so the hover bar
+        // hides until the scroll stops.
+        hoverBarDidScroll()
     }
 
     private func updateScrollPosition() {

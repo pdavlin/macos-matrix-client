@@ -92,7 +92,7 @@ class TimelineViewController: NSViewController {
     /// against before the view is in a window.
     var unpacedRowUpdateDrainScheduled = false
     /// The token set heights are currently measured against.
-    private var activeTypography: TimelineTypography
+    private(set) var activeTypography: TimelineTypography
 
     /// Decides "the same day" for sender grouping (MATRIX-68): the user's
     /// calendar and time zone, the day a reader sees in the date dividers.
@@ -109,6 +109,8 @@ class TimelineViewController: NSViewController {
     var jumpFlash = TimelineJumpFlash(duration: MotionToken.jumpFlashDuration)
     /// The floating day pill over the top of the timeline (MATRIX-136).
     let stickyDayPill = TimelineStickyDayPillOverlay()
+    /// The floating hover action bar over the rows (MATRIX-145).
+    let hoverBar = TimelineHoverBarOverlay()
 
     #if canImport(Core)
         /// The reaction picker popover (MATRIX-138). The behaviour lives in
@@ -165,7 +167,8 @@ class TimelineViewController: NSViewController {
             let providerStarted = TimelineStormProfiler.now()
             var didRecycle = false
             let model = timelineRows[row]
-            let view = TimelineItemRowView(row: model, timeline: timeline, coordinator: coordinator)
+            let isHovered = model.uniqueId == hoverBar.highlightedRowId
+            let view = TimelineItemRowView(row: model, timeline: timeline, coordinator: coordinator, isHovered: isHovered)
 
             let hostView: NSHostingView<TimelineItemRowView>
             if let recycledView = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(model.reuseId), owner: self)
@@ -214,6 +217,7 @@ class TimelineViewController: NSViewController {
         tableView.backgroundColor = .clear
         view = scrollView
         installStickyDayPill()
+        installHoverBar()
 
         // Subscribe to view resize notifications
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -258,6 +262,7 @@ class TimelineViewController: NSViewController {
             // The popover points at a row of this view; it must not outlive it.
             reactionPicker.close()
         #endif
+        hoverBarWillDisappear()
     }
 
     var heightRenoteScheduled = false
