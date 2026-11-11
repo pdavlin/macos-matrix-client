@@ -30,7 +30,17 @@
         var requests: NoncedRequestCursor
 
         /// The open popover, or nil.
-        private(set) var popover: NSPopover?
+        private(set) var popover: NSPopover? {
+            didSet {
+                if (oldValue == nil) != (popover == nil) {
+                    onOpenChange?(popover != nil)
+                }
+            }
+        }
+
+        /// Called when the picker opens (true) or closes (false). The
+        /// floating hover bar hides while the picker is open (MATRIX-145).
+        var onOpenChange: (@MainActor (Bool) -> Void)?
 
         /// - Parameter current: The timeline's latest request when the
         ///   controller starts. It counts as handled.
@@ -116,7 +126,17 @@
 
         /// Closes an open picker, finds the request's row, scrolls it into
         /// view if needed, then shows the picker on it.
+        ///
+        /// When the floating hover bar shows for the message (the person
+        /// clicked its picker button), the picker hangs from that button
+        /// (MATRIX-145). The anchor is taken now, in the table's coordinates,
+        /// before the picker hides the bar; a scroll moves the anchor with
+        /// the row. A request from a menu, with no bar, hangs from the row.
         private func presentReactionPicker(_ request: ReactionPickerRequest, nonce: Int) {
+            let barAnchor = hoverBarPickerAnchor(
+                forMessageKey: request.eventId.id,
+                buttonsAfter: request.hoverButtonsAfterPicker
+            )
             reactionPicker.close()
             guard let rowIndex = rowIndex(forEvent: request.eventId) else {
                 Logger.timelineTableView.error("reaction picker: no row for \(request.eventId.id)")
@@ -125,12 +145,20 @@
             // Identity, not index: rows can renumber during the scroll.
             let rowId = timelineRows[rowIndex].uniqueId
             tableView.animateRowToVisible(rowIndex) { [weak self] in
-                self?.showReactionPicker(request, onRowId: rowId, nonce: nonce)
+                self?.showReactionPicker(request, onRowId: rowId, nonce: nonce, barAnchor: barAnchor)
             }
         }
 
         /// Shows the picker on the row once it is in view.
-        private func showReactionPicker(_ request: ReactionPickerRequest, onRowId rowId: String, nonce: Int) {
+        ///
+        /// - Parameter barAnchor: The hover bar's picker button in the
+        ///   table's coordinates, or nil to hang the picker from the row.
+        private func showReactionPicker(
+            _ request: ReactionPickerRequest,
+            onRowId rowId: String,
+            nonce: Int,
+            barAnchor: CGRect?
+        ) {
             guard reactionPicker.isCurrent(nonce: nonce) else { return }
             guard let rowIndex = timelineRows.firstIndex(where: { $0.uniqueId == rowId }),
                   let rowView = tableView.view(atColumn: 0, row: rowIndex, makeIfNecessary: false)
@@ -138,7 +166,8 @@
                 Logger.timelineTableView.error("reaction picker: the row for \(request.eventId.id) is not on screen")
                 return
             }
-            guard let anchor = HoverActionBarGeometry.anchorRect(
+            let anchorView: NSView = barAnchor == nil ? rowView : tableView
+            guard let anchor = barAnchor ?? HoverActionBarGeometry.anchorRect(
                 in: rowView.bounds,
                 visibleRect: rowView.visibleRect,
                 isFlipped: rowView.isFlipped,
@@ -161,8 +190,8 @@
             reactionPicker.show(
                 content,
                 relativeTo: anchor,
-                of: rowView,
-                preferredEdge: NSRectEdge(HoverActionBarGeometry.topEdge(isFlipped: rowView.isFlipped))
+                of: anchorView,
+                preferredEdge: NSRectEdge(HoverActionBarGeometry.topEdge(isFlipped: anchorView.isFlipped))
             )
         }
     }

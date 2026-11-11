@@ -5,12 +5,26 @@ import Models
 import OSLog
 import UI
 
-// MARK: - Message actions (MATRIX-108)
+// MARK: - Message actions (MATRIX-108, MATRIX-145)
 
-/// The row side of the shared message-action model. The hover row, the
-/// right-click menus (row and media), and the Edit menu all end in
-/// `perform(_:)`, so each SDK call has one call site.
-extension ChatMessageView {
+/// The actions of one message, apart from its row view.
+///
+/// The hover bar, the right-click menus (row and media), and the Edit menu
+/// all end in `perform(_:)`, so each SDK call has one call site.
+///
+/// The row view builds this value from its inputs and its environment
+/// (`ChatMessageView.rowActions`). The timeline controller builds the same
+/// value for the row its floating hover bar shows for (MATRIX-145): a view's
+/// environment cannot be read outside the view's body, so the actions live
+/// in a value of their own, and the bar acts on exactly the hovered row.
+@MainActor
+struct ChatMessageActions {
+    let timeline: LiveTimeline?
+    let event: MatrixRustSDK.EventTimelineItem
+    let msg: MatrixRustSDK.MsgLikeContent
+    let appState: AppState
+    let windowState: WindowState
+
     /// The input of the shared action model for this message.
     var messageActionSubject: MessageActionSubject {
         MessageActionSubject(
@@ -21,12 +35,19 @@ extension ChatMessageView {
         )
     }
 
-    var actionSubject: MessageActionSubject? {
-        messageActionSubject
+    /// The hover bar's and the menus' quick reactions: the top three recent
+    /// emoji, or the three defaults before the list loads (MATRIX-111).
+    var quickReactionKeys: [String] {
+        appState.matrixClient?.recentEmojis.quickReactionKeys ?? MessageActionModel.defaultQuickReactionKeys
     }
 
-    /// This message as the Edit menu's target, and as the row actions a media
-    /// view forwards to.
+    /// Whether the timeline has a message selection (MATRIX-113).
+    var hasMessageSelection: Bool {
+        timeline?.messageActionTarget.hasMessageSelection ?? false
+    }
+
+    /// This message as the Edit menu's target, as the hover bar's target, and
+    /// as the row actions a media view forwards to.
     var actionTarget: MessageActionTarget {
         MessageActionTarget(
             key: event.eventOrTransactionId.id,
@@ -75,10 +96,69 @@ extension ChatMessageView {
         }
     }
 
+    /// Toggles the own reaction `key` on this message. Every reaction that
+    /// is added, from the hover bar, a menu, the picker, or a reaction pill,
+    /// counts as a use of the emoji in the account's recent list (D-3).
+    /// `LiveTimeline.toggleReaction(key:on:recordingUseIn:)` holds that rule,
+    /// shared with the timeline controller's picker popover (MATRIX-138).
+    func toggleReaction(key: String) {
+        let itemId = event.eventOrTransactionId
+        let client = appState.matrixClient
+        let timeline = timeline
+        Task {
+            await timeline?.toggleReaction(key: key, on: itemId, recordingUseIn: client)
+        }
+    }
+
+    /// Opens the reaction picker on this message (MATRIX-111). The timeline
+    /// controller shows it as an AppKit popover (MATRIX-138): a SwiftUI
+    /// popover on a row in the timeline table did not open. The request
+    /// carries the hover bar's layout, so the popover points at the picker
+    /// button. The recent-emoji read runs here too, in case no room view
+    /// started it yet; it is a no-op once the list has loaded.
+    func openReactionPicker() {
+        let hoverItems = MessageActionModel.items(
+            for: messageActionSubject,
+            on: .hoverRow,
+            quickReactionKeys: quickReactionKeys
+        )
+        timeline?.requestReactionPicker(
+            for: event.eventOrTransactionId,
+            hoverButtonsAfterPicker: UI.HoverActionBarGeometry.buttonsAfter(.openReactionPicker, in: hoverItems)
+        )
+        let client = appState.matrixClient
+        Task {
+            await client?.loadRecentEmojisIfNeeded()
+        }
+    }
+
+    func reply() {
+        Logger.viewCycle.info("Reply to event: \(event.eventOrTransactionId.id)")
+        timeline?.sendReplyTo = event
+    }
+
+    func replyInThread() {
+        windowState.focusThread(rootEventId: event.eventOrTransactionId.id)
+    }
+
+    func pin() {
+        Logger.viewCycle.info("Pinning message")
+        guard case let .eventId(eventId: eventId) = event.eventOrTransactionId else { return }
+        let timeline = timeline
+        Task {
+            do {
+                _ = try await timeline?.timeline?.pinEvent(eventId: eventId)
+            } catch {
+                Logger.viewCycle.error("Failed to ping message: \(error)")
+            }
+        }
+    }
+
     /// Unpins the message. The SDK returns false when the event was not
     /// pinned; that is a no-op, not an error.
     func unpin() {
         guard case let .eventId(eventId: eventId) = event.eventOrTransactionId else { return }
+        let timeline = timeline
         Task {
             do {
                 let wasSent = try await timeline?.timeline?.unpinEvent(eventId: eventId) ?? false
@@ -87,6 +167,11 @@ extension ChatMessageView {
                 Logger.viewCycle.error("Failed to unpin message: \(error)")
             }
         }
+    }
+
+    func focusUser() {
+        Logger.viewCycle.info("Focusing user \(event.sender)")
+        windowState.focusUser(userId: event.sender)
     }
 
     /// Opens the delete confirmation for this message (MATRIX-110). The room
@@ -122,5 +207,34 @@ extension ChatMessageView {
     /// Makes this message the Edit menu's target.
     func offerAsTarget() {
         timeline?.messageActionTarget.offer(actionTarget)
+    }
+}
+
+/// The row side of the shared message-action model. The row forwards to
+/// `rowActions`, so the row and the timeline's hover bar run the same code.
+extension ChatMessageView {
+    /// The input of the shared action model for this message.
+    var messageActionSubject: MessageActionSubject {
+        rowActions.messageActionSubject
+    }
+
+    var actionSubject: MessageActionSubject? {
+        messageActionSubject
+    }
+
+    /// This message as the Edit menu's target, and as the row actions a media
+    /// view forwards to.
+    var actionTarget: MessageActionTarget {
+        rowActions.actionTarget
+    }
+
+    /// Runs one message action.
+    func perform(_ action: MessageAction) {
+        rowActions.perform(action)
+    }
+
+    /// Makes this message the Edit menu's target.
+    func offerAsTarget() {
+        rowActions.offerAsTarget()
     }
 }

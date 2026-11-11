@@ -20,13 +20,25 @@ struct TimelineItemRowView: View {
     let appState: AppState
     let windowState: WindowState
 
+    /// Whether the timeline's floating hover bar shows for this row
+    /// (MATRIX-145). The row draws its hover background from it. It never
+    /// changes the row's height, so the offscreen measurement leaves it
+    /// false.
+    let isHovered: Bool
+
     @AppStorage(TypographyToken.fontSizeStorageKey) private var fontSize = TypographyToken.defaultBaseFontSize
 
-    init(row: TimelineRow, timeline: LiveTimeline?, coordinator: TimelineViewRepresentable.Coordinator) {
+    init(
+        row: TimelineRow,
+        timeline: LiveTimeline?,
+        coordinator: TimelineViewRepresentable.Coordinator,
+        isHovered: Bool = false
+    ) {
         self.row = row
         self.timeline = timeline
         self.appState = coordinator.appState
         self.windowState = coordinator.windowState
+        self.isHovered = isHovered
     }
 
     /// D-3: read receipts render in direct rooms only. A group room's receipt
@@ -85,5 +97,6 @@ struct TimelineItemRowView: View {
         }
         .environment(\.timelineTypography, TimelineTypography(base: CGFloat(fontSize)))
         .environment(\.timelineShowsReadReceipts, showsReadReceipts)
+        .environment(\.timelineRowIsHovered, isHovered)
     }
 }

@@ -13,7 +13,7 @@ extension ChatMessageView {
     /// row redraws its menus when a selection starts or ends. A row redraw is
     /// not a re-measure: the menus do not change the row's layout.
     var hasMessageSelection: Bool {
-        timeline?.messageActionTarget.hasMessageSelection ?? false
+        rowActions.hasMessageSelection
     }
 
     /// Reports a click in this message's selection gutter. Nil without a

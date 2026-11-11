@@ -2,53 +2,6 @@ import Models
 import SwiftUI
 import Tokens
 
-struct HoverButton<Icon: View>: View {
-    @State private var hovering = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    @ViewBuilder
-    let icon: () -> Icon
-    let tooltip: LocalizedStringKey
-    /// True for a quick-reaction emoji (MATRIX-135): it rests monochrome and
-    /// dimmed, and cross-fades to full color while the pointer is over it.
-    var restsMonochrome: Bool = false
-    let action: () -> Void
-
-    let size: CGFloat = DensityToken.hoverActionButtonSize
-
-    /// The icon is at rest when it is a quick reaction and not under the
-    /// pointer.
-    private var isResting: Bool {
-        restsMonochrome && !hovering
-    }
-
-    var body: some View {
-        Button(action: action) {
-            icon()
-                .saturation(isResting ? ReactionToken.quickReactionRestingSaturation : 1)
-                .opacity(isResting ? ReactionToken.quickReactionRestingOpacity : 1)
-                .animation(
-                    MotionToken.animation(MotionToken.standard(duration: MotionToken.hoverDuration), reduceMotion: reduceMotion),
-                    value: isResting
-                )
-        }
-        .buttonStyle(.plain)
-        .help(tooltip)
-        .foregroundStyle(hovering ? Color.accentColor : .primary)
-        .background(
-            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
-                .fill(Color.accentColor.quaternary)
-                .frame(width: size, height: size)
-                .opacity(hovering ? 1 : 0)
-        )
-        .frame(width: size, height: size)
-        .padding(DensityToken.hoverActionButtonPadding)
-        .onHover { hover in
-            hovering = hover
-        }
-    }
-}
-
 @MainActor
 public protocol MessageEventActions {
     func toggleReaction(key: String)
@@ -59,14 +12,14 @@ public protocol MessageEventActions {
 
     /// The facts the action model reads for this message (MATRIX-108). Nil
     /// means the conformer has no message menu: the row then draws no
-    /// right-click menu, and the hover row falls back to its pre-M2 buttons.
+    /// right-click menu.
     var actionSubject: MessageActionSubject? { get }
 
-    /// The quick reactions of the hover row and the React submenu: the
-    /// account's top recent emoji (MATRIX-111, D-3).
+    /// The quick reactions of the React submenu: the account's top recent
+    /// emoji (MATRIX-111, D-3).
     var quickReactionKeys: [String] { get }
 
-    /// Runs one action from the hover row or the right-click menu.
+    /// Runs one action from the right-click menu.
     func perform(_ action: MessageAction)
 
     /// Whether the timeline has a message selection (MATRIX-113). The
@@ -108,22 +61,6 @@ public extension MessageEventActions {
 
     var messageSelectionHandler: (@MainActor (MessageSelectionGesture) -> Void)? {
         nil
-    }
-}
-
-extension MessageActionSubject {
-    /// The subject for a conformer without one. It gives the pre-M2 hover row
-    /// (quick reactions, picker, reply and thread when repliable, pin). The
-    /// placeholder event ID only marks Pin as available, as it always was.
-    static func hoverFallback(for event: some Models.EventTimelineItem) -> Self {
-        MessageActionSubject(
-            content: .other,
-            isOwn: event.isOwn,
-            eventId: "",
-            canBeRepliedTo: event.canBeRepliedTo,
-            isPinned: false,
-            copyableText: nil
-        )
     }
 }
 
@@ -252,6 +189,11 @@ public struct MessageEventBodyView<
     /// this from the room's direct flag.
     @Environment(\.timelineShowsReadReceipts) private var showsReadReceipts
 
+    /// Whether the timeline's hover bar shows for this row (MATRIX-145). The
+    /// timeline container sets it; the row draws its hover background from
+    /// it.
+    @Environment(\.timelineRowIsHovered) private var isHovered
+
     public init(
         event: EventTimelineItem,
         focused: Bool,
@@ -279,62 +221,6 @@ public struct MessageEventBodyView<
         return event.sender
     }
 
-    @State private var hoverText: Bool = false
-
-    /// The hover row's actions, from the shared action model (MATRIX-108).
-    var hoverItems: [MessageActionItem] {
-        let subject = actions.actionSubject ?? .hoverFallback(for: event)
-        return MessageActionModel.items(for: subject, on: .hoverRow, quickReactionKeys: actions.quickReactionKeys)
-    }
-
-    func hoverButton(for item: MessageActionItem) -> some View {
-        HoverButton(
-            icon: {
-                if let systemImage = MessageActionPresentation.systemImage(of: item.action) {
-                    Image(systemName: systemImage)
-                } else {
-                    Text(MessageActionPresentation.title(of: item.action))
-                }
-            },
-            tooltip: MessageActionPresentation.hoverTooltip(of: item.action),
-            restsMonochrome: item.action.isQuickReaction,
-            action: { actions.perform(item.action) }
-        )
-    }
-
-    @ViewBuilder
-    var hoverActions: some View {
-        let items = hoverItems
-        let reactions = items.filter(\.action.isQuickReaction)
-        let others = items.filter { !$0.action.isQuickReaction }
-
-        HStack(spacing: 0) {
-            ForEach(reactions) { item in
-                hoverButton(for: item)
-            }
-            if !reactions.isEmpty, !others.isEmpty {
-                Divider().frame(height: DensityToken.hoverActionsDividerHeight)
-            }
-            ForEach(others) { item in
-                hoverButton(for: item)
-            }
-        }
-        // The row height must not depend on which buttons show (MATRIX-63):
-        // the bar keeps one button's height even when it has no buttons.
-        .frame(minHeight: DensityToken.hoverActionButtonSize + 2 * DensityToken.hoverActionButtonPadding)
-        .padding(DensityToken.hoverActionsPadding)
-        .background(
-            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
-                .fill(Color(PlatformColor.controlBackgroundColor))
-                .stroke(Color(PlatformColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
-                .shadow(color: .black.opacity(BubbleToken.hoverShadowOpacity), radius: BubbleToken.hoverShadowRadius)
-        )
-        .padding(.trailing, DensityToken.hoverActionsTrailingPadding)
-        .padding(.top, DensityToken.hoverActionsTopOffset)
-        // MATRIX-135: fade and slide in, fade out.
-        .hoverReveal(hoverText && !items.isEmpty)
-    }
-
     func reactionIsActive(_ reaction: Reaction) -> Bool {
         return reaction.senders.contains(where: { $0.senderId == ownUserId })
     }
@@ -344,7 +230,7 @@ public struct MessageEventBodyView<
             MessageMainBody(
                 event: event,
                 message: message,
-                hover: hoverText,
+                hover: isHovered,
                 focused: focused,
                 select: actions.messageSelectionHandler
             )
@@ -369,15 +255,10 @@ public struct MessageEventBodyView<
             }
             .padding(.top, hasBottomContent ? DensityToken.reactionRowSpacing : 0)
         }
-        // An overlay takes the size of the view under it and never sizes it,
-        // so the bar and its motion cannot change the row height (MATRIX-135).
-        .overlay(alignment: .topTrailing) {
-            hoverActions
-        }
+        // The hover action bar is not part of the row. The Mac timeline draws
+        // one bar above all rows (MATRIX-145), so the row above cannot cover
+        // it.
         .modifier(MessageRowContextMenu(actions: actions))
-        .onHover { hover in
-            hoverText = hover
-        }
         .padding(.bottom, reactions.isEmpty ? 0 : DensityToken.reactionRowSpacing)
     }
 
@@ -411,6 +292,18 @@ struct MessageRowContextMenu: ViewModifier {
             content
         }
     }
+}
+
+public extension EnvironmentValues {
+    /// Whether the timeline's hover action bar shows for this message row
+    /// (MATRIX-145). The row draws its hover background from it.
+    ///
+    /// The Mac timeline controller tracks the pointer and sets it on the one
+    /// row its floating bar shows for, so the background and the bar always
+    /// mark the same row, also while the pointer is over the bar where it
+    /// covers a neighbor row. It is a background only: it never changes a
+    /// row's height. Rows outside the Mac timeline keep the default, false.
+    @Entry var timelineRowIsHovered: Bool = false
 }
 
 public struct MockMessageEventActions: MessageEventActions {
