@@ -65,9 +65,11 @@ public final class MergedLiveTimeline {
     /// is logged once.
     public private(set) var failedRoomIds: [String] = []
 
-    /// The event to scroll to, set by `focusEvent(_:inRoom:)`. The container
-    /// resolves it with `rowId(ofEvent:inRoom:)` after each update, as it
-    /// resolves `LiveTimeline.focusedTimelineEventId`.
+    /// The event to scroll to, set by `focusEvent(_:inRoom:)`, and by a
+    /// member timeline's own focus request (a reply jump in a row), which
+    /// the model forwards here. The container resolves it with
+    /// `rowId(ofEvent:inRoom:)` after each update, as it resolves
+    /// `LiveTimeline.focusedTimelineEventId`.
     public internal(set) var focusedEvent: MergedFocusedEvent?
 
     /// Whether the view shows the newest rows. See `setAtBottom(_:)`.
@@ -165,6 +167,7 @@ public final class MergedLiveTimeline {
 
         for member in members {
             observe(member)
+            observeFocus(of: member)
             scheduleRecompute(of: member.roomId)
         }
     }
@@ -242,6 +245,28 @@ public final class MergedLiveTimeline {
         guard let member = member(roomId), !member.hasFailed else { return }
         observe(member)
         scheduleRecompute(of: roomId)
+    }
+
+    /// Watches one member's focused event (MATRIX-142 Wave 2). A row asks
+    /// its own member timeline to focus an event, for example the reply
+    /// jump in `ChatMessageView`; the container reads only `focusedEvent`,
+    /// so the member's request is forwarded there with the member's room.
+    private func observeFocus(of member: Member) {
+        let roomId = member.roomId
+        withObservationTracking {
+            _ = member.timeline.focusedTimelineEventId
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.memberFocusDidChange(roomId)
+            }
+        }
+    }
+
+    private func memberFocusDidChange(_ roomId: String) {
+        guard let member = member(roomId) else { return }
+        observeFocus(of: member)
+        guard let eventId = member.timeline.focusedTimelineEventId else { return }
+        focusEvent(eventId, inRoom: roomId)
     }
 
     /// Marks a member changed, and schedules one recompute for every change

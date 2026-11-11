@@ -13,13 +13,19 @@ struct ChatInputView: View {
     let room: MatrixRustSDK.Room
     let timeline: LiveTimeline
     @Binding var replyTo: MatrixRustSDK.EventTimelineItem?
+    /// The merged chat's composer session (MATRIX-143 Phase B), or nil for
+    /// a room's composer. With a session, `room` and `timeline` are the
+    /// member room the next message goes to, and the session routes the
+    /// typing notices, the draft, the edits, and the replies
+    /// (`ChatInputView+Merged.swift`).
+    var merged: MergedComposerSession?
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
-    @State private var isDraftLoaded: Bool = false
+    @State var isDraftLoaded: Bool = false
     /// The composer content as draft text: mention chips are `matrix.to`
     /// pill links (`MentionMarkdown`). The saved draft uses the same text, so
     /// a draft keeps its chips.
-    @State private var chatInput: String = ""
+    @State var chatInput: String = ""
     @State private var mentions = ComposerMentionController()
     /// The pending attachments (MATRIX-106).
     @State private var attachments = ComposerAttachmentController()
@@ -28,7 +34,7 @@ struct ChatInputView: View {
     @State private var isSendingMedia = false
     /// The message the composer edits, or nil when it writes a new message
     /// (MATRIX-109).
-    @State private var editSession: ComposerEditSession?
+    @State var editSession: ComposerEditSession?
 
     func sendMessage() async {
         if let editSession {
@@ -67,7 +73,7 @@ struct ChatInputView: View {
         // the local echo (EventSendState.sendingFailed) with retry/discard.
         chatInput = ""
         replyTo = nil
-        timeline.requestScrollToBottom()
+        scrollToNewestAfterSend()
     }
 
     /// Sends the pending attachments with the composer text as the caption
@@ -98,12 +104,15 @@ struct ChatInputView: View {
         attachments.clear()
         chatInput = ""
         replyTo = nil
-        timeline.requestScrollToBottom()
+        scrollToNewestAfterSend()
     }
 
     private func chatInputChanged() async {
         guard isDraftLoaded else { return } // avoid working on a draft that's being restored
-        if !chatInput.isEmpty {
+        if let merged {
+            // Only to the current target (MATRIX-143).
+            merged.composerTextDidChange(isTyping: !chatInput.isEmpty)
+        } else if !chatInput.isEmpty {
             do {
                 try await room.typingNotice(isTyping: !chatInput.isEmpty)
             } catch {
@@ -137,6 +146,11 @@ struct ChatInputView: View {
         mentions.insertMention(target)
     }
 
+    /// Whether the composer holds text or attachments.
+    private var hasContent: Bool {
+        !chatInput.isEmpty || !attachments.isEmpty
+    }
+
     var replyEmbeddedDetails: MatrixRustSDK.EmbeddedEventDetails? {
         guard let replyTo else { return nil }
 
@@ -155,14 +169,21 @@ struct ChatInputView: View {
                 Divider()
             }
             if let editSession {
-                UI.ComposerEditBar(previewText: ComposerEdit.previewText(fromDraftText: editSession.target.originalDraftText)) {
-                    endEdit()
+                besideMergedTarget {
+                    UI.ComposerEditBar(previewText: ComposerEdit.previewText(fromDraftText: editSession.target.originalDraftText)) {
+                        endEdit()
+                    }
                 }
             }
             if let replyEmbeddedDetails {
-                EmbeddedMessageView(embeddedEvent: replyEmbeddedDetails) {
-                    replyTo = nil
+                besideMergedTarget {
+                    EmbeddedMessageView(embeddedEvent: replyEmbeddedDetails) {
+                        replyTo = nil
+                    }
                 }
+            }
+            if editSession == nil, replyEmbeddedDetails == nil {
+                mergedTargetRow
             }
             // Edit mode keeps the pending attachments for later, out of sight.
             if !attachments.isEmpty, editSession == nil {
@@ -185,7 +206,7 @@ struct ChatInputView: View {
                 .accessibilityLabel(Text("Attach files"))
                 ChatTextView(
                     text: $chatInput,
-                    placeholder: "Message \(room.displayName() ?? "room")",
+                    placeholder: merged?.placeholder ?? "Message \(room.displayName() ?? "room")",
                     disabled: !isDraftLoaded,
                     mentions: mentions,
                     attachments: attachments,
@@ -227,6 +248,10 @@ struct ChatInputView: View {
         .task(id: chatInput) {
             await chatInputChanged()
         }
+        .onChange(of: hasContent, initial: true) { _, newValue in
+            // The merged target stays still while the composer has content.
+            merged?.composerContentDidChange(hasContent: newValue)
+        }
         .task(id: replyTo?.eventOrTransactionId) {
             await saveDraft()
         }
@@ -266,93 +291,14 @@ struct ChatInputView: View {
     }
 }
 
-// MARK: - Draft
-
-/// The room's composer draft, saved and loaded through the SDK. An edit in
-/// progress is saved as an `.edit` draft (MATRIX-109).
-extension ChatInputView {
-    private func saveDraft() async {
-        guard isDraftLoaded else { return } // avoid saving a draft hasn't yet been restored
-        if chatInput.isEmpty, replyTo == nil, editSession == nil {
-            Logger.viewCycle.debug("clearing draft")
-            do {
-                try await room.clearComposerDraft(threadRoot: timeline.focusedThreadId)
-            } catch {
-                Logger.viewCycle.error("failed to clear draft: \(error)")
-            }
-            return
-        }
-
-        let draftType: ComposerDraftType
-        if let editSession {
-            // A local echo has no event ID yet, so its edit is not saved.
-            guard case let .eventId(eventId) = editSession.target.itemId else { return }
-            draftType = .edit(eventId: eventId)
-        } else if let replyTo {
-            draftType = .reply(eventId: replyTo.eventOrTransactionId.id)
-        } else {
-            draftType = .newMessage
-        }
-        let draft = ComposerDraft(
-            plainText: chatInput,
-            htmlText: nil,
-            draftType: draftType,
-            attachments: []
-        )
-        do {
-            try await room.saveComposerDraft(draft: draft, threadRoot: timeline.focusedThreadId)
-        } catch {
-            Logger.viewCycle.error("failed save draft: \(error)")
-        }
-    }
-
-    private func loadDraft() async {
-        guard !isDraftLoaded else { return } // don't load a draft more than once
-        do {
-            guard let draft = try await room.loadComposerDraft(threadRoot: timeline.focusedThreadId) else {
-                // no draft to load
-                isDraftLoaded = true
-                return
-            }
-            chatInput = draft.plainText
-            switch draft.draftType {
-            case .reply(eventId: let eventId):
-                // we need a timeline to be able to populate the reply; return false so we can try again
-                guard let innerTimeline = timeline.timeline else {
-                    isDraftLoaded = false
-                    return
-                }
-
-                do {
-                    let item = try await innerTimeline.getEventTimelineItemByEventId(eventId: eventId)
-                    timeline.sendReplyTo = item
-                } catch {
-                    Logger.viewCycle.error("failed to resolve reply target: \(error)")
-                }
-            case .edit(eventId: let eventId):
-                // the edit target needs a timeline too; try again when it loads
-                guard let innerTimeline = timeline.timeline else {
-                    isDraftLoaded = false
-                    return
-                }
-                await restoreEdit(eventId: eventId, in: innerTimeline)
-            case .newMessage:
-                // nothing to do
-                isDraftLoaded = true
-                return
-            }
-        } catch {
-            Logger.viewCycle.error("failed to load draft: \(error)")
-        }
-        isDraftLoaded = true // so we don't try again
-    }
-}
-
 // MARK: - Edit mode (MATRIX-109, M2-B2)
+
+// The draft lives in `ChatInputView+Draft.swift`, the merged chat's parts in
+// `ChatInputView+Merged.swift` (MATRIX-143).
 
 /// One edit in the composer: the target, and the draft from before the edit,
 /// which comes back when the edit ends.
-private struct ComposerEditSession {
+struct ComposerEditSession {
     let target: MessageEditTarget
     let previousDraftText: String
     let previousReplyTo: MatrixRustSDK.EventTimelineItem?
@@ -362,10 +308,17 @@ extension ChatInputView {
     /// Puts the composer in edit mode for `target`: the edit bar shows, the
     /// field holds the original text (pills as chips), and the reply and the
     /// draft wait until the edit ends.
-    private func beginEdit(_ target: MessageEditTarget) {
+    ///
+    /// - Parameter owner: The timeline that holds the message. In a merged
+    ///   chat the edit goes to its room (MATRIX-143), and the reply from
+    ///   before the edit is dropped, because it may belong to another member
+    ///   room.
+    private func beginEdit(_ target: MessageEditTarget, in owner: LiveTimeline) {
         // A second edit keeps the draft from before the first one.
         let previousDraftText: String = editSession?.previousDraftText ?? chatInput
-        let previousReplyTo: MatrixRustSDK.EventTimelineItem? = if let editSession {
+        let previousReplyTo: MatrixRustSDK.EventTimelineItem? = if merged != nil {
+            nil
+        } else if let editSession {
             editSession.previousReplyTo
         } else {
             replyTo
@@ -377,6 +330,7 @@ extension ChatInputView {
         )
         replyTo = nil
         chatInput = target.originalDraftText
+        merged?.editDidBegin(in: owner)
         if let textView = mentions.textView {
             unsafe textView.window?.makeFirstResponder(textView)
         }
@@ -390,6 +344,7 @@ extension ChatInputView {
     private func endEdit() -> Bool {
         guard let session = editSession else { return false }
         editSession = nil
+        merged?.editDidEnd()
         chatInput = session.previousDraftText
         replyTo = session.previousReplyTo
         return true
@@ -399,7 +354,7 @@ extension ChatInputView {
     private func startPendingEdit() {
         guard isDraftLoaded, let target = timeline.pendingComposerEdit else { return }
         timeline.pendingComposerEdit = nil
-        beginEdit(target)
+        beginEdit(target, in: timeline)
     }
 
     /// The Up arrow in an empty composer: edits the newest own message the
@@ -412,10 +367,16 @@ extension ChatInputView {
                   draftText: chatInput,
                   attachmentCount: attachments.attachments.count,
                   isEditing: editSession != nil
-              ),
-              let target = timeline.lastEditTarget()
+              )
         else { return false }
-        beginEdit(target)
+        // A merged chat edits the newest own message of any member room.
+        let last: (timeline: LiveTimeline, target: MessageEditTarget)? = if let merged {
+            merged.lastEditTarget()
+        } else {
+            timeline.lastEditTarget().map { (timeline, $0) }
+        }
+        guard let last else { return false }
+        beginEdit(last.target, in: last.timeline)
         return true
     }
 
@@ -424,6 +385,7 @@ extension ChatInputView {
     private func leaveEditForReply() {
         guard replyTo != nil, let session = editSession else { return }
         editSession = nil
+        merged?.editDidEnd()
         chatInput = session.previousDraftText
     }
 
@@ -441,8 +403,10 @@ extension ChatInputView {
         case .finishWithoutSending:
             endEdit()
         case let .send(content):
+            // A merged chat's edit goes to the room of the message.
+            let owner = merged?.editTimeline ?? timeline
             do {
-                try await timeline.edit(session.target, with: content)
+                try await owner.edit(session.target, with: content)
             } catch {
                 Logger.viewCycle.error("failed to edit message: \(error)")
                 return
@@ -455,7 +419,7 @@ extension ChatInputView {
 
     /// Restores an edit from a saved draft. The draft text is already in the
     /// composer, and there is no earlier draft to restore after the edit.
-    private func restoreEdit(eventId: String, in innerTimeline: MatrixRustSDK.Timeline) async {
+    func restoreEdit(eventId: String, in innerTimeline: MatrixRustSDK.Timeline) async {
         do {
             let item = try await innerTimeline.getEventTimelineItemByEventId(eventId: eventId)
             guard let target = MessageEditTarget(event: item) else {

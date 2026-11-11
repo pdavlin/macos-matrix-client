@@ -193,9 +193,10 @@ extension TimelineViewController {
         guard let index = rowIndex(ofRowId: rowId),
               let host = tableView.view(atColumn: 0, row: index, makeIfNecessary: false) as? NSHostingView<TimelineItemRowView>
         else { return }
+        let row = timelineRows[index]
         host.rootView = TimelineItemRowView(
-            row: timelineRows[index],
-            timeline: timeline,
+            row: row,
+            timeline: source.timeline(for: row),
             coordinator: coordinator,
             isHovered: rowId == hoverBar.highlightedRowId
         )
@@ -227,7 +228,9 @@ extension TimelineViewController {
         }
         #if canImport(Core)
             if offeringTarget {
-                timeline.messageActionTarget.offer(content.target)
+                // The hovered row's own room (MATRIX-142): in a merged chat,
+                // the member timeline that holds the message.
+                content.timeline.messageActionTarget.offer(content.target)
             }
         #endif
         guard !content.items.isEmpty else {
@@ -283,32 +286,36 @@ extension TimelineViewController {
         return HoverActionBarGeometry.pickerAnchor(inBar: bar, buttonsAfter: buttonsAfter)
     }
 
-    /// What the bar shows for one row: the row's message target and its
-    /// hover items.
+    /// What the bar shows for one row: the row's message target, its hover
+    /// items, and the room timeline the actions go to.
     private struct HoverBarContent {
         let target: MessageActionTarget
         let items: [MessageActionItem]
+        let timeline: LiveTimeline
     }
 
     /// The bar's content for the row at `index`, or nil for a row without a
     /// message target. The target is built from the row itself, never read
     /// from the Edit menu's slot, so the bar acts on the hovered message and
-    /// not on a focused or stale one.
+    /// not on a focused or stale one. Its actions go to the row's own room
+    /// timeline (`TimelineRowSource.timeline(for:)`, MATRIX-142).
     private func hoverBarContent(rowAt index: Int) -> HoverBarContent? {
         #if canImport(Core)
-            guard case let .message(_, event, _, _) = timelineRows[index],
+            let row = timelineRows[index]
+            guard case let .message(_, event, _, _) = row,
                   let event = event as? MatrixRustSDK.EventTimelineItem,
-                  case let .msgLike(content: msg) = event.content
+                  case let .msgLike(content: msg) = event.content,
+                  let rowTimeline = source.timeline(for: row)
             else { return nil }
             let actions = ChatMessageActions(
-                timeline: timeline,
+                timeline: rowTimeline,
                 event: event,
                 msg: msg,
                 appState: coordinator.appState,
                 windowState: coordinator.windowState
             )
             let target = actions.actionTarget
-            return HoverBarContent(target: target, items: target.items(on: .hoverRow))
+            return HoverBarContent(target: target, items: target.items(on: .hoverRow), timeline: rowTimeline)
         #else
             return nil
         #endif

@@ -14,11 +14,12 @@ import UI
 // MARK: - Diff-driven updates
 
 extension TimelineViewController {
-    /// Applies everything the timeline changed since the last view update.
+    /// Applies everything the source changed since the last view update.
     ///
     /// Cost is proportional to the diff, not to the timeline: the display
-    /// order is maintained by `LiveTimeline` (no per-update reversed copy),
-    /// and row identity comes from the diff (no full identifier rescan).
+    /// order is maintained by the source (`LiveTimeline`, or a merged chat's
+    /// `MergedLiveTimeline`; no per-update reversed copy), and row identity
+    /// comes from the diff (no full identifier rescan).
     ///
     /// Structural changes apply here and now — they are rare, and the S-33
     /// anchor compensation needs the whole batch to be one atomic visual step.
@@ -26,7 +27,7 @@ extension TimelineViewController {
     /// than one frame can redraw, so the drain spends a frame budget on them
     /// (MATRIX-57). This method never redraws a row itself.
     func applyPendingTimelineChanges() {
-        let updates = timeline.drainDisplayChanges()
+        let updates = source.drainRowUpdates()
         guard !updates.isEmpty else { return }
 
         let profileStarted = TimelineStormProfiler.now()
@@ -55,11 +56,11 @@ extension TimelineViewController {
             case .reset:
                 applyReset()
             case let .insert(index, count):
-                applyInsert(at: index, count: count, items: update.items)
+                applyInsert(at: index, count: count, rows: update.rows)
             case let .remove(index, count):
                 applyRemove(at: index, count: count)
             case let .update(index):
-                if enqueueUpdate(at: index, item: update.items.first) { queuedRows += 1 }
+                if enqueueUpdate(at: index, row: update.rows.first) { queuedRows += 1 }
             }
         }
 
@@ -132,6 +133,9 @@ extension TimelineViewController {
             // A selected message can leave the timeline (a reset, a removed
             // echo). Deferred for the same S-54 reason (MATRIX-113).
             scheduleMessageSelectionPrune()
+            // New rows can move the newest visible row (MATRIX-142). A no-op
+            // for a single room, which marks itself read in `ChatView`.
+            scheduleNewestVisibleRowReport()
         }
     }
 
@@ -153,15 +157,14 @@ extension TimelineViewController {
         rebuildSnapshot()
     }
 
-    private func applyInsert(at index: Int, count: Int, items: [TimelineItem]) {
-        guard items.count == count,
+    private func applyInsert(at index: Int, count: Int, rows: [TimelineRow]) {
+        guard rows.count == count,
               TimelineDisplayOrder.isValidInsertIndex(index, count: itemRowCount)
         else {
             applyReset()
             return
         }
 
-        let rows = items.map(\.row)
         // The snapshot raises an Objective-C exception on a duplicate
         // identifier, and this runs inside SwiftUI's tracked view update
         // (MATRIX-130). A diff that names a row the table already holds
@@ -278,14 +281,13 @@ extension TimelineViewController {
     /// The identity check stays here rather than moving to the drain: a
     /// replacement that also changes identity is structural, and deferring it
     /// would leave the snapshot naming a row the timeline no longer has.
-    private func enqueueUpdate(at index: Int, item: TimelineItem?) -> Bool {
-        guard let item, TimelineDisplayOrder.isValidIndex(index, count: itemRowCount) else {
+    private func enqueueUpdate(at index: Int, row: TimelineRow?) -> Bool {
+        guard let row, TimelineDisplayOrder.isValidIndex(index, count: itemRowCount) else {
             applyReset()
             return false
         }
 
         let tableIndex = index + leadingDecorationCount
-        let row = item.row
 
         guard row.uniqueId == timelineRows[tableIndex].uniqueId else {
             applyReset()
@@ -309,16 +311,16 @@ extension TimelineViewController {
         return true
     }
 
-    /// The timeline's display order as rows, with any repeated identity
+    /// The source's display order as rows, with any repeated identity
     /// removed.
     ///
-    /// The snapshot needs unique identifiers (MATRIX-130). If the timeline
+    /// The snapshot needs unique identifiers (MATRIX-130). If the source
     /// ever holds a repeated identity, the newest copy stays and the drop is
     /// logged, so the table shows one row fewer instead of raising inside
     /// the view update. Later index-based diffs that then disagree with the
     /// table resync through the existing guards.
     func uniqueDisplayRows() -> [TimelineRow] {
-        let rows = timeline.displayItems.map(\.row)
+        let rows = source.displayRows
         let deduplicated = TimelineRowIdentity.removingDuplicates(rows) { (row: TimelineRow) -> String in
             row.uniqueId
         }
@@ -371,13 +373,13 @@ extension TimelineViewController {
 
     /// Watches who is typing and keeps the newest-end decoration in step (D-3).
     func listenForTypingUsers() {
-        let userIds = withObservationTracking {
-            timeline.room.typingUserIds
+        let names = withObservationTracking {
+            source.typingNames
         } onChange: { [weak self] in
             Task { @MainActor in self?.listenForTypingUsers() }
         }
 
-        Logger.timelineTableView.debug("typing indicator: \(userIds.count) user(s) typing")
+        Logger.timelineTableView.debug("typing indicator: \(names.count) user(s) typing")
         refreshDecorationRows(applyingSnapshot: true)
     }
 
@@ -387,29 +389,16 @@ extension TimelineViewController {
     /// running — or that one failed — at the oldest end. Both properties are
     /// read inside the tracking closure so either change re-arms the watch.
     func listenForPaginationActivity() {
-        let (status, failure) = withObservationTracking {
-            (timeline.paginating, timeline.paginationFailure)
+        let (isPaginating, failure) = withObservationTracking {
+            (source.isPaginating, source.paginationFailure)
         } onChange: { [weak self] in
             Task { @MainActor in self?.listenForPaginationActivity() }
         }
 
         Logger.timelineTableView.debug(
-            "pagination status: \(status.debugDescription, privacy: .public) failure: \(failure ?? "none", privacy: .public)"
+            "pagination running: \(isPaginating, privacy: .public) failure: \(failure ?? "none", privacy: .public)"
         )
         refreshDecorationRows(applyingSnapshot: true)
-    }
-
-    /// Display names of the users currently typing, resolved against the
-    /// member list and falling back to the raw user ID.
-    private var typingNames: [String] {
-        let members = timeline.room.members
-        return timeline.room.typingUserIds.map { userId in
-            members.first { $0.userId == userId }?.displayName ?? userId
-        }
-    }
-
-    private var wantsTypingRow: Bool {
-        !timeline.room.typingUserIds.isEmpty
     }
 
     /// The oldest-end decoration for the current state, or nil for neither.
@@ -419,10 +408,10 @@ extension TimelineViewController {
     /// identity carries the message, so a different failure replaces the row
     /// rather than reusing a height measured for the previous text.
     private var wantsPaginationRow: TimelineRow? {
-        if let failure = timeline.paginationFailure {
+        if let failure = source.paginationFailure {
             return .paginationFailure(uniqueId: "\(Self.paginationFailureRowId):\(failure)", message: failure)
         }
-        if case .paginating = timeline.paginating {
+        if source.isPaginating {
             return .paginationActivity(uniqueId: Self.paginationRowId)
         }
         return nil
@@ -435,9 +424,12 @@ extension TimelineViewController {
     /// honest: a stable identity with changing content would return the height
     /// measured for the previous label.
     func refreshDecorationRows(applyingSnapshot: Bool) {
-        let typingRow: TimelineRow? = wantsTypingRow
-            ? .typingIndicator(uniqueId: "mactrix.timeline.typing:\(typingNames.joined(separator: "|"))", names: typingNames)
-            : nil
+        // Display names of the users typing now, resolved against the member
+        // list and falling back to the raw user ID.
+        let typingNames = source.typingNames
+        let typingRow: TimelineRow? = typingNames.isEmpty
+            ? nil
+            : .typingIndicator(uniqueId: "mactrix.timeline.typing:\(typingNames.joined(separator: "|"))", names: typingNames)
         let paginationRow = wantsPaginationRow
 
         let currentTyping = leadingDecorationCount > 0 ? timelineRows.first : nil
