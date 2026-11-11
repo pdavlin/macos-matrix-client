@@ -172,10 +172,11 @@ extension MatrixClient: RoomListServiceStateListener {
             }
             Logger.matrixClient.info("room list state: \(name, privacy: .public) rooms=\(self.rooms.count, privacy: .public)")
             roomListServiceState = state
-            // MATRIX-77: sync has caught up, so the labels in the store are
-            // current.
+            // MATRIX-77, MATRIX-140: sync has caught up, so the labels and
+            // merged chats in the store are current.
             if case .running = state {
                 await labels?.refresh()
+                await mergedChats?.refresh()
             }
         }
     }

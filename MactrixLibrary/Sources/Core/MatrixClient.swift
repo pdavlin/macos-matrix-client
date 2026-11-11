@@ -245,6 +245,7 @@ public class MatrixClient {
         showRoomSyncIndicator = nil
         notificationClient = nil
         labels = nil
+        mergedChats = nil
 
         try? await client.logout()
         client = nil
@@ -292,6 +293,10 @@ public class MatrixClient {
 
     /// MATRIX-77: the account's chat labels. Created when sync starts.
     public var labels: LabelsModel?
+
+    /// MATRIX-140: the account's merged chats. Created when sync starts,
+    /// refreshed on the same triggers as `labels`.
+    public var mergedChats: MergedChatsModel?
 
     /// MATRIX-67: the chat-list filter the sidebar last chose.
     ///
@@ -367,6 +372,12 @@ public class MatrixClient {
             labels = LabelsModel(client: client, notifications: notifications)
         }
         await labels?.refresh()
+
+        // MATRIX-140: merged chats are read the same way as labels.
+        if mergedChats == nil {
+            mergedChats = MergedChatsModel(client: client)
+        }
+        await mergedChats?.refresh()
 
         // MATRIX-119: a no-op on iOS. Restart sync calls this again with
         // the new room list service.
