@@ -18,7 +18,7 @@ The Mactrix fork has landed. Current layout:
 2. **Glass on the navigation layer only.** Toolbar, sidebar, sheets, popovers. Never `.glassEffect()` on scrollable content. The timeline is opaque.
 3. **The prod account is never used for automated or agent-driven testing.** Use the dev account only. If credentials are ambiguous, stop and ask.
 4. **Scope comes from the contract.** Deferred means deferred. Do not add calls, threads, spaces, or multi-account work without a §11 amendment.
-5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/`. If the signature is not there, read the package sources in `DerivedData`/SPM checkouts. Never write an SDK call from memory.
+5. **Do not guess FFI signatures.** matrix-rust-sdk bindings are undertrained. Read the vendored copies in `docs/ffi/`. If the signature is not there, read the package sources in the SPM checkout under `build/DerivedData/SourcePackages/checkouts/`. Never write an SDK call from memory.
 6. **Pin discipline.** `matrix-rust-components-swift` is pinned by exact version. Do not bump it inside a feature story. SDK bumps are their own story with a changelog review.
 
 ## Build and test
@@ -30,6 +30,8 @@ scripts/lint.sh     # SwiftFormat --lint + SwiftLint
 ```
 
 Each script auto-detects `DEVELOPER_DIR` (existing env value, else Xcode-beta.app, else Xcode.app) unless it is already set.
+
+`build.sh` and `test.sh` put the Xcode build data in `build/DerivedData/` inside the checkout (gitignored), not in `~/Library/Developer/Xcode/DerivedData`. Removing a worktree removes its build data. The built app is `build/DerivedData/Build/Products/Debug/Mactrix.app`. Set `DERIVED_DATA_PATH` to use another folder.
 
 ## Definition of done (every story)
 
