@@ -69,6 +69,19 @@ Mac platform
 - Local notifications and a Dock badge that counts chats.
 - matrix: URLs, user and public-room search (inherited).
 
+Merged chats (M2.5, MATRIX-139)
+
+- Several one-to-one chats with one person show as one chat-list row and
+  one timeline. The merges live in account data
+  (`io.davlin.matrixclient.merged_chats`).
+- Merge, edit, and unmerge from the row menu, the room inspector, and ⌘K.
+- One merged timeline with a source note per member room. Each row acts on
+  its own room.
+- The composer sends to the room with the newest message, with a target
+  picker. Notifications and the Dock badge count a merged chat once.
+- Not yet: the menu-bar Edit menu, the inspector, Pins, and Reply in Thread
+  do nothing in a merged chat.
+
 Stability fixes of note
 
 - SQLite pools capped and the open-file limit raised (MATRIX-122).
@@ -90,22 +103,22 @@ Stability fixes of note
 | Issue | What is needed |
 |---|---|
 | MATRIX-130 | One day of use with no SIGBUS in `SidebarRoom.updateRoom` |
-| MATRIX-135, 136, 137 | Smoke the visual flair batch on the running app |
-| MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103) |
+| MATRIX-135, 136, 137, 138, 145 | Smoke the visual flair batch on the running app |
+| MATRIX-141, 142, 143, 144 | Smoke merged chats on the running app |
+| MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
 | MATRIX-92 | Apple Developer enrollment, Team ID, keys. Then MATRIX-90, 91 |
 | MATRIX-71 | Confirm Slack backfill depth and a send from Mactrix |
 | MATRIX-23 | Pick a window for the failover rehearsal |
 | MATRIX-25 | E-APP-04 MCP epic, not yet shaped |
-| MATRIX-134 | Decide the SwiftFormat pin (local 0.64.6, CI 0.64.4) |
 
 ### Ready for agents
 
 | Issue | Work |
 |---|---|
 | MATRIX-126 | scrollChip snapshots fail on this Mac only |
+| MATRIX-134 | Move the CI SwiftFormat pin to 0.64.6 (the local version) |
 | MATRIX-127 | Split `MatrixClient.swift` (544 lines) |
-| MATRIX-128 | Remove stale worktrees (48) and DerivedData folders (89) |
 | MATRIX-72, 73, 74 | Google Chat and GroupMe bridges, then the Beeper cutover |
 
 ### Watch list (no new evidence)
