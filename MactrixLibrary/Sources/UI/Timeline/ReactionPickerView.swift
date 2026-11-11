@@ -27,6 +27,11 @@ public extension EmojiCatalog {
 /// a search), and Esc closes the picker. A pick calls `onPick` and closes
 /// the picker.
 ///
+/// The picker closes through `onClose` when the host gives one, else
+/// through SwiftUI's `dismiss`. The Mac timeline shows the picker in an
+/// AppKit `NSPopover` (MATRIX-138), where `dismiss` has no presentation to
+/// end, so it passes `onClose` to close the popover.
+///
 /// The picker offers the default (yellow) emoji only; skin tones are not in
 /// M2. The search and the arrow-key rules live in `Models.EmojiCatalog` and
 /// `Models.EmojiPickerContent`.
@@ -56,6 +61,7 @@ public struct ReactionPickerView: View {
     let catalog: EmojiCatalog
     let recents: [String]
     let onPick: @MainActor (String) -> Void
+    let onClose: (@MainActor () -> Void)?
 
     @State var query: String
     /// The arrowed grid index. Nil means the first entry.
@@ -70,15 +76,19 @@ public struct ReactionPickerView: View {
     ///   - recents: The account's recent emoji, most recent first. The top
     ///     row shows as many as fit.
     ///   - query: The starting search text. Snapshot tests set it.
+    ///   - onClose: Closes the picker, after a pick and on Esc. Nil uses
+    ///     the environment's `dismiss`, which ends a SwiftUI presentation.
     ///   - onPick: Called with the picked emoji, before the picker closes.
     public init(
         catalog: EmojiCatalog,
         recents: [String],
         query: String = "",
+        onClose: (@MainActor () -> Void)? = nil,
         onPick: @escaping @MainActor (String) -> Void
     ) {
         self.catalog = catalog
         self.recents = recents
+        self.onClose = onClose
         self.onPick = onPick
         self._query = State(initialValue: query)
     }
@@ -262,7 +272,11 @@ public struct ReactionPickerView: View {
 
 extension ReactionPickerView {
     func close() {
-        dismiss()
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 
     func pick(_ value: String) {

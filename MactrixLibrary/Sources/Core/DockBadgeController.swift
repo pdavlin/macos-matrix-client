@@ -43,6 +43,19 @@ public final class DockBadgeController {
     private var appliedLabel: String??
     private var defaultsObserver: (any NSObjectProtocol)?
 
+    /// MATRIX-144: the account's merged chats. A merged chat counts once,
+    /// however many members are unread
+    /// (`DockBadge.unreadChatCount(_:labelMutedRoomIds:mergedChats:)`).
+    /// Defaults to no merges, which counts as before MATRIX-144; the M2.5
+    /// integration story sets it to the merged-chats model's document.
+    ///
+    /// Read inside Observation tracking, so a closure that reads an
+    /// `@Observable` property recomputes the badge when it changes. Setting
+    /// it recomputes the badge at once.
+    public var mergedChats: @MainActor () -> MergedChatDocument = { MergedChatDocument() } {
+        didSet { refresh() }
+    }
+
     /// - Parameter settingsStore: the defaults store that Settings >
     ///   Notifications writes with `@AppStorage`.
     public init(settingsStore: UserDefaults = .standard) {
@@ -50,11 +63,12 @@ public final class DockBadgeController {
     }
 
     /// The number of chats with unread activity, by the rule in `DockBadge`.
-    /// Observable through `unreadChats` and the labels.
+    /// Observable through `unreadChats`, the labels, and `mergedChats`.
     public var unreadChatCount: Int {
         DockBadge.unreadChatCount(
             unreadChats.chats.values,
-            labelMutedRoomIds: labels?.document.labelMutedRoomIds ?? []
+            labelMutedRoomIds: labels?.document.labelMutedRoomIds ?? [],
+            mergedChats: mergedChats()
         )
     }
 

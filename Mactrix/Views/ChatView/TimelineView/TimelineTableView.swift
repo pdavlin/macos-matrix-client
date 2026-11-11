@@ -110,6 +110,13 @@ class TimelineViewController: NSViewController {
     /// The floating day pill over the top of the timeline (MATRIX-136).
     let stickyDayPill = TimelineStickyDayPillOverlay()
 
+    #if canImport(Core)
+        /// The reaction picker popover (MATRIX-138). The behaviour lives in
+        /// `TimelineReactionPicker.swift`. Lazy, so it starts at the request
+        /// that is current when the view loads and does not replay it.
+        lazy var reactionPicker = TimelineReactionPickerPresenter(startingAt: timeline.reactionPickerRequests.latest)
+    #endif
+
     init(coordinator: TimelineViewRepresentable.Coordinator, timeline: LiveTimeline) {
         self.coordinator = coordinator
         self.timeline = timeline
@@ -240,6 +247,17 @@ class TimelineViewController: NSViewController {
         listenForScrollToBottomRequests()
         listenForTypingUsers()
         listenForPaginationActivity()
+        #if canImport(Core)
+            listenForReactionPickerRequests()
+        #endif
+    }
+
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        #if canImport(Core)
+            // The popover points at a row of this view; it must not outlive it.
+            reactionPicker.close()
+        #endif
     }
 
     var heightRenoteScheduled = false
@@ -358,20 +376,26 @@ class TimelineViewController: NSViewController {
     /// A no-op while the row is absent, so it is safe to call after every
     /// update.
     func scrollToPendingFocusIfPossible() {
-        guard let pendingFocusEventId else { return }
-        // One pass, not two: the item index is the table index shifted by the
-        // newest-end decorations, the same mapping the diff path applies. The
-        // second scan this replaces re-found the row by identifier (MATRIX-58).
-        guard let itemIndex = timeline.displayItems.firstIndex(where: { item in
-            item.asEvent()?.eventOrTransactionId == pendingFocusEventId
-        }) else { return }
-        let rowIndex = itemIndex + leadingDecorationCount
-        guard timelineRows.indices.contains(rowIndex) else { return }
+        guard let pendingFocusEventId, let rowIndex = rowIndex(forEvent: pendingFocusEventId) else { return }
 
         self.pendingFocusEventId = nil
         Logger.timelineTableView.info("focus event resolved to row \(rowIndex): scrolling")
         // MATRIX-136: the row flashes when the scroll lands.
         scrollToFocusedRow(rowIndex)
+    }
+
+    /// The table row that shows an event, or nil while the event has no row.
+    ///
+    /// One pass, not two: the item index is the table index shifted by the
+    /// newest-end decorations, the same mapping the diff path applies. The
+    /// second scan this replaces re-found the row by identifier (MATRIX-58).
+    /// The focus jump and the reaction picker (MATRIX-138) both use it.
+    func rowIndex(forEvent eventId: MatrixRustSDK.EventOrTransactionId) -> Int? {
+        guard let itemIndex = timeline.displayItems.firstIndex(where: { item in
+            item.asEvent()?.eventOrTransactionId == eventId
+        }) else { return nil }
+        let rowIndex = itemIndex + leadingDecorationCount
+        return timelineRows.indices.contains(rowIndex) ? rowIndex : nil
     }
 
     /// The last scroll-to-bottom request this controller acted on. Requests
