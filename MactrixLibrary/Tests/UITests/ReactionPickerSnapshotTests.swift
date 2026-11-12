@@ -27,7 +27,7 @@ struct ReactionPickerSnapshotTests {
     /// its name on the bottom line.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func recentsAndASearchResult() {
-        assertSnapshot(of: host(query: "thumbs"), as: .scaledImage)
+        assertTextFieldSnapshot(of: host(query: "thumbs"), as: .scaledImage)
     }
 }
 

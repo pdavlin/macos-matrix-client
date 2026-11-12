@@ -4,33 +4,41 @@ import Foundation
 // `assertSnapshot` itself uses. The package pins SnapshotTesting exactly.
 @_spi(Internals) import SnapshotTesting
 
-/// How long the main run loop spins between a failed first attempt and the
-/// retry (MATRIX-120). An immediate retry was not enough: in a 20-run sample
-/// (run 19), `LabelSnapshotTests.editSheetNew` failed on both attempts with
-/// the race signature (same 880x1006 px size, 7238 px different in rows 98
-/// to 157, the text-field area). The race window was longer than one render.
-let textFieldSnapshotRetryDelay: TimeInterval = 1.0
+/// The number of quiet attempts before the last, recorded attempt
+/// (MATRIX-120, MATRIX-126).
+let textFieldSnapshotQuietAttempts = 3
 
-/// Asserts a snapshot with one automatic retry, for suites that render
-/// AppKit text fields (MATRIX-120).
+/// Asserts a snapshot with automatic retries, for suites that render SwiftUI
+/// text fields (MATRIX-120, MATRIX-126).
 ///
-/// In about one test process in seven, AppKit text fields render 2 pt taller
-/// per line for a short, random time: the glyphs are identical, and the extra
-/// space is only at the bottom of each line. An investigation of 100+ test
-/// processes found no cause in our code and no app path, and CI has not shown
-/// it. This retry hides only that race.
+/// In about one test process in eight, SwiftUI lays out one `TextField` with
+/// the line height of a different font: a 17 pt field gets a 16 pt frame, a
+/// 13 pt field gets an 18 pt or 20 pt frame. The `NSTextField` has the correct
+/// font and the correct intrinsic height; only the frame from the SwiftUI
+/// layout is wrong, so the text moves 2 pt. The wrong value is always the
+/// height of a text field in another test's view. No relayout of the wrong
+/// view corrects it. The cause is inside SwiftUI and is not known; it is not
+/// in our code, and CI has not shown it.
 ///
-/// Use it ONLY in suites that show AppKit text fields. Every other suite keeps
-/// a single attempt. A test that fails twice is a real failure: the second
-/// attempt is exactly the body of SnapshotTesting's `assertSnapshot`
+/// What MATRIX-126 measured about recovery:
+/// - A new view that is created after the wrong view is released is wrong
+///   again. Four attempts in a row failed in 10 of 80 runs.
+/// - The earlier design (one retry after a 1 s run-loop spin) failed on both
+///   attempts in about 1 of 10 runs.
+/// - When each wrong view stays alive, a later attempt passed in 40 of 40
+///   cases (240 runs). In 34 of them only the last attempt passed.
+///
+/// So the helper keeps each failed view alive until the last attempt
+/// completes, and it does not spin the run loop between attempts.
+///
+/// Use it in every suite that shows a text field. Every other suite keeps a
+/// single attempt. A test that fails on all attempts is a real failure: the
+/// last attempt is exactly the body of SnapshotTesting's `assertSnapshot`
 /// (`verifySnapshot` plus `recordIssue`), so it records the usual issue with
-/// the usual diff. When the retry passes, one line goes to stderr so retries
+/// the usual diff. When a retry passes, one line goes to stderr so retries
 /// stay visible in logs.
 ///
-/// After a failed first attempt, the helper spins the main run loop for
-/// `textFieldSnapshotRetryDelay` before it re-creates the view and retries.
-///
-/// The first attempt runs with `record: .never`, so it never writes a
+/// The quiet attempts run with `record: .never`, so they never write a
 /// reference. When the effective record mode is `.all`, there is no retry.
 /// An unnamed call compares against `<test>.1`, so call this at most once per
 /// test without a name.
@@ -49,43 +57,54 @@ func assertTextFieldSnapshot<Value>(
     // Same resolution order as `verifySnapshot`.
     let effectiveRecord: SnapshotTestingConfiguration.Record =
         record ?? SnapshotTestingConfiguration.current?.record ?? _record
-    var firstAttemptFailed = false
+    // The failed views stay alive on purpose: see the measurements above.
+    var failedValues: [Value] = []
     if effectiveRecord != .all {
-        // A fixed name keeps the first attempt off the per-test counter, so
-        // the retry below still resolves to the same `<test>.1` reference.
-        let firstFailure: String? = verifySnapshot(
+        // A fixed name keeps these attempts off the per-test counter, so the
+        // last attempt below still resolves to the same `<test>.1` reference.
+        for _ in 0 ..< textFieldSnapshotQuietAttempts {
+            let candidate = value()
+            let failure: String? = verifySnapshot(
+                of: candidate,
+                as: snapshotting,
+                named: name ?? "1",
+                record: .never,
+                fileID: fileID,
+                file: filePath,
+                testName: testName,
+                line: line,
+                column: column
+            )
+            guard failure != nil else {
+                reportRetry(failedValues.count, fileID: fileID, testName: testName)
+                return
+            }
+            failedValues.append(candidate)
+        }
+    }
+    let retryFailure: String? = withExtendedLifetime(failedValues) {
+        verifySnapshot(
             of: value(),
             as: snapshotting,
-            named: name ?? "1",
-            record: .never,
+            named: name,
+            record: record,
             fileID: fileID,
             file: filePath,
             testName: testName,
             line: line,
             column: column
         )
-        guard firstFailure != nil else { return }
-        firstAttemptFailed = true
-        RunLoop.main.run(until: Date().addingTimeInterval(textFieldSnapshotRetryDelay))
     }
-    let retryFailure: String? = verifySnapshot(
-        of: value(),
-        as: snapshotting,
-        named: name,
-        record: record,
-        fileID: fileID,
-        file: filePath,
-        testName: testName,
-        line: line,
-        column: column
-    )
     guard let message = retryFailure else {
-        if firstAttemptFailed {
-            FileHandle.standardError.write(
-                Data("MATRIX-120 snapshot retry passed: \(fileID) \(testName)\n".utf8)
-            )
-        }
+        reportRetry(failedValues.count, fileID: fileID, testName: testName)
         return
     }
     recordIssue(message, fileID: fileID, filePath: filePath, line: line, column: column)
+}
+
+private func reportRetry(_ failedAttempts: Int, fileID: StaticString, testName: String) {
+    guard failedAttempts > 0 else { return }
+    FileHandle.standardError.write(
+        Data("MATRIX-120 snapshot retry passed after \(failedAttempts) failed: \(fileID) \(testName)\n".utf8)
+    )
 }
