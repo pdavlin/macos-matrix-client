@@ -82,6 +82,17 @@ struct MergeChatsSheetHost: View {
         return draft.rooms.compactMap { client.chatListRow(forRoomId: $0) }
     }
 
+    /// What tells each member chat apart (`MergedMemberIdentity.detail`).
+    private var memberDetails: [String: String] {
+        guard let client = appState.matrixClient else { return [:] }
+        var details: [String: String] = [:]
+        for row in chats {
+            let identity = MergedMemberIdentity(row: row, parentNames: client.roomAccounts.names[row.id] ?? [])
+            details[row.id] = identity.detail
+        }
+        return details
+    }
+
     var body: some View {
         MergeChatsSheet(
             mode: mode,
@@ -93,8 +104,13 @@ struct MergeChatsSheetHost: View {
             onSubmit: submit,
             onUnmerge: unmerge,
             errorMessage: errorMessage,
-            isBusy: isBusy
+            isBusy: isBusy,
+            memberDetails: memberDetails
         )
+        // MATRIX-147: the workspace of each member chat, read once per room.
+        .task(id: draft.rooms) {
+            await appState.matrixClient?.loadRoomAccounts(draft.rooms)
+        }
         .sheet(isPresented: $isPickingChat) {
             QuickSwitcherContainerView(pickRoomFrom: nil, offering: isOffered) { roomId in
                 draft.add(roomId)

@@ -30,6 +30,7 @@ public struct MergeChatsSheet: View {
     let onUnmerge: () -> Void
     let errorMessage: String?
     let isBusy: Bool
+    let memberDetails: [String: String]
 
     /// - Parameters:
     ///   - mode: create or edit.
@@ -48,6 +49,9 @@ public struct MergeChatsSheet: View {
     ///     (Phase B), shown above the buttons. Nil shows nothing.
     ///   - isBusy: a write runs. The buttons that write are disabled, so a
     ///     second click does not queue a second write.
+    ///   - memberDetails: what tells each member chat apart, by room ID
+    ///     (`MergedMemberIdentity.detail`), shown under the chat's name. A
+    ///     chat without an entry shows its network.
     public init(
         mode: Mode,
         draft: Binding<MergedChatDraft>,
@@ -58,7 +62,8 @@ public struct MergeChatsSheet: View {
         onSubmit: @escaping (MergedChatDraft) -> Void,
         onUnmerge: @escaping () -> Void = {},
         errorMessage: String? = nil,
-        isBusy: Bool = false
+        isBusy: Bool = false,
+        memberDetails: [String: String] = [:]
     ) {
         self.mode = mode
         _draft = draft
@@ -70,6 +75,7 @@ public struct MergeChatsSheet: View {
         self.onUnmerge = onUnmerge
         self.errorMessage = errorMessage
         self.isBusy = isBusy
+        self.memberDetails = memberDetails
     }
 
     /// The draft's chats as rows, in draft order.
@@ -80,7 +86,7 @@ public struct MergeChatsSheet: View {
 
     public var body: some View {
         let members = members
-        let labels = MergedChatDraft.memberLabels(for: members)
+        let labels = MergedChatDraft.memberLabels(for: members, details: memberDetails)
 
         VStack(alignment: .leading, spacing: 14) {
             Text(mode == .create ? "Merge Chats" : "Edit Merged Chat")
@@ -149,10 +155,12 @@ public struct MergeChatsSheet: View {
                 Text(verbatim: member.title)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                if let network = member.network {
-                    Text(verbatim: network.displayName)
+                if let detail = memberDetails[member.id] ?? member.network?.displayName {
+                    Text(verbatim: detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
             Spacer(minLength: 8)

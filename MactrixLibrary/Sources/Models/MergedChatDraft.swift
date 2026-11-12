@@ -115,12 +115,17 @@ public struct MergedChatDraft: Equatable, Sendable {
     /// label (two Slack workspaces) get " (2)", " (3)" after the second and
     /// later ones, so each picker entry names one chat.
     ///
-    /// - Parameter chats: the member rows, in draft order.
+    /// - Parameters:
+    ///   - chats: the member rows, in draft order.
+    ///   - details: what tells each chat apart, by room ID
+    ///     (`MergedMemberIdentity.detail`, "Slack • DevObsessed"). A chat
+    ///     without an entry shows its network.
     /// - Returns: one label per row, in the same order.
-    public static func memberLabels(for chats: [ChatListRowModel]) -> [String] {
+    public static func memberLabels(for chats: [ChatListRowModel], details: [String: String] = [:]) -> [String] {
         var seen: [String: Int] = [:]
         return chats.map { chat in
-            let base = chat.network.map { "\(chat.title) · \($0.displayName)" } ?? chat.title
+            let detail = details[chat.id] ?? chat.network?.displayName
+            let base = detail.map { "\(chat.title) · \($0)" } ?? chat.title
             let count = seen[base, default: 0] + 1
             seen[base] = count
             return count == 1 ? base : "\(base) (\(count))"

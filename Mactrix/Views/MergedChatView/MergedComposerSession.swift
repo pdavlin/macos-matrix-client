@@ -116,10 +116,11 @@ final class MergedComposerSession {
         sendableMerge.rooms.compactMap { roomId -> ComposerTargetOption? in
             guard let member = member(roomId) else { return nil }
             let sidebarRoom = labelRooms[roomId] ?? member.room.sidebarRoom
+            let identity = sidebarRoom.mergedMemberIdentity(accounts: timeline.accounts)
             return ComposerTargetOption(
                 id: roomId,
-                name: sidebarRoom.room.displayName() ?? roomId,
-                network: sidebarRoom.chatListPeople.network
+                name: identity.distinguishingName ?? (identity.network == nil ? roomId : ""),
+                network: identity.network
             )
         }
     }

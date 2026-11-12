@@ -6,7 +6,8 @@ import Tokens
 public struct ComposerTargetOption: Identifiable, Hashable, Sendable {
     /// The member room ID.
     public var id: String
-    /// The room or account name, for example "DevObsessed".
+    /// What tells the room from the other members, for example the Slack
+    /// workspace "DevObsessed". Empty when the network alone is known.
     public var name: String
     /// The room's bridged network, if detected (`ChatListNetwork.detect`).
     public var network: ChatListNetwork?
@@ -157,10 +158,9 @@ struct ComposerTargetChipLabel: View {
 
     /// "Slack • DevObsessed", or the name alone when the network is unknown.
     private var title: Text {
-        if let network = option.network {
-            return Text("\(network.displayName) • \(option.name)")
-        }
-        return Text(verbatim: option.name)
+        guard let network = option.network else { return Text(verbatim: option.name) }
+        guard !option.name.isEmpty else { return Text(verbatim: network.displayName) }
+        return Text("\(network.displayName) • \(option.name)")
     }
 }
 
@@ -173,9 +173,13 @@ struct ComposerTargetMenuItem: View {
 
     var body: some View {
         Label {
-            Text(verbatim: option.name)
-            if let network = option.network {
-                Text(network.displayName)
+            if option.name.isEmpty, let network = option.network {
+                Text(verbatim: network.displayName)
+            } else {
+                Text(verbatim: option.name)
+                if let network = option.network {
+                    Text(network.displayName)
+                }
             }
         } icon: {
             if let network = option.network, let badge = ComposerTargetMenuItem.badgeImage(network, scale: displayScale) {
@@ -203,10 +207,9 @@ struct ComposerTargetMenuItem: View {
 extension ComposerTargetOption {
     /// "DevObsessed on Slack", or the name alone, for VoiceOver.
     var accessibilityTitle: String {
-        if let network {
-            return String(localized: "\(name) on \(network.displayName)")
-        }
-        return name
+        guard let network else { return name }
+        guard !name.isEmpty else { return network.displayName }
+        return String(localized: "\(name) on \(network.displayName)")
     }
 }
 
