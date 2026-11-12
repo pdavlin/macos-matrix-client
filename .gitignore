@@ -21,3 +21,6 @@ timeline-spike-*.json
 # Dumps under spike/results are the recorded baseline the gate scores against
 # (S-39), so they are tracked.
 !spike/results/timeline-spike-*.json
+
+# Agent build and test logs (reads under build/ are denied to agents)
+.agent-logs/
