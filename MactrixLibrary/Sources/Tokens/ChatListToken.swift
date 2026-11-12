@@ -150,26 +150,44 @@ public enum ChatListToken {
     /// pinned group's cluster draws five bubbles and the "+N" label.
     public static let pinnedAvatarSize: CGFloat = 44
 
-    /// Minimum width of a pinned tile; the grid fits as many as the sidebar
-    /// width allows.
-    public static let pinnedTileMinWidth: CGFloat = 80
-
-    /// Top padding inside a pinned tile (Beeper: `padding: 12px 12px 10px`).
+    /// Padding on every side of a pinned tile's content (MATRIX-150).
     ///
-    /// MATRIX-123: 8 pt, not Beeper's 12 pt, to remove the gap above the
-    /// pinned row. It still holds the unread mark, which sits
-    /// `pinnedUnreadOffset` above the avatar.
-    public static let pinnedTileTopPadding: CGFloat = 8
-
-    /// Horizontal padding inside a pinned tile.
+    /// Equal to `rowVerticalPadding`, so the grid keeps the list's rhythm:
+    /// two tiles side by side or one above the other put `pinnedGridGap`
+    /// between their contents, the same distance as between the avatars of
+    /// two list rows. The tile's selected background and hit target cover
+    /// this padding. It also holds the unread mark, which sits
+    /// `pinnedUnreadOffset` past the avatar.
     ///
-    /// MATRIX-129: 10 pt (was 12), for the denser grid.
-    public static let pinnedTileHorizontalPadding: CGFloat = 10
+    /// It replaces three paddings (top 8, horizontal 10, bottom 6) that
+    /// centered the avatar in a tile of 80 pt or more.
+    public static let pinnedTilePadding: CGFloat = rowVerticalPadding
 
-    /// Bottom padding inside a pinned tile.
+    /// Narrowest content of a pinned tile: the 44 pt avatar and room for a
+    /// short name below it (MATRIX-150).
+    public static let pinnedTileMinContentWidth: CGFloat = 56
+
+    /// Minimum width of a pinned tile, its padding included; the grid fits
+    /// as many columns as the sidebar width allows and shares the width
+    /// between them equally.
     ///
-    /// MATRIX-129: 6 pt (was 10), for the denser grid.
-    public static let pinnedTileBottomPadding: CGFloat = 6
+    /// MATRIX-150: 68 pt (was 80), so the minimum sidebar holds three
+    /// columns.
+    public static let pinnedTileMinWidth: CGFloat = pinnedTileMinContentWidth + 2 * pinnedTilePadding
+
+    /// Gap between the contents of two adjacent pinned tiles, the same
+    /// between columns and between rows (MATRIX-150). The tiles touch; each
+    /// gives half of the gap from its padding.
+    public static let pinnedGridGap: CGFloat = 2 * pinnedTilePadding
+
+    /// How far the pinned grid reaches into the list's leading and trailing
+    /// gutters (MATRIX-150).
+    ///
+    /// It cancels the outer tiles' padding, so the first column's avatar
+    /// starts at the list rows' avatar edge and the last column ends at the
+    /// rows' trailing content edge. Only a tile's selected background and
+    /// hit target reach into the gutter, as a list row's selection does.
+    public static let pinnedGridGutterOutset: CGFloat = pinnedTilePadding
 
     /// Spacing between the pinned avatar and its title.
     ///
