@@ -87,7 +87,10 @@ struct MergeChatsSheetHost: View {
         guard let client = appState.matrixClient else { return [:] }
         var details: [String: String] = [:]
         for row in chats {
-            let identity = MergedMemberIdentity(row: row, parentNames: client.roomAccounts.names[row.id] ?? [])
+            // The sidebar's room knows its heroes; a room outside the
+            // window's filter has only its row.
+            let identity = client.rooms.first { $0.id == row.id }?.mergedMemberIdentity(accounts: client.roomAccounts)
+                ?? MergedMemberIdentity(row: row, parentNames: client.roomAccounts.names[row.id] ?? [])
             details[row.id] = identity.detail
         }
         return details
@@ -112,7 +115,7 @@ struct MergeChatsSheetHost: View {
             await appState.matrixClient?.loadRoomAccounts(draft.rooms)
         }
         .sheet(isPresented: $isPickingChat) {
-            QuickSwitcherContainerView(pickRoomFrom: nil, offering: isOffered) { roomId in
+            QuickSwitcherContainerView(pickRoomFrom: nil, offering: isOffered, showsMemberDetails: true) { roomId in
                 draft.add(roomId)
             }
             .environment(windowState)

@@ -412,8 +412,8 @@ struct QuickSwitcherRoomRow: View {
             Text(room.name)
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
-            if let alias = room.canonicalAlias {
-                Text(alias)
+            if let secondary = room.detail ?? room.canonicalAlias {
+                Text(secondary)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

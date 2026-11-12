@@ -30,6 +30,11 @@ struct QuickSwitcherContainerView: View {
         )
     }
 
+    /// MATRIX-147: each row shows what tells it from a chat with the same
+    /// name (`MergedMemberIdentity.detail`). For the Merge Chats picker,
+    /// where two chats with one person are the usual case.
+    private var showsMemberDetails = false
+
     @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
     @Environment(\.openWindow) private var openWindow
@@ -52,15 +57,17 @@ struct QuickSwitcherContainerView: View {
     init(
         pickRoomFrom currentRoomId: String?,
         offering isOffered: @escaping @MainActor (QuickSwitcherRoom) -> Bool = { _ in true },
+        showsMemberDetails: Bool = false,
         onPick: @escaping @MainActor (_ roomId: String) -> Void
     ) {
+        self.showsMemberDetails = showsMemberDetails
         self.purpose = .pickRoom(currentRoomId: currentRoomId, isOffered: isOffered, onPick: onPick)
     }
 
     var body: some View {
         if let matrixClient = appState.matrixClient {
             UI.QuickSwitcherView(
-                rooms: offeredRooms,
+                rooms: detailedRooms(matrixClient: matrixClient),
                 currentRoomId: currentRoomId,
                 ownUserId: try? matrixClient.client.userId(),
                 imageLoader: matrixClient,
@@ -75,6 +82,10 @@ struct QuickSwitcherContainerView: View {
             }
             .onDisappear {
                 directory.stop()
+            }
+            .task(id: showsMemberDetails ? offeredRooms.map(\.id) : []) {
+                guard showsMemberDetails else { return }
+                await matrixClient.loadRoomAccounts(offeredRooms.map(\.id))
             }
         } else {
             ContentUnavailableView("Not signed in", systemImage: "person.crop.circle.badge.exclamationmark")
@@ -94,6 +105,30 @@ struct QuickSwitcherContainerView: View {
         switch purpose {
         case .navigate: directory.rooms
         case let .pickRoom(_, isOffered, _): directory.rooms.filter(isOffered)
+        }
+    }
+
+    /// The offered rooms, each with its member detail when the picker shows
+    /// them. One pass over the sidebar's rooms, then one lookup per row.
+    private func detailedRooms(matrixClient: MatrixClient) -> [QuickSwitcherRoom] {
+        let rooms = offeredRooms
+        guard showsMemberDetails else { return rooms }
+        let sidebarRooms = Dictionary(matrixClient.rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return rooms.map { room in
+            var room = room
+            if let sidebarRoom = sidebarRooms[room.id] {
+                let identity = sidebarRoom.mergedMemberIdentity(accounts: matrixClient.roomAccounts)
+                room.detail = identity.network == nil && identity.account == nil ? nil : identity.detail
+            } else {
+                let identity = MergedMemberIdentity(
+                    network: ChatListNetwork.detect(heroUserIds: [room.directUserId].compactMap(\.self)),
+                    parentNames: matrixClient.roomAccounts.names[room.id] ?? [],
+                    peerUserId: nil,
+                    roomName: nil
+                )
+                room.detail = identity.detail
+            }
+            return room
         }
     }
 
