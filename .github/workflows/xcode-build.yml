@@ -128,12 +128,13 @@ jobs:
       # install moved the runner to 0.64.0 on 2026-10-27 and its new rules
       # failed 26 untouched files (MATRIX-93). Bump the version and digest
       # together in their own story, then reformat. MATRIX-95 moved the pin
-      # to 0.64.4 and reformatted the repo. scripts/lint.sh reads this pin
-      # and fails when the local swiftformat is a different version.
+      # to 0.64.4 and reformatted the repo. MATRIX-134 moved it to 0.64.6.
+      # scripts/lint.sh reads this pin and fails when the local swiftformat
+      # is a different version.
       - name: Lint
         env:
-          SWIFTFORMAT_VERSION: 0.64.4
-          SWIFTFORMAT_SHA256: bb42fbfb0b9d5f1b8b83db3147087220ea414916fce8c5cf71abaea5ad5a3175
+          SWIFTFORMAT_VERSION: 0.64.6
+          SWIFTFORMAT_SHA256: 70e6b2057647fb1c54d620ebbb6649274de56534c57f91f67461a129ebaaba3e
         run: |
           brew install swiftlint
           dir="$RUNNER_TEMP/swiftformat"
