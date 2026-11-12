@@ -44,13 +44,14 @@ struct ChatListAvatar: View {
         content
             .frame(width: size, height: size)
             .overlay(alignment: .bottomTrailing) {
-                let networks = model.badgeNetworks
-                if networks.count > 1 {
-                    // MATRIX-141: a merged chat's networks.
-                    ChatListNetworkBadgeStack(networks: networks, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
+                let badges = model.badges
+                let badgeSize = ChatListToken.networkBadgeSize(forAvatarSize: size)
+                if badges.count > 1 {
+                    // MATRIX-141: a merged chat's networks and accounts.
+                    ChatListNetworkBadgeStack(badges: badges, size: badgeSize, imageLoader: imageLoader)
                         .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
-                } else if let network = model.network {
-                    ChatListNetworkBadge(network: network, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
+                } else if let badge = badges.first {
+                    ChatListAccountBadge(badge: badge, size: badgeSize, imageLoader: imageLoader)
                         .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
                 }
             }
@@ -115,6 +116,64 @@ struct ChatListNetworkBadge: View {
     }
 }
 
+public extension EnvironmentValues {
+    /// Loads the account icons of badges outside an avatar (MATRIX-148): the
+    /// merged timeline's source notes and the composer's target chip. Nil
+    /// draws the network letter.
+    @Entry var chatBadgeImageLoader: (any ImageLoader)?
+}
+
+/// The avatar badge of one chat (MATRIX-148): the icon of the chat's account
+/// (a Slack workspace) when it has one, else the network's letter.
+///
+/// The letter badge shows while the icon loads and when the load fails, so
+/// the badge never is empty. The badge has the same size in both cases.
+struct ChatListAccountBadge: View {
+    let network: ChatListNetwork?
+    let account: ChatAccount?
+    /// The badge's side in points.
+    let size: CGFloat
+    let imageLoader: ImageLoader?
+
+    init(network: ChatListNetwork?, account: ChatAccount?, size: CGFloat, imageLoader: ImageLoader?) {
+        self.network = network
+        self.account = account
+        self.size = size
+        self.imageLoader = imageLoader
+    }
+
+    init(badge: ChatBadge, size: CGFloat, imageLoader: ImageLoader?) {
+        self.init(network: badge.network, account: badge.account, size: size, imageLoader: imageLoader)
+    }
+
+    private var helpText: String {
+        [network?.displayName, account?.name].compactMap(\.self).joined(separator: " • ")
+    }
+
+    var body: some View {
+        if let iconUrl = account?.avatarUrl {
+            AvatarImage(avatarUrl: iconUrl, imageLoader: imageLoader) {
+                letterBadge
+            }
+            .frame(width: size, height: size)
+            .clipShape(
+                RoundedRectangle(cornerRadius: size * ChatListToken.networkBadgeCornerRadiusRatio, style: .continuous)
+            )
+            .help(helpText)
+        } else {
+            letterBadge
+        }
+    }
+
+    @ViewBuilder private var letterBadge: some View {
+        if let network {
+            ChatListNetworkBadge(network: network, size: size)
+        } else {
+            Color.clear.frame(width: size, height: size)
+        }
+    }
+}
+
 /// Several network badges in a row on the avatar's bottom-right corner, for
 /// a merged chat (MATRIX-141).
 ///
@@ -123,18 +182,19 @@ struct ChatListNetworkBadge: View {
 /// `MergedChatToken.badgeStepRatio` of a badge and hides behind the one
 /// after it.
 struct ChatListNetworkBadgeStack: View {
-    /// The networks, first on top. The caller caps the count
-    /// (`ChatListRowModel.badgeNetworks`).
-    let networks: [ChatListNetwork]
+    /// The badges, first on top. The caller caps the count
+    /// (`ChatListRowModel.badges`).
+    let badges: [ChatBadge]
     /// Each badge's side in points.
     let size: CGFloat
+    let imageLoader: ImageLoader?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ForEach(Array(networks.enumerated()), id: \.element) { index, network in
-                ChatListNetworkBadge(network: network, size: size)
+            ForEach(Array(badges.enumerated()), id: \.element) { index, badge in
+                ChatListAccountBadge(badge: badge, size: size, imageLoader: imageLoader)
                     .offset(x: -CGFloat(index) * size * MergedChatToken.badgeStepRatio)
-                    .zIndex(Double(networks.count - index))
+                    .zIndex(Double(badges.count - index))
             }
         }
     }

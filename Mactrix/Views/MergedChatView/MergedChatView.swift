@@ -101,7 +101,7 @@ private struct MergedChatScreen: View {
     /// Each member room's label, then the rooms that did not load.
     private var subtitle: String {
         let labels = session.targetOptions.map { option in
-            MergedSourceLabel(roomId: option.id, network: option.network, roomName: option.name)
+            MergedSourceLabel(roomId: option.id, network: option.network, roomName: option.name.isEmpty ? nil : option.name)
         }
         return MergedChatHeader.subtitle(labels: labels, failedCount: timeline.failedRoomIds.count)
     }

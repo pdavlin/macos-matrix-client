@@ -43,6 +43,10 @@ public final class MergedLiveTimeline {
     /// The merged chat this timeline shows.
     public let merge: MergedChat
 
+    /// The space names that tell the member rooms apart (MATRIX-147), or nil
+    /// in tests.
+    @ObservationIgnored public let accounts: RoomAccountNames?
+
     /// The calendar the merge and the sender grouping use. It decides where
     /// a day starts, so it must be the container's grouping calendar.
     public let calendar: Calendar
@@ -124,7 +128,16 @@ public final class MergedLiveTimeline {
             timelines.append(LiveTimeline(room: LiveRoom(matrixRoom: room)))
             labelRooms[roomId] = sidebarRoom
         }
-        self.init(merge: merge, timelines: timelines, labelRooms: labelRooms, calendar: calendar, receiptDelay: receiptDelay)
+        self.init(
+            merge: merge,
+            timelines: timelines,
+            labelRooms: labelRooms,
+            accounts: client.roomAccounts,
+            calendar: calendar,
+            receiptDelay: receiptDelay
+        )
+        let rooms = Self.uniqueRooms(of: merge)
+        client.loadRoomAccounts(rooms)
     }
 
     /// Merges the given member timelines.
@@ -143,10 +156,12 @@ public final class MergedLiveTimeline {
         merge: MergedChat,
         timelines: [LiveTimeline],
         labelRooms: [String: SidebarRoom],
+        accounts: RoomAccountNames? = nil,
         calendar: Calendar,
         receiptDelay: Duration
     ) {
         self.merge = merge
+        self.accounts = accounts
         self.calendar = calendar
         self.receiptDelay = receiptDelay
 
@@ -234,6 +249,7 @@ public final class MergedLiveTimeline {
             _ = member.timeline.paginating
             _ = member.timeline.errorMessage
             _ = member.labelRoom.roomInfo
+            _ = accounts?.names[roomId]
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 self?.memberDidChange(roomId)
@@ -300,7 +316,7 @@ public final class MergedLiveTimeline {
             return
         }
         member.reachedStart = timeline.paginating == .idle(hitTimelineStart: true)
-        member.label = member.makeLabel()
+        member.label = member.makeLabel(accounts: accounts)
         member.updateItems(from: timeline.timelineItems, nextRevision: &nextRevision)
         member.activity = MergedSendTarget.RoomActivity(newestFirst: member.items.reversed().lazy.map(\.messageActivity))
         // No container drains a member's display queue, so it would grow for

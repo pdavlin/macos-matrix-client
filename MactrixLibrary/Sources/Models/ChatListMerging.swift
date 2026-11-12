@@ -267,6 +267,14 @@ public enum ChatListMerging {
             otherMemberCount: avatarMember.row.otherMemberCount
         )
         row.additionalNetworks = Array(networks.dropFirst())
+        var badges: [ChatBadge] = []
+        for member in ordered {
+            let badge = ChatBadge(network: member.row.network, account: member.row.account)
+            if badge.isVisible, !badges.contains(badge) {
+                badges.append(badge)
+            }
+        }
+        row.memberBadges = badges
 
         return MergedChatListEntry(
             merge: merge,
@@ -361,6 +369,20 @@ public extension ChatListRowModel {
 
     /// The networks the avatar badges show: `network`, then
     /// `additionalNetworks`, without repeats, at most `badgeNetworkLimit`.
+    /// The badges the avatar draws (MATRIX-148): a merged chat's member
+    /// badges, at most `badgeNetworkLimit`, or a plain room's one badge.
+    var badges: [ChatBadge] {
+        if !memberBadges.isEmpty {
+            return Array(memberBadges.prefix(Self.badgeNetworkLimit))
+        }
+        if !additionalNetworks.isEmpty {
+            // A merged row built without member badges: letters only.
+            return badgeNetworks.map { ChatBadge(network: $0) }
+        }
+        let badge = ChatBadge(network: network, account: account)
+        return badge.isVisible ? [badge] : []
+    }
+
     var badgeNetworks: [ChatListNetwork] {
         var networks = network.map { [$0] } ?? []
         for extra in additionalNetworks where !networks.contains(extra) {

@@ -17,6 +17,9 @@ public struct MergedSourceNote: View {
     let network: ChatListNetwork?
     let title: String
     let detail: String?
+    let account: ChatAccount?
+
+    @Environment(\.chatBadgeImageLoader) private var badgeImageLoader
 
     /// - Parameters:
     ///   - network: the bridged network of the member room. Nil shows no
@@ -25,17 +28,25 @@ public struct MergedSourceNote: View {
     ///     name, or the room's name when the network is not known.
     ///   - detail: the part after " • " that tells two rooms of one network
     ///     apart, or nil for no second part.
-    public init(network: ChatListNetwork?, title: String, detail: String? = nil) {
+    ///   - account: the member room's account. Its icon replaces the
+    ///     network letter on the badge (MATRIX-148).
+    public init(network: ChatListNetwork?, title: String, detail: String? = nil, account: ChatAccount? = nil) {
         self.network = network
         self.title = title
         self.detail = detail
+        self.account = account
     }
 
     public var body: some View {
         HStack(spacing: MergedSourceNoteToken.badgeSpacing) {
-            if let network {
-                ChatListNetworkBadge(network: network, size: MergedSourceNoteToken.badgeSize)
-                    .accessibilityHidden(true)
+            if ChatBadge(network: network, account: account).isVisible {
+                ChatListAccountBadge(
+                    network: network,
+                    account: account,
+                    size: MergedSourceNoteToken.badgeSize,
+                    imageLoader: badgeImageLoader
+                )
+                .accessibilityHidden(true)
             }
             label
                 .font(.system(size: MergedSourceNoteToken.fontSize, weight: .medium))

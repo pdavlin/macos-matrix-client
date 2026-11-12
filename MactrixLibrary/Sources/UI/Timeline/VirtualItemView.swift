@@ -30,7 +30,7 @@ public struct VirtualItemView: View {
         case let .mergedSource(label):
             // MATRIX-142: the merged timeline's source note. Its height is
             // fixed, so the row measurement skips it (`TimelineRow.fixedHeight`).
-            MergedSourceNote(network: label.network, title: label.title, detail: label.detail)
+            MergedSourceNote(network: label.network, title: label.title, detail: label.detail, account: label.account)
         }
     }
 }

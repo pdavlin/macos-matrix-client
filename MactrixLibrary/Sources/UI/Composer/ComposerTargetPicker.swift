@@ -6,15 +6,19 @@ import Tokens
 public struct ComposerTargetOption: Identifiable, Hashable, Sendable {
     /// The member room ID.
     public var id: String
-    /// The room or account name, for example "DevObsessed".
+    /// What tells the room from the other members, for example the Slack
+    /// workspace "DevObsessed". Empty when the network alone is known.
     public var name: String
     /// The room's bridged network, if detected (`ChatListNetwork.detect`).
     public var network: ChatListNetwork?
+    /// The room's account (MATRIX-148). Its icon is the chip's badge.
+    public var account: ChatAccount?
 
-    public init(id: String, name: String, network: ChatListNetwork? = nil) {
+    public init(id: String, name: String, network: ChatListNetwork? = nil, account: ChatAccount? = nil) {
         self.id = id
         self.name = name
         self.network = network
+        self.account = account
     }
 }
 
@@ -122,10 +126,17 @@ struct ComposerTargetChipLabel: View {
     let reason: MergedSendTarget.Reason
     let isLocked: Bool
 
+    @Environment(\.chatBadgeImageLoader) private var badgeImageLoader
+
     var body: some View {
         HStack(spacing: ComposerTargetToken.spacing) {
-            if let network = option.network {
-                ChatListNetworkBadge(network: network, size: ComposerTargetToken.badgeSize)
+            if ChatBadge(network: option.network, account: option.account).isVisible {
+                ChatListAccountBadge(
+                    network: option.network,
+                    account: option.account,
+                    size: ComposerTargetToken.badgeSize,
+                    imageLoader: badgeImageLoader
+                )
             }
             Text("To:")
                 .foregroundStyle(.secondary)
@@ -157,10 +168,9 @@ struct ComposerTargetChipLabel: View {
 
     /// "Slack • DevObsessed", or the name alone when the network is unknown.
     private var title: Text {
-        if let network = option.network {
-            return Text("\(network.displayName) • \(option.name)")
-        }
-        return Text(verbatim: option.name)
+        guard let network = option.network else { return Text(verbatim: option.name) }
+        guard !option.name.isEmpty else { return Text(verbatim: network.displayName) }
+        return Text("\(network.displayName) • \(option.name)")
     }
 }
 
@@ -170,15 +180,20 @@ struct ComposerTargetMenuItem: View {
     let option: ComposerTargetOption
 
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.chatBadgeImageLoader) private var badgeImageLoader
 
     var body: some View {
         Label {
-            Text(verbatim: option.name)
-            if let network = option.network {
-                Text(network.displayName)
+            if option.name.isEmpty, let network = option.network {
+                Text(verbatim: network.displayName)
+            } else {
+                Text(verbatim: option.name)
+                if let network = option.network {
+                    Text(network.displayName)
+                }
             }
         } icon: {
-            if let network = option.network, let badge = ComposerTargetMenuItem.badgeImage(network, scale: displayScale) {
+            if let badge = ComposerTargetMenuItem.badgeImage(option, imageLoader: badgeImageLoader, scale: displayScale) {
                 badge
             }
         }
@@ -186,11 +201,23 @@ struct ComposerTargetMenuItem: View {
 
     /// The network badge as an image, because a menu item draws only text
     /// and images, not arbitrary views.
+    ///
+    /// The account's icon when the image cache holds it (the chip loaded it),
+    /// else the network's letter. Nil when the option has neither.
     @MainActor
-    static func badgeImage(_ network: ChatListNetwork, scale: CGFloat) -> Image? {
-        let renderer = ImageRenderer(
-            content: ChatListNetworkBadge(network: network, size: ComposerTargetToken.menuBadgeSize)
-        )
+    static func badgeImage(_ option: ComposerTargetOption, imageLoader: ImageLoader?, scale: CGFloat) -> Image? {
+        let size = ComposerTargetToken.menuBadgeSize
+        if let iconUrl = option.account?.avatarUrl, let icon = imageLoader?.cachedImage(matrixUrl: iconUrl) {
+            let shape = RoundedRectangle(cornerRadius: size * ChatListToken.networkBadgeCornerRadiusRatio, style: .continuous)
+            return rendered(icon.resizable().scaledToFill().frame(width: size, height: size).clipShape(shape), scale: scale)
+        }
+        guard let network = option.network else { return nil }
+        return rendered(ChatListNetworkBadge(network: network, size: size), scale: scale)
+    }
+
+    @MainActor
+    private static func rendered(_ content: some View, scale: CGFloat) -> Image? {
+        let renderer = ImageRenderer(content: content)
         renderer.scale = scale
         #if os(macOS)
             return renderer.nsImage.map { Image(nsImage: $0) }
@@ -203,10 +230,9 @@ struct ComposerTargetMenuItem: View {
 extension ComposerTargetOption {
     /// "DevObsessed on Slack", or the name alone, for VoiceOver.
     var accessibilityTitle: String {
-        if let network {
-            return String(localized: "\(name) on \(network.displayName)")
-        }
-        return name
+        guard let network else { return name }
+        guard !name.isEmpty else { return network.displayName }
+        return String(localized: "\(name) on \(network.displayName)")
     }
 }
 

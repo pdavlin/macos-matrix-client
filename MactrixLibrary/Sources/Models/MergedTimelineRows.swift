@@ -28,6 +28,8 @@ public struct MergedSourceLabel: Hashable, Sendable {
     public var title: String
     /// The part after " • ", or nil.
     public var detail: String?
+    /// The room's account (MATRIX-148). Its icon is the note's badge.
+    public var account: ChatAccount?
 
     public init(roomId: String, network: ChatListNetwork?, title: String, detail: String?) {
         self.roomId = roomId
@@ -42,6 +44,11 @@ public struct MergedSourceLabel: Hashable, Sendable {
     ///   - roomId: the member room's ID.
     ///   - network: the room's network, from the chat list's badge logic.
     ///   - roomName: the room's display name. Nil or blank counts as none.
+    public init(roomId: String, network: ChatListNetwork?, roomName: String?, account: ChatAccount? = nil) {
+        self.init(roomId: roomId, network: network, roomName: roomName)
+        self.account = account
+    }
+
     public init(roomId: String, network: ChatListNetwork?, roomName: String?) {
         let name = roomName.flatMap { raw -> String? in
             let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)

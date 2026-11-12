@@ -402,18 +402,31 @@ struct QuickSwitcherRoomRow: View {
     let imageLoader: ImageLoader?
     let isHighlighted: Bool
 
+    /// The avatar with the room's network and account badge (MATRIX-148).
+    private var avatarModel: ChatListRowModel {
+        var model = ChatListRowModel(
+            id: room.id,
+            title: room.name,
+            avatarUrl: room.avatarUrl,
+            isDirect: room.isDirect,
+            network: room.network
+        )
+        model.account = room.account
+        return model
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             ChatListAvatar(
-                model: ChatListRowModel(id: room.id, title: room.name, avatarUrl: room.avatarUrl, isDirect: room.isDirect),
+                model: avatarModel,
                 size: 24,
                 imageLoader: imageLoader
             )
             Text(room.name)
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
-            if let alias = room.canonicalAlias {
-                Text(alias)
+            if let secondary = room.detail ?? room.canonicalAlias {
+                Text(secondary)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

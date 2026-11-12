@@ -298,6 +298,9 @@ public class MatrixClient {
     /// refreshed on the same triggers as `labels`.
     public var mergedChats: MergedChatsModel?
 
+    /// MATRIX-147: the space names that tell merged-chat members apart.
+    public let roomAccounts = RoomAccountNames()
+
     /// MATRIX-67: the chat-list filter the sidebar last chose.
     ///
     /// The entries controller belongs to the client, not to a window, so the

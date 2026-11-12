@@ -21,6 +21,14 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
     /// The room's place in the SDK room list, which sorts by recent
     /// activity: 0 is the most recent.
     public let recencyRank: Int
+    /// What tells the room from another one with the same name (MATRIX-147),
+    /// for example "Slack • DevObsessed". Shown after the name. Nil shows
+    /// the alias.
+    public var detail: String?
+    /// The room's bridged network (`ChatListNetwork.detect`), or nil.
+    public var network: ChatListNetwork?
+    /// The room's account (MATRIX-148), for the avatar badge.
+    public var account: ChatAccount?
 
     public init(
         id: String,
@@ -29,7 +37,9 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
         avatarUrl: String? = nil,
         isDirect: Bool = false,
         directUserId: String? = nil,
-        recencyRank: Int
+        recencyRank: Int,
+        detail: String? = nil,
+        network: ChatListNetwork? = nil
     ) {
         self.id = id
         self.name = name
@@ -38,6 +48,8 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
         self.isDirect = isDirect
         self.directUserId = directUserId
         self.recencyRank = recencyRank
+        self.detail = detail
+        self.network = network
     }
 }
 

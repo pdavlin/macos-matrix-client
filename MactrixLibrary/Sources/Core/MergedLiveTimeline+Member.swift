@@ -33,13 +33,15 @@ extension MergedLiveTimeline {
             label = MergedSourceLabel(roomId: roomId, network: nil, roomName: nil)
         }
 
-        /// The source label from the room's loaded info and the chat list's
-        /// network badge logic (`SidebarRoom.chatListPeople`).
-        func makeLabel() -> MergedSourceLabel {
-            MergedSourceLabel(
+        /// The source label: the room's network and what tells it from the
+        /// other members (`MergedMemberIdentity`, MATRIX-147).
+        func makeLabel(accounts: RoomAccountNames?) -> MergedSourceLabel {
+            let identity = labelRoom.mergedMemberIdentity(accounts: accounts)
+            return MergedSourceLabel(
                 roomId: roomId,
-                network: labelRoom.chatListPeople.network,
-                roomName: labelRoom.room.displayName()
+                network: identity.network,
+                roomName: identity.distinguishingName,
+                account: accounts?.account(of: roomId, network: identity.network)
             )
         }
 
