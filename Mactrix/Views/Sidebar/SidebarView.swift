@@ -48,7 +48,13 @@ struct SidebarView: View {
         let chatRooms = (client?.rooms ?? []).filter { !$0.room.isSpace() }
         let labels = client?.labels?.document ?? ChatLabelDocument()
         let mutedByLabel = labels.labelMutedRoomIds
-        let entries = chatRooms.map { $0.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains($0.id)) }
+        // MATRIX-148: each row's account (its Slack workspace), for the badge.
+        let accounts = client?.roomAccounts
+        let entries = chatRooms.map { room in
+            var entry = room.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains(room.id))
+            entry.row.account = accounts?.account(of: room.id, network: entry.row.network)
+            return entry
+        }
         let visible = ChatListMerging.visible(
             entries: entries,
             labels: labels,
@@ -88,6 +94,11 @@ struct SidebarView: View {
             chatList
         }
         .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
+        // MATRIX-148: read each room's account once; new rooms as they come.
+        .task(id: appState.matrixClient?.rooms.count) {
+            guard let client = appState.matrixClient else { return }
+            client.loadRoomAccounts(client.rooms.map(\.id))
+        }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width in
             widthRecorder.record(width)
         })

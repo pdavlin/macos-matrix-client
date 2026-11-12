@@ -24,6 +24,10 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     /// MATRIX-141: a merged chat's other member networks, drawn as further
     /// badges after `network` (see `badgeNetworks`). Empty for a plain room.
     public var additionalNetworks: [ChatListNetwork] = []
+    /// MATRIX-148: the account the chat belongs to on its network (a Slack
+    /// workspace). Its icon replaces the network letter on the avatar badge.
+    /// Nil for a chat in no named space, and for a merged chat.
+    public var account: ChatAccount?
 
     public init(
         id: String,
@@ -69,6 +73,9 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     public var accessibilityLabel: String {
         var parts = [title]
         parts.append(contentsOf: badgeNetworks.map(\.displayName))
+        if let account {
+            parts.append(account.name)
+        }
         if unread.hasMention {
             parts.append("mentioned")
         }

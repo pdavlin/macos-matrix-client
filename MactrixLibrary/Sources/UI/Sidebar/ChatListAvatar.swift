@@ -49,9 +49,14 @@ struct ChatListAvatar: View {
                     // MATRIX-141: a merged chat's networks.
                     ChatListNetworkBadgeStack(networks: networks, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
                         .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
-                } else if let network = model.network {
-                    ChatListNetworkBadge(network: network, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
-                        .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
+                } else if model.network != nil || model.account?.avatarUrl != nil {
+                    ChatListAccountBadge(
+                        network: model.network,
+                        account: model.account,
+                        size: ChatListToken.networkBadgeSize(forAvatarSize: size),
+                        imageLoader: imageLoader
+                    )
+                    .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
                 }
             }
             .accessibilityHidden(true)
@@ -112,6 +117,46 @@ struct ChatListNetworkBadge: View {
                 .fill(network.badgeColor)
             )
             .help(network.displayName)
+    }
+}
+
+/// The avatar badge of one chat (MATRIX-148): the icon of the chat's account
+/// (a Slack workspace) when it has one, else the network's letter.
+///
+/// The letter badge shows while the icon loads and when the load fails, so
+/// the badge never is empty. The badge has the same size in both cases.
+struct ChatListAccountBadge: View {
+    let network: ChatListNetwork?
+    let account: ChatAccount?
+    /// The badge's side in points.
+    let size: CGFloat
+    let imageLoader: ImageLoader?
+
+    private var helpText: String {
+        [network?.displayName, account?.name].compactMap(\.self).joined(separator: " • ")
+    }
+
+    var body: some View {
+        if let iconUrl = account?.avatarUrl {
+            AvatarImage(avatarUrl: iconUrl, imageLoader: imageLoader) {
+                letterBadge
+            }
+            .frame(width: size, height: size)
+            .clipShape(
+                RoundedRectangle(cornerRadius: size * ChatListToken.networkBadgeCornerRadiusRatio, style: .continuous)
+            )
+            .help(helpText)
+        } else {
+            letterBadge
+        }
+    }
+
+    @ViewBuilder private var letterBadge: some View {
+        if let network {
+            ChatListNetworkBadge(network: network, size: size)
+        } else {
+            Color.clear.frame(width: size, height: size)
+        }
     }
 }
 

@@ -16,6 +16,17 @@ public final class RoomAccountNames {
     /// joined space has an empty list.
     public private(set) var names: [String: [String]] = [:]
 
+    /// The parent spaces by room ID, with their icons (MATRIX-148). Set with
+    /// `names`, once per batch of reads, so a view that draws every room
+    /// updates once per batch.
+    public private(set) var spaces: [String: [ChatAccount]] = [:]
+
+    /// The account of a room: see `ChatAccount.choose(from:network:)`.
+    public func account(of roomId: String, network: ChatListNetwork?) -> ChatAccount? {
+        guard let parents = spaces[roomId], !parents.isEmpty else { return nil }
+        return ChatAccount.choose(from: parents, network: network)
+    }
+
     /// The waits before the rooms with no parent space are read again. The
     /// SDK builds its space graph some time after the launch, and a read
     /// before that finds no parent for any room.
@@ -80,13 +91,21 @@ public final class RoomAccountNames {
     private func drain(spaceService: SpaceService) async {
         var read = 0
         var found = 0
+        var newNames = names
+        var newSpaces = spaces
+        defer {
+            if newSpaces != spaces {
+                names = newNames
+                spaces = newSpaces
+            }
+        }
         while let roomId = pending.first {
             pending.removeFirst()
             do {
-                let parents = try await spaceService.joinedParentsOfChild(childId: roomId).map(\.displayName)
-                if names[roomId] != parents {
-                    names[roomId] = parents
-                }
+                let parents = try await spaceService.joinedParentsOfChild(childId: roomId)
+                    .map { ChatAccount(name: $0.displayName, avatarUrl: $0.avatarUrl) }
+                newSpaces[roomId] = parents
+                newNames[roomId] = parents.map(\.name)
                 if parents.isEmpty {
                     unplaced.insert(roomId)
                 } else {

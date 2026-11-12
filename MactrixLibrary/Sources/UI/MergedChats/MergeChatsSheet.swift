@@ -148,6 +148,7 @@ public struct MergeChatsSheet: View {
         // The network shows as text, so the small avatar draws no badge.
         var avatarModel = member
         avatarModel.network = nil
+        avatarModel.account = nil
         avatarModel.additionalNetworks = []
         return HStack(spacing: 8) {
             ChatListAvatar(model: avatarModel, size: MergedChatToken.sheetMemberAvatarSize, imageLoader: imageLoader)
@@ -198,6 +199,7 @@ public struct MergeChatsSheet: View {
     private func avatarChoice(_ member: ChatListRowModel, label: String, isChosen: Bool) -> some View {
         var avatarModel = member
         avatarModel.network = nil
+        avatarModel.account = nil
         avatarModel.additionalNetworks = []
         let ringSize = MergedChatToken.sheetPickerAvatarSize + 2 * MergedChatToken.sheetPickerRingInset
         return Button {

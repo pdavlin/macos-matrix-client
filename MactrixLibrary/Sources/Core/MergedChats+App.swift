@@ -95,7 +95,9 @@ public extension MatrixClient {
     /// - Returns: nil when the client does not know the room.
     func chatListRow(forRoomId roomId: String) -> ChatListRowModel? {
         if let sidebarRoom = rooms.first(where: { $0.id == roomId }) {
-            return sidebarRoom.chatListRow()
+            var row = sidebarRoom.chatListRow()
+            row.account = roomAccounts.account(of: roomId, network: row.network)
+            return row
         }
         guard let room = try? client.getRoom(roomId: roomId) else { return nil }
         return ChatListRowModel(

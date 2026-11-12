@@ -33,13 +33,7 @@ public struct MergedMemberIdentity: Hashable, Sendable {
     ///   - roomName: the room's display name.
     public init(network: ChatListNetwork?, parentNames: [String], peerUserId: String?, roomName: String?) {
         self.network = network
-        account = parentNames.lazy
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { name in
-                guard !name.isEmpty else { return false }
-                guard let network else { return true }
-                return name.caseInsensitiveCompare(network.displayName) != .orderedSame
-            }
+        account = ChatAccount.choose(from: parentNames.map { ChatAccount(name: $0) }, network: network)?.name
         fallbackName = [peerUserId, roomName].lazy
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
