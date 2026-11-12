@@ -65,12 +65,17 @@ public enum ChatListNetwork: String, CaseIterable, Sendable {
         ("twitter_", .twitter),
     ]
 
-    /// The network of the first hero whose localpart carries a known puppet
-    /// prefix, or nil when no hero matches.
+    /// The network of the first user whose localpart carries a known puppet
+    /// prefix (`slack_…`) or is a default mautrix bridge bot (`slackbot`), or
+    /// nil when no user matches.
+    ///
+    /// The bridge bot matters for a room with a name (MATRIX-147): the
+    /// server sends no puppet as a hero there, but the bot is a hero or a
+    /// service member.
     public static func detect(heroUserIds: some Sequence<String>) -> ChatListNetwork? {
         for userId in heroUserIds {
             let localpart = ChatListSender.localpart(of: userId).lowercased()
-            if let match = localpartPrefixes.first(where: { localpart.hasPrefix($0.prefix) }) {
+            if let match = localpartPrefixes.first(where: { localpart.hasPrefix($0.prefix) || localpart == $0.prefix.dropLast() + "bot" }) {
                 return match.network
             }
         }

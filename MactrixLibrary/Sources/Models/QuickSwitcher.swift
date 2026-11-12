@@ -25,6 +25,8 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
     /// for example "Slack • DevObsessed". Shown after the name. Nil shows
     /// the alias.
     public var detail: String?
+    /// The room's bridged network (`ChatListNetwork.detect`), or nil.
+    public var network: ChatListNetwork?
 
     public init(
         id: String,
@@ -34,7 +36,8 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
         isDirect: Bool = false,
         directUserId: String? = nil,
         recencyRank: Int,
-        detail: String? = nil
+        detail: String? = nil,
+        network: ChatListNetwork? = nil
     ) {
         self.id = id
         self.name = name
@@ -44,6 +47,7 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
         self.directUserId = directUserId
         self.recencyRank = recencyRank
         self.detail = detail
+        self.network = network
     }
 }
 

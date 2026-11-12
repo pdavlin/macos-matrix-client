@@ -85,7 +85,7 @@ struct QuickSwitcherContainerView: View {
             }
             .task(id: showsMemberDetails ? offeredRooms.map(\.id) : []) {
                 guard showsMemberDetails else { return }
-                await matrixClient.loadRoomAccounts(offeredRooms.map(\.id))
+                matrixClient.loadRoomAccounts(offeredRooms.map(\.id))
             }
         } else {
             ContentUnavailableView("Not signed in", systemImage: "person.crop.circle.badge.exclamationmark")
@@ -109,25 +109,20 @@ struct QuickSwitcherContainerView: View {
     }
 
     /// The offered rooms, each with its member detail when the picker shows
-    /// them. One pass over the sidebar's rooms, then one lookup per row.
+    /// them: the network and the account ("Slack • DevObsessed"). One
+    /// dictionary lookup per row.
     private func detailedRooms(matrixClient: MatrixClient) -> [QuickSwitcherRoom] {
         let rooms = offeredRooms
         guard showsMemberDetails else { return rooms }
-        let sidebarRooms = Dictionary(matrixClient.rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let names = matrixClient.roomAccounts.names
         return rooms.map { room in
             var room = room
-            if let sidebarRoom = sidebarRooms[room.id] {
-                let identity = sidebarRoom.mergedMemberIdentity(accounts: matrixClient.roomAccounts)
-                room.detail = identity.network == nil && identity.account == nil ? nil : identity.detail
-            } else {
-                let identity = MergedMemberIdentity(
-                    network: ChatListNetwork.detect(heroUserIds: [room.directUserId].compactMap(\.self)),
-                    parentNames: matrixClient.roomAccounts.names[room.id] ?? [],
-                    peerUserId: nil,
-                    roomName: nil
-                )
-                room.detail = identity.detail
-            }
+            room.detail = MergedMemberIdentity(
+                network: room.network,
+                parentNames: names[room.id] ?? [],
+                peerUserId: nil,
+                roomName: nil
+            ).detail
             return room
         }
     }

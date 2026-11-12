@@ -17,28 +17,43 @@ public final class RoomAccountNames {
     public private(set) var names: [String: [String]] = [:]
 
     @ObservationIgnored private var requested: Set<String> = []
+    @ObservationIgnored private var pending: [String] = []
+    @ObservationIgnored private var worker: Task<Void, Never>?
 
     public init() {}
 
-    /// Reads the parent spaces of the rooms that were not read yet. A read
-    /// that fails is logged and runs again on the next call.
+    /// Queues the rooms that were not read yet and returns at once. One
+    /// task reads the queue, so a view that goes away does not stop a read,
+    /// and a room is read once. A read that fails is logged and runs again
+    /// on the next request.
     ///
     /// Cost: one SDK call per new room; nothing for a room read before.
     ///
     /// - Parameters:
     ///   - roomIds: the rooms.
     ///   - spaceService: the client's space service.
-    public func load(_ roomIds: [String], spaceService: SpaceService) async {
-        for roomId in roomIds where requested.insert(roomId).inserted {
-            do {
-                let parents = try await spaceService.joinedParentsOfChild(childId: roomId)
-                names[roomId] = parents.map(\.displayName)
-            } catch {
-                requested.remove(roomId)
-                Logger.mergedChats.error(
-                    "failed to read the parent spaces of \(roomId, privacy: .public): \(String(describing: error), privacy: .public)"
-                )
+    public func request(_ roomIds: [String], spaceService: SpaceService) {
+        pending.append(contentsOf: roomIds.filter { requested.insert($0).inserted })
+        guard worker == nil, !pending.isEmpty else { return }
+        worker = Task { [weak self] in
+            var found = 0
+            var read = 0
+            while let roomId = self?.pending.first {
+                self?.pending.removeFirst()
+                do {
+                    let parents = try await spaceService.joinedParentsOfChild(childId: roomId)
+                    self?.names[roomId] = parents.map(\.displayName)
+                    read += 1
+                    found += parents.isEmpty ? 0 : 1
+                } catch {
+                    self?.requested.remove(roomId)
+                    Logger.mergedChats.error(
+                        "failed to read the parent spaces of \(roomId, privacy: .public): \(String(describing: error), privacy: .public)"
+                    )
+                }
             }
+            Logger.mergedChats.info("read the parent spaces of \(read) room(s); \(found) in a space")
+            self?.worker = nil
         }
     }
 }
@@ -46,9 +61,9 @@ public final class RoomAccountNames {
 public extension MatrixClient {
     /// Reads the parent spaces of `roomIds` into `roomAccounts`. Does nothing
     /// after a sign-out.
-    func loadRoomAccounts(_ roomIds: [String]) async {
+    func loadRoomAccounts(_ roomIds: [String]) {
         guard let spaceService = spaceService?.spaceService else { return }
-        await roomAccounts.load(roomIds, spaceService: spaceService)
+        roomAccounts.request(roomIds, spaceService: spaceService)
     }
 }
 
@@ -59,7 +74,7 @@ public extension SidebarRoom {
     ///   observable, so a view shows the account when it loads.
     func mergedMemberIdentity(accounts: RoomAccountNames?) -> MergedMemberIdentity {
         MergedMemberIdentity(
-            network: chatListPeople.network,
+            network: chatListPeople.network ?? ChatListNetwork.detect(heroUserIds: roomInfo?.serviceMembers ?? []),
             parentNames: accounts?.names[id] ?? [],
             peerUserId: roomInfo?.heroes.first?.userId,
             roomName: room.displayName()

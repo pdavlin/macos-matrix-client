@@ -112,7 +112,7 @@ struct MergeChatsSheetHost: View {
         )
         // MATRIX-147: the workspace of each member chat, read once per room.
         .task(id: draft.rooms) {
-            await appState.matrixClient?.loadRoomAccounts(draft.rooms)
+            appState.matrixClient?.loadRoomAccounts(draft.rooms)
         }
         .sheet(isPresented: $isPickingChat) {
             QuickSwitcherContainerView(pickRoomFrom: nil, offering: isOffered, showsMemberDetails: true) { roomId in

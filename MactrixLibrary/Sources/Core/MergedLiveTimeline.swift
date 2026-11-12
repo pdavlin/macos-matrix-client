@@ -137,9 +137,7 @@ public final class MergedLiveTimeline {
             receiptDelay: receiptDelay
         )
         let rooms = Self.uniqueRooms(of: merge)
-        Task { [weak client] in
-            await client?.loadRoomAccounts(rooms)
-        }
+        client.loadRoomAccounts(rooms)
     }
 
     /// Merges the given member timelines.

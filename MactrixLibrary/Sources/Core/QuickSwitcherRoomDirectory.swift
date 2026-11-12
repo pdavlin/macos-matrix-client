@@ -143,7 +143,8 @@ public final class QuickSwitcherRoomDirectory {
             // A DM's first hero is the other member (see
             // `MatrixClient.recentDirectContacts`).
             directUserId: isDirect ? roomInfo?.heroes.first?.userId : nil,
-            recencyRank: recencyRank
+            recencyRank: recencyRank,
+            network: roomInfo.flatMap { ChatListNetwork.detect(heroUserIds: $0.heroes.map(\.userId) + $0.serviceMembers) }
         )
     }
 }

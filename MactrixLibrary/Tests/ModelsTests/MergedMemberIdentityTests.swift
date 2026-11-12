@@ -61,3 +61,13 @@ struct MergedMemberIdentityTests {
         #expect(labels == ["Seth · Slack • DevObsessed", "Seth · Slack", "Seth · @seth:example.org"])
     }
 }
+
+@Suite("ChatListNetwork bridge bot")
+struct ChatListNetworkBridgeBotTests {
+    @Test
+    func theBridgeBotNamesTheNetwork() {
+        #expect(ChatListNetwork.detect(heroUserIds: ["@slackbot:davlin.io"]) == .slack)
+        #expect(ChatListNetwork.detect(heroUserIds: ["@seth:example.org", "@googlechatbot:davlin.io"]) == .googleChat)
+        #expect(ChatListNetwork.detect(heroUserIds: ["@robot:example.org", "@slackbotfan:example.org"]) == nil)
+    }
+}
