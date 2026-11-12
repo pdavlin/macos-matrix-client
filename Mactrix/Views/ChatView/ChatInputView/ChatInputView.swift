@@ -7,7 +7,8 @@ import Tokens
 import UI
 
 struct ChatInputView: View {
-    @Environment(AppState.self) private var appState
+    /// Not private: `ChatInputView+Merged.swift` reads it.
+    @Environment(AppState.self) var appState
     @Environment(\.accessibilityReduceTransparency) var reduceTransparency
 
     let room: MatrixRustSDK.Room

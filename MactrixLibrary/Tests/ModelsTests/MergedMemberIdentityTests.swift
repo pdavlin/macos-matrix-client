@@ -71,3 +71,28 @@ struct ChatListNetworkBridgeBotTests {
         #expect(ChatListNetwork.detect(heroUserIds: ["@robot:example.org", "@slackbotfan:example.org"]) == nil)
     }
 }
+
+@Suite("ChatAccount and ChatBadge")
+struct ChatAccountTests {
+    @Test
+    func theAccountIsTheFirstSpaceThatIsNotTheNetwork() {
+        let spaces = [ChatAccount(name: "Slack"), ChatAccount(name: " DevObsessed ", avatarUrl: "mxc://a/b")]
+        #expect(ChatAccount.choose(from: spaces, network: .slack) == ChatAccount(name: "DevObsessed", avatarUrl: "mxc://a/b"))
+        #expect(ChatAccount.choose(from: spaces, network: nil)?.name == "Slack")
+        #expect(ChatAccount.choose(from: [], network: .slack) == nil)
+    }
+
+    @Test
+    func aPlainRowHasOneBadgeAndAMergedRowOnePerAccount() {
+        var plain = ChatListRowModel(id: "!a", title: "Seth", network: .slack)
+        plain.account = ChatAccount(name: "DevObsessed", avatarUrl: "mxc://a/b")
+        #expect(plain.badges == [ChatBadge(network: .slack, account: plain.account)])
+        #expect(ChatListRowModel(id: "!n", title: "Seth").badges.isEmpty)
+
+        var other = ChatListRowModel(id: "!b", title: "Seth", network: .slack)
+        other.account = ChatAccount(name: "pizza box audit committee", avatarUrl: "mxc://a/c")
+        let merge = MergedChat(id: "m", name: "Seth", rooms: ["!a", "!b"])
+        let merged = ChatListMerging.entry(for: merge, members: [ChatListEntry(row: plain), ChatListEntry(row: other)])
+        #expect(merged?.row.badges.map(\.account?.name) == ["DevObsessed", "pizza box audit committee"])
+    }
+}

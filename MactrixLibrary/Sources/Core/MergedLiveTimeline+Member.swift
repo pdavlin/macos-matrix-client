@@ -37,7 +37,12 @@ extension MergedLiveTimeline {
         /// other members (`MergedMemberIdentity`, MATRIX-147).
         func makeLabel(accounts: RoomAccountNames?) -> MergedSourceLabel {
             let identity = labelRoom.mergedMemberIdentity(accounts: accounts)
-            return MergedSourceLabel(roomId: roomId, network: identity.network, roomName: identity.distinguishingName)
+            return MergedSourceLabel(
+                roomId: roomId,
+                network: identity.network,
+                roomName: identity.distinguishingName,
+                account: accounts?.account(of: roomId, network: identity.network)
+            )
         }
 
         /// Replaces `items` with the member timeline's current items.

@@ -27,6 +27,8 @@ public struct QuickSwitcherRoom: Hashable, Identifiable, Sendable {
     public var detail: String?
     /// The room's bridged network (`ChatListNetwork.detect`), or nil.
     public var network: ChatListNetwork?
+    /// The room's account (MATRIX-148), for the avatar badge.
+    public var account: ChatAccount?
 
     public init(
         id: String,

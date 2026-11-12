@@ -120,7 +120,8 @@ final class MergedComposerSession {
             return ComposerTargetOption(
                 id: roomId,
                 name: identity.distinguishingName ?? (identity.network == nil ? roomId : ""),
-                network: identity.network
+                network: identity.network,
+                account: timeline.accounts?.account(of: roomId, network: identity.network)
             )
         }
     }

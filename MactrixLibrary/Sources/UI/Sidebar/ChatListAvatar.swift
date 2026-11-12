@@ -44,19 +44,15 @@ struct ChatListAvatar: View {
         content
             .frame(width: size, height: size)
             .overlay(alignment: .bottomTrailing) {
-                let networks = model.badgeNetworks
-                if networks.count > 1 {
-                    // MATRIX-141: a merged chat's networks.
-                    ChatListNetworkBadgeStack(networks: networks, size: ChatListToken.networkBadgeSize(forAvatarSize: size))
+                let badges = model.badges
+                let badgeSize = ChatListToken.networkBadgeSize(forAvatarSize: size)
+                if badges.count > 1 {
+                    // MATRIX-141: a merged chat's networks and accounts.
+                    ChatListNetworkBadgeStack(badges: badges, size: badgeSize, imageLoader: imageLoader)
                         .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
-                } else if model.network != nil || model.account?.avatarUrl != nil {
-                    ChatListAccountBadge(
-                        network: model.network,
-                        account: model.account,
-                        size: ChatListToken.networkBadgeSize(forAvatarSize: size),
-                        imageLoader: imageLoader
-                    )
-                    .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
+                } else if let badge = badges.first {
+                    ChatListAccountBadge(badge: badge, size: badgeSize, imageLoader: imageLoader)
+                        .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
                 }
             }
             .accessibilityHidden(true)
@@ -120,6 +116,13 @@ struct ChatListNetworkBadge: View {
     }
 }
 
+public extension EnvironmentValues {
+    /// Loads the account icons of badges outside an avatar (MATRIX-148): the
+    /// merged timeline's source notes and the composer's target chip. Nil
+    /// draws the network letter.
+    @Entry var chatBadgeImageLoader: (any ImageLoader)?
+}
+
 /// The avatar badge of one chat (MATRIX-148): the icon of the chat's account
 /// (a Slack workspace) when it has one, else the network's letter.
 ///
@@ -131,6 +134,17 @@ struct ChatListAccountBadge: View {
     /// The badge's side in points.
     let size: CGFloat
     let imageLoader: ImageLoader?
+
+    init(network: ChatListNetwork?, account: ChatAccount?, size: CGFloat, imageLoader: ImageLoader?) {
+        self.network = network
+        self.account = account
+        self.size = size
+        self.imageLoader = imageLoader
+    }
+
+    init(badge: ChatBadge, size: CGFloat, imageLoader: ImageLoader?) {
+        self.init(network: badge.network, account: badge.account, size: size, imageLoader: imageLoader)
+    }
 
     private var helpText: String {
         [network?.displayName, account?.name].compactMap(\.self).joined(separator: " • ")
@@ -168,18 +182,19 @@ struct ChatListAccountBadge: View {
 /// `MergedChatToken.badgeStepRatio` of a badge and hides behind the one
 /// after it.
 struct ChatListNetworkBadgeStack: View {
-    /// The networks, first on top. The caller caps the count
-    /// (`ChatListRowModel.badgeNetworks`).
-    let networks: [ChatListNetwork]
+    /// The badges, first on top. The caller caps the count
+    /// (`ChatListRowModel.badges`).
+    let badges: [ChatBadge]
     /// Each badge's side in points.
     let size: CGFloat
+    let imageLoader: ImageLoader?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            ForEach(Array(networks.enumerated()), id: \.element) { index, network in
-                ChatListNetworkBadge(network: network, size: size)
+            ForEach(Array(badges.enumerated()), id: \.element) { index, badge in
+                ChatListAccountBadge(badge: badge, size: size, imageLoader: imageLoader)
                     .offset(x: -CGFloat(index) * size * MergedChatToken.badgeStepRatio)
-                    .zIndex(Double(networks.count - index))
+                    .zIndex(Double(badges.count - index))
             }
         }
     }

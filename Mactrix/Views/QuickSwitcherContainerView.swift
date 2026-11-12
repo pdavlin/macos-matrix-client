@@ -83,8 +83,7 @@ struct QuickSwitcherContainerView: View {
             .onDisappear {
                 directory.stop()
             }
-            .task(id: showsMemberDetails ? offeredRooms.map(\.id) : []) {
-                guard showsMemberDetails else { return }
+            .task(id: offeredRooms.count) {
                 matrixClient.loadRoomAccounts(offeredRooms.map(\.id))
             }
         } else {
@@ -108,21 +107,24 @@ struct QuickSwitcherContainerView: View {
         }
     }
 
-    /// The offered rooms, each with its member detail when the picker shows
-    /// them: the network and the account ("Slack • DevObsessed"). One
-    /// dictionary lookup per row.
+    /// The offered rooms, each with its account for the avatar badge
+    /// (MATRIX-148) and, when the picker shows them, its member detail: the
+    /// network and the account ("Slack • DevObsessed"). One dictionary
+    /// lookup per row.
     private func detailedRooms(matrixClient: MatrixClient) -> [QuickSwitcherRoom] {
-        let rooms = offeredRooms
-        guard showsMemberDetails else { return rooms }
-        let names = matrixClient.roomAccounts.names
-        return rooms.map { room in
+        let accounts = matrixClient.roomAccounts
+        let names = accounts.names
+        return offeredRooms.map { room in
             var room = room
-            room.detail = MergedMemberIdentity(
-                network: room.network,
-                parentNames: names[room.id] ?? [],
-                peerUserId: nil,
-                roomName: nil
-            ).detail
+            room.account = accounts.account(of: room.id, network: room.network)
+            if showsMemberDetails {
+                room.detail = MergedMemberIdentity(
+                    network: room.network,
+                    parentNames: names[room.id] ?? [],
+                    peerUserId: nil,
+                    roomName: nil
+                ).detail
+            }
             return room
         }
     }

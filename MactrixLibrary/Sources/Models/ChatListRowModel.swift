@@ -28,6 +28,9 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     /// workspace). Its icon replaces the network letter on the avatar badge.
     /// Nil for a chat in no named space, and for a merged chat.
     public var account: ChatAccount?
+    /// MATRIX-148: a merged chat's badges, one per different network and
+    /// account of its members, in member order. Empty for a plain room.
+    public var memberBadges: [ChatBadge] = []
 
     public init(
         id: String,

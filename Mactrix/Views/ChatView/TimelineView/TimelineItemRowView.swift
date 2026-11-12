@@ -67,6 +67,7 @@ struct TimelineItemRowView: View {
             }
         case let .virtual(_, item):
             UI.VirtualItemView(item: item)
+                .environment(\.chatBadgeImageLoader, appState.matrixClient)
         case let .typingIndicator(_, names):
             UI.TypingIndicatorRow(names: names)
         case .paginationActivity:

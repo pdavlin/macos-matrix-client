@@ -35,3 +35,20 @@ public struct ChatAccount: Hashable, Sendable {
         return nil
     }
 }
+
+/// One avatar badge (MATRIX-148): a chat's network and its account. The
+/// badge draws the account's icon when it has one, else the network's letter.
+public struct ChatBadge: Hashable, Sendable {
+    public var network: ChatListNetwork?
+    public var account: ChatAccount?
+
+    public init(network: ChatListNetwork?, account: ChatAccount? = nil) {
+        self.network = network
+        self.account = account
+    }
+
+    /// The badge draws something: a letter or an icon.
+    public var isVisible: Bool {
+        network != nil || account?.avatarUrl != nil
+    }
+}

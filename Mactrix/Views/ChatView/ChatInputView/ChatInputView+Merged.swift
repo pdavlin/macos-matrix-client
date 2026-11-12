@@ -49,6 +49,7 @@ extension ChatInputView {
             reason: target.reason,
             onSelect: { merged.pick($0) }
         )
+        .environment(\.chatBadgeImageLoader, appState.matrixClient)
     }
 
     /// Scrolls the timeline to the newest row after a send: the merged
