@@ -81,10 +81,6 @@ struct SidebarView: View {
         appState.matrixClient?.spaceService?.spaceRooms ?? []
     }
 
-    private var pinnedColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: ChatListToken.pinnedTileMinWidth), spacing: 0)]
-    }
-
     var body: some View {
         @Bindable var windowState = windowState
 
@@ -174,22 +170,20 @@ struct SidebarView: View {
             if !favorites.isEmpty {
                 // Tiles are buttons, not List rows: a grid cell cannot carry
                 // List selection, so each tile draws its own selected state.
-                LazyVGrid(columns: pinnedColumns, spacing: 0) {
-                    ForEach(favorites) { item in
-                        PinnedChatTile(
-                            model: item.row,
-                            isSelected: selectedItemId == item.id,
-                            imageLoader: appState.matrixClient
-                        ) {
-                            windowState.chatSelection = item.selection
-                        }
-                        // MATRIX-133: a visible row may load members for its
-                        // bubble cluster.
-                        .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
-                        .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
-                        .contextMenu {
-                            ChatListItemContextMenu(item: item, chats: chats)
-                        }
+                PinnedChatGrid(favorites) { item in
+                    PinnedChatTile(
+                        model: item.row,
+                        isSelected: selectedItemId == item.id,
+                        imageLoader: appState.matrixClient
+                    ) {
+                        windowState.chatSelection = item.selection
+                    }
+                    // MATRIX-133: a visible row may load members for its
+                    // bubble cluster.
+                    .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
+                    .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
+                    .contextMenu {
+                        ChatListItemContextMenu(item: item, chats: chats)
                     }
                 }
                 .listRowInsets(EdgeInsets())

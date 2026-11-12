@@ -207,4 +207,57 @@ struct ChatListSnapshotTests {
             as: .scaledImage
         )
     }
+
+    // MARK: Pinned grid
+
+    /// MATRIX-150: the pinned grid above the chat list, as the sidebar draws
+    /// it. The macOS sidebar `List` insets each row 16 pt on each side, the
+    /// grid's row too, so the stack gets the same padding here.
+    private func pinnedGridAboveRows(width: CGFloat) -> NSHostingController<AnyView> {
+        let sidebarListRowInset: CGFloat = 16
+        let pinned: [ChatListRowModel] = [
+            ChatListRowModel(
+                id: "!p1",
+                title: "Alice Example",
+                isDirect: true,
+                unread: ChatListUnread(count: 3, isUnread: true),
+                network: .signal
+            ),
+            ChatListRowModel(id: "!p2", title: "Family"),
+            ChatListRowModel(id: "!p3", title: "Seth Redacted", isDirect: true, network: .whatsApp),
+            ChatListRowModel(id: "!p4", title: "Release planning", unread: ChatListUnread(isUnread: true)),
+            ChatListRowModel(id: "!p5", title: "Bo", isDirect: true),
+        ]
+        let rows: [ChatListRowModel] = [
+            ChatListRowModel(
+                id: "!r1",
+                title: "Homelab",
+                preview: "Bob: can you look at the backup job?",
+                timestamp: "9:05 AM",
+                unread: ChatListUnread(count: 2, isUnread: true)
+            ),
+            ChatListRowModel(id: "!r2", title: "Dana", isDirect: true, preview: "Photo", timestamp: "Tue", network: .slack),
+            ChatListRowModel(id: "!r3", title: "Neighbourhood", preview: "Carol: Bins go out tomorrow", timestamp: "10/15/26"),
+        ]
+        let list = VStack(spacing: 0) {
+            PinnedChatGrid(pinned) { model in
+                PinnedChatTile(model: model, isSelected: model.id == "!p2", imageLoader: nil, action: {})
+            }
+            ForEach(rows) { model in
+                ChatListRow(model: model, imageLoader: nil)
+            }
+        }
+        .padding(.horizontal, sidebarListRowInset)
+        return snapshot(of: list, width: width)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func pinnedGridAboveRowsWidth260() {
+        assertSnapshot(of: pinnedGridAboveRows(width: 260), as: .scaledImage)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func pinnedGridAboveRowsWidth340() {
+        assertSnapshot(of: pinnedGridAboveRows(width: 340), as: .scaledImage)
+    }
 }
