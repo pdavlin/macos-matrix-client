@@ -67,6 +67,25 @@ struct MergedChatWiringSnapshotTests {
         assertSnapshot(of: snapshot(of: section.padding(12), width: 260), as: .scaledImage)
     }
 
+    // MARK: Merged chat inspector (MATRIX-149)
+
+    /// The merged chat's own inspector: its name, each member chat with the
+    /// line that tells it apart, and "Edit Merged Chat…". The third member
+    /// has no detail entry, so it shows its network.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func mergedChatInspector() throws {
+        let merged = try #require(ChatListMerging.entry(for: Self.seth, members: Self.members.map { ChatListEntry(row: $0) }))
+        let inspector = MergedChatInspectorView(
+            mergedRow: merged.row,
+            members: Self.members,
+            memberDetails: ["!s1": "Slack • DevObsessed", "!s2": "Slack • Acme"],
+            imageLoader: nil,
+            isEditable: true,
+            onEdit: {}
+        )
+        assertSnapshot(of: snapshot(of: inspector, width: 260, height: 400), as: .scaledImage)
+    }
+
     // MARK: Sheet error
 
     /// A refused write: the inline error sits above the buttons.

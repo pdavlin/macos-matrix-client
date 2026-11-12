@@ -43,6 +43,12 @@ public final class MergedLiveTimeline {
     /// The merged chat this timeline shows.
     public let merge: MergedChat
 
+    /// The message the Edit menu acts on (MATRIX-149). Every member timeline
+    /// that `init(client:merge:calendar:receiptDelay:)` opens holds this same
+    /// slot, so a row's hover and the message selection land in one place,
+    /// and each target still performs on its own member room.
+    @ObservationIgnored public let messageActionTarget: MessageActionTargetSlot
+
     /// The space names that tell the member rooms apart (MATRIX-147), or nil
     /// in tests.
     @ObservationIgnored public let accounts: RoomAccountNames?
@@ -120,12 +126,13 @@ public final class MergedLiveTimeline {
         calendar: Calendar = .autoupdatingCurrent,
         receiptDelay: Duration = .seconds(1)
     ) {
+        let actionTarget = MessageActionTargetSlot()
         var timelines: [LiveTimeline] = []
         var labelRooms: [String: SidebarRoom] = [:]
         for roomId in Self.uniqueRooms(of: merge) {
             let sidebarRoom = client.rooms.first { $0.id == roomId }
             guard let room = sidebarRoom?.room ?? Self.clientRoom(roomId, of: client) else { continue }
-            timelines.append(LiveTimeline(room: LiveRoom(matrixRoom: room)))
+            timelines.append(LiveTimeline(room: LiveRoom(matrixRoom: room), mergedChatActionTarget: actionTarget))
             labelRooms[roomId] = sidebarRoom
         }
         self.init(
@@ -134,7 +141,8 @@ public final class MergedLiveTimeline {
             labelRooms: labelRooms,
             accounts: client.roomAccounts,
             calendar: calendar,
-            receiptDelay: receiptDelay
+            receiptDelay: receiptDelay,
+            messageActionTarget: actionTarget
         )
         let rooms = Self.uniqueRooms(of: merge)
         client.loadRoomAccounts(rooms)
@@ -152,15 +160,19 @@ public final class MergedLiveTimeline {
     ///     uses the timeline's own room.
     ///   - calendar: the container's grouping calendar.
     ///   - receiptDelay: see `receiptDelay`.
+    ///   - messageActionTarget: the Edit-menu slot the timelines were made
+    ///     with (`LiveTimeline.init(room:mergedChatActionTarget:)`).
     init(
         merge: MergedChat,
         timelines: [LiveTimeline],
         labelRooms: [String: SidebarRoom],
         accounts: RoomAccountNames? = nil,
         calendar: Calendar,
-        receiptDelay: Duration
+        receiptDelay: Duration,
+        messageActionTarget: MessageActionTargetSlot = MessageActionTargetSlot()
     ) {
         self.merge = merge
+        self.messageActionTarget = messageActionTarget
         self.accounts = accounts
         self.calendar = calendar
         self.receiptDelay = receiptDelay

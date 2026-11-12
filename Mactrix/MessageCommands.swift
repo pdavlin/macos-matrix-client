@@ -6,8 +6,10 @@ import UI
 /// The Edit menu's message section (MATRIX-108, M2-B1).
 ///
 /// It acts on the message the pointer last entered, or the message the
-/// timeline last focused, in the key window's room. The items come from the
-/// same `MessageActionModel` as the right-click menu and the hover row, and
+/// timeline last focused, in the key window's room or merged chat. In a
+/// merged chat (MATRIX-149) every member timeline shares one slot, so the
+/// target is one message of the whole chat, and its action runs on the
+/// member room that holds it. The items come from the same `MessageActionModel` as the right-click menu and the hover row, and
 /// each item runs through the row's own `perform(_:)`.
 ///
 /// The list does not change shape between messages: an action that does not
@@ -19,18 +21,29 @@ import UI
 struct MessageCommands: Commands {
     @FocusedValue(WindowState.self) private var windowState: WindowState?
 
-    /// The key window's room timeline, if a joined room is open.
-    private var timeline: LiveTimeline? {
-        guard case let .joinedRoom(timeline: timeline) = windowState?.selectedScreen else { return nil }
-        return timeline
+    /// The slot of the merged chat the key window shows. `MergedChatView`
+    /// publishes it, because the window state holds only the merged chat's ID.
+    @FocusedValue(MessageActionTargetSlot.self) private var mergedChatTarget: MessageActionTargetSlot?
+
+    /// The Edit-menu target of the key window: the room timeline's slot, or
+    /// the merged chat's slot. Nil on any other screen.
+    private var target: MessageActionTargetSlot? {
+        switch windowState?.selectedScreen {
+        case let .joinedRoom(timeline: timeline):
+            timeline.messageActionTarget
+        case .mergedChat:
+            mergedChatTarget
+        default:
+            nil
+        }
     }
 
     var body: some Commands {
         CommandGroup(after: .pasteboard) {
             Divider()
             UI.MessageActionMenu(
-                items: timeline?.messageActionTarget.editMenuItems ?? MessageActionModel.items(for: nil, on: .editMenu),
-                perform: { action in timeline?.messageActionTarget.perform(action) }
+                items: target?.editMenuItems ?? MessageActionModel.items(for: nil, on: .editMenu),
+                perform: { action in target?.perform(action) }
             )
         }
     }

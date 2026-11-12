@@ -108,6 +108,24 @@ public extension MatrixClient {
         )
     }
 
+    /// What tells each member chat of a merged chat apart, by room ID
+    /// (`MergedMemberIdentity.detail`, "Slack • DevObsessed"), for the Merge
+    /// Chats sheet and the merged chat's inspector.
+    ///
+    /// The sidebar's room knows its heroes; a room outside the window's
+    /// filter has only its row. A chat with nothing known gets no entry.
+    ///
+    /// - Parameter rows: the member chats' rows (`chatListRow(forRoomId:)`).
+    func mergedMemberDetails(for rows: [ChatListRowModel]) -> [String: String] {
+        var details: [String: String] = [:]
+        for row in rows {
+            let identity = rooms.first { $0.id == row.id }?.mergedMemberIdentity(accounts: roomAccounts)
+                ?? MergedMemberIdentity(row: row, parentNames: roomAccounts.names[row.id] ?? [])
+            details[row.id] = identity.detail
+        }
+        return details
+    }
+
     /// Mutes or unmutes rooms through the SDK's per-room notification mode
     /// (MATRIX-141). A merged chat is muted when every member is
     /// (orchestrator decision 2026-11-10), so the merged row's Mute and
