@@ -31,7 +31,8 @@ struct ChatMessageActions {
             event: event,
             msg: msg,
             pinnedEventIds: timeline?.room.roomInfo?.pinnedEventIds ?? [],
-            redactPermission: timeline?.room.redactPermission ?? .none
+            redactPermission: timeline?.room.redactPermission ?? .none,
+            isInMergedChat: timeline?.isMergedChatMember ?? false
         )
     }
 

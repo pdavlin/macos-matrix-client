@@ -35,7 +35,14 @@ public final class LiveTimeline {
 
     /// The message the Edit menu acts on (MATRIX-108). Rows offer themselves
     /// on hover; the menu commands read it through the window's timeline.
-    public let messageActionTarget = MessageActionTargetSlot()
+    /// The member timelines of a merged chat share the merged chat's slot
+    /// (MATRIX-149), so the Edit menu has one target for the whole chat.
+    public let messageActionTarget: MessageActionTargetSlot
+
+    /// Whether a merged chat shows this timeline's rows (MATRIX-149). The
+    /// action model then leaves out the actions that need the room's thread
+    /// view or pin list.
+    public let isMergedChatMember: Bool
 
     /// The message that waits for the delete confirmation (MATRIX-110). The
     /// room view shows the confirmation sheet while it is set. It lives here,
@@ -108,9 +115,16 @@ public final class LiveTimeline {
     /// one scroll-to-bottom request.
     public private(set) var scrollToBottomRequests: Int = 0
 
-    public init(room: LiveRoom) {
+    /// - Parameters:
+    ///   - room: The room.
+    ///   - mergedChatActionTarget: The Edit-menu slot of the merged chat that
+    ///     shows this timeline (`MergedLiveTimeline.messageActionTarget`), or
+    ///     nil for a room's own timeline, which gets a slot of its own.
+    public init(room: LiveRoom, mergedChatActionTarget: MessageActionTargetSlot? = nil) {
         self.focusedThreadId = nil
         self.room = room
+        self.messageActionTarget = mergedChatActionTarget ?? MessageActionTargetSlot()
+        self.isMergedChatMember = mergedChatActionTarget != nil
         Task {
             do {
                 try await configureTimeline()
@@ -124,6 +138,8 @@ public final class LiveTimeline {
     public init(room: LiveRoom, focusThread threadId: String) {
         self.focusedThreadId = threadId
         self.room = room
+        self.messageActionTarget = MessageActionTargetSlot()
+        self.isMergedChatMember = false
         Task {
             do {
                 try await configureTimeline(threadId: threadId)

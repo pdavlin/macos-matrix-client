@@ -72,6 +72,18 @@ public enum MessageAction: Hashable, Sendable {
         return false
     }
 
+    /// Whether the action needs a view that only a room has: the thread
+    /// view, or the pin list. A merged chat shows neither (MATRIX-149).
+    public var needsRoomView: Bool {
+        switch self {
+        case .replyInThread, .pin, .unpin:
+            return true
+        case .reply, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .quickLook, .playInline,
+             .saveToDownloads, .redact, .copyMessages:
+            return false
+        }
+    }
+
     /// Whether the media view, not the row, performs this action.
     ///
     /// Media actions need the media view's own state (the downloaded file, the
@@ -184,6 +196,9 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// notice with a body, or one media file. `Core` sets it from
     /// `MessageForwardContent.decide(type:body:media:)`.
     public var isForwardable: Bool
+    /// Whether the message shows in a merged chat (MATRIX-149), which has no
+    /// thread view and no pin list. False is a room's own timeline.
+    public var isInMergedChat: Bool
 
     /// - Parameters:
     ///   - redactPermission: The room's redact permission. It defaults to
@@ -202,7 +217,8 @@ public struct MessageActionSubject: Equatable, Sendable {
         copyableText: String?,
         redactPermission: MessageRedactPermission = .none,
         isEditable: Bool = false,
-        isForwardable: Bool = false
+        isForwardable: Bool = false,
+        isInMergedChat: Bool = false
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -213,6 +229,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.redactPermission = redactPermission
         self.isEditable = isEditable
         self.isForwardable = isForwardable
+        self.isInMergedChat = isInMergedChat
     }
 
     /// The same subject with other content. A video view uses it to report
@@ -325,7 +342,15 @@ public enum MessageActionModel {
     }
 
     /// The rule for one action on one message. Each B-story adds its case here.
+    /// First, for every surface (MATRIX-149): an action that needs the room's
+    /// thread view or pin list does not apply in a merged chat.
     static func availability(of action: MessageAction, for subject: MessageActionSubject) -> Availability {
+        if subject.isInMergedChat, action.needsRoomView { return .notApplicable }
+        return messageAvailability(of: action, for: subject)
+    }
+
+    /// The rule for one action from the facts of the message alone.
+    private static func messageAvailability(of action: MessageAction, for subject: MessageActionSubject) -> Availability {
         let isRedacted = subject.content == .redacted
         let hasEventId = subject.eventId != nil
 

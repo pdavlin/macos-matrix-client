@@ -16,11 +16,14 @@ public extension Models.MessageActionSubject {
     ///   - pinnedEventIds: The room's pinned event IDs, from `RoomInfo`.
     ///   - redactPermission: The room's redact permission, from
     ///     `LiveRoom.redactPermission` (MATRIX-110).
+    ///   - isInMergedChat: Whether the row shows in a merged chat
+    ///     (`LiveTimeline.isMergedChatMember`, MATRIX-149).
     init(
         event: MatrixRustSDK.EventTimelineItem,
         msg: MatrixRustSDK.MsgLikeContent,
         pinnedEventIds: [String],
-        redactPermission: Models.MessageRedactPermission
+        redactPermission: Models.MessageRedactPermission,
+        isInMergedChat: Bool = false
     ) {
         var eventId: String?
         if case let .eventId(id) = event.eventOrTransactionId {
@@ -36,7 +39,8 @@ public extension Models.MessageActionSubject {
             copyableText: copyableText,
             redactPermission: redactPermission,
             isEditable: event.isEditable && MessageEditTarget.editableContent(of: msg.kind) != nil,
-            isForwardable: Self.isForwardable(msg.kind)
+            isForwardable: Self.isForwardable(msg.kind),
+            isInMergedChat: isInMergedChat
         )
     }
 

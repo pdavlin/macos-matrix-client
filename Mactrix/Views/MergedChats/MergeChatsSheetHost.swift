@@ -84,16 +84,7 @@ struct MergeChatsSheetHost: View {
 
     /// What tells each member chat apart (`MergedMemberIdentity.detail`).
     private var memberDetails: [String: String] {
-        guard let client = appState.matrixClient else { return [:] }
-        var details: [String: String] = [:]
-        for row in chats {
-            // The sidebar's room knows its heroes; a room outside the
-            // window's filter has only its row.
-            let identity = client.rooms.first { $0.id == row.id }?.mergedMemberIdentity(accounts: client.roomAccounts)
-                ?? MergedMemberIdentity(row: row, parentNames: client.roomAccounts.names[row.id] ?? [])
-            details[row.id] = identity.detail
-        }
-        return details
+        appState.matrixClient?.mergedMemberDetails(for: chats) ?? [:]
     }
 
     var body: some View {

@@ -40,4 +40,10 @@ public enum MergedChatToken {
 
     /// Widest the placeholder's member list grows in a wide window.
     public static let placeholderMaxWidth: CGFloat = 360
+
+    // MARK: Inspector (MATRIX-149)
+
+    /// Avatar diameter of the merged chat in its inspector: the same as the
+    /// room inspector's avatar.
+    public static let inspectorAvatarSize: CGFloat = 72
 }

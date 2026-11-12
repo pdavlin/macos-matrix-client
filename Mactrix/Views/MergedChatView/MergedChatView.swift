@@ -132,6 +132,9 @@ private struct MergedChatScreen: View {
                 }
             }
             .background(Color(NSColor.controlBackgroundColor))
+            // MATRIX-149: the Edit menu's message commands act on this merged
+            // chat's target (`MessageCommands`).
+            .focusedSceneValue(timeline.messageActionTarget)
             .navigationTitle(session.merge.name)
             .navigationSubtitle(subtitle)
             .frame(minWidth: 250, minHeight: 200)
