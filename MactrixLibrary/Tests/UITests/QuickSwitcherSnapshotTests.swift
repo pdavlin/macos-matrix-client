@@ -9,7 +9,15 @@ import Testing
 ///
 /// Each test renders the real sheet from a prepared query and directory
 /// results. The search closure never runs: the capture is synchronous, so
-/// the sheet's `.task` has not started when the image is taken.
+/// the sheet's `.task` cannot get past its debounce sleep.
+///
+/// The search spinner is not in the snapshots (MATRIX-152). On macOS 27.2
+/// the first layout pass starts the `.task` body, which sets `isSearching`
+/// and mounts the spinner; MATRIX-118 saw an OS state where it did not. The
+/// spinner is an `NSProgressIndicator` with layer contents, and AppKit makes
+/// those contents at the backing scale of the main screen, not at the scale
+/// of `scaledImage`. So the same view gave two images: one on a 2x screen
+/// and one on a 1x screen. `host` hides the spinner to remove both effects.
 @MainActor
 struct QuickSwitcherSnapshotTests {
     private let rooms = [
@@ -43,7 +51,22 @@ struct QuickSwitcherSnapshotTests {
         controller.view.frame.size = CGSize(width: 560, height: 420)
         // Pin the appearance so the snapshot does not flip with light/dark mode.
         controller.view.appearance = NSAppearance(named: .aqua)
+        // The layout pass mounts the spinner, if this OS starts the search
+        // task during layout. Then the spinner goes out of the picture.
+        controller.view.layoutSubtreeIfNeeded()
+        hideProgressIndicators(in: controller.view)
         return controller
+    }
+
+    /// Hides each `NSProgressIndicator` below `view`. A hidden view is not
+    /// drawn by `cacheDisplay(in:to:)`.
+    private func hideProgressIndicators(in view: NSView) {
+        if view is NSProgressIndicator {
+            view.isHidden = true
+        }
+        for subview in view.subviews {
+            hideProgressIndicators(in: subview)
+        }
     }
 
     /// Empty query: recent rooms, with the open room ("General") last.
