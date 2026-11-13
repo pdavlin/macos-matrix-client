@@ -5,11 +5,43 @@
 #endif
 import Foundation
 import Tokens
+import UI
 import ZMarkupParser
 
+/// Renders a message's HTML body.
+///
+/// `<img>` never reaches the HTML renderer (MATRIX-153). A custom emoticon
+/// (`data-mx-emoticon` with an `mxc://` source) becomes a fixed-size inline
+/// attachment that draws from `imageLoader`'s cache, or its alt text when the
+/// cache has no image. Every other `<img>` becomes its alt text. This
+/// function starts no load; `FormattedBodyText` does that.
 @MainActor
-public func parseFormattedBody(_ body: String, baseFontSize: CGFloat? = nil) -> NSAttributedString {
+public func parseFormattedBody(
+    _ body: String,
+    baseFontSize: CGFloat? = nil,
+    imageLoader: (any ImageLoader)? = nil
+) -> NSAttributedString {
     let baseFontSize = baseFontSize ?? CGFloat(TypographyToken.defaultBaseFontSize)
+    let rewritten = ImageTagRewriter.rewrite(body)
+    return EmoticonResolver.resolve(
+        renderHTML(rewritten.html, baseFontSize: baseFontSize),
+        sources: rewritten.emoticonSources,
+        baseFontSize: baseFontSize,
+        imageLoader: imageLoader
+    )
+}
+
+/// The `mxc://` sources of the custom emoticons in an HTML body, in document
+/// order, without duplicates.
+public func emoticonSources(inFormattedBody body: String) -> [String] {
+    var seen = Set<String>()
+    return ImageTagRewriter.rewrite(body).emoticonSources.filter { seen.insert($0).inserted }
+}
+
+/// The ZMarkupParser step. Internal so a test can hand it a raw `<img>` and
+/// prove that the renderer by itself makes no image attachment.
+@MainActor
+func renderHTML(_ body: String, baseFontSize: CGFloat) -> NSAttributedString {
     let headingParagraphSpacing = MarkupStyleParagraphStyle(
         // paragraphSpacing: 5,
         paragraphSpacingBefore: baseFontSize * TypographyToken.paragraphSpacingBeforeScale
@@ -17,6 +49,10 @@ public func parseFormattedBody(_ body: String, baseFontSize: CGFloat? = nil) -> 
 
     let parser = ZHTMLParserBuilder
         .initWithDefault()
+        // Replaces the default `IMG_HTMLTagName`, whose attachment downloads
+        // `src` with `URLSession.shared`. `ImageTagRewriter` removes every
+        // well-formed `<img>` first; this covers a tag it could not read.
+        .add(ExtendTagName("img"))
         .set(rootStyle: MarkupStyle(font: MarkupStyleFont(size: baseFontSize)))
         .add(
             H1_HTMLTagName(),

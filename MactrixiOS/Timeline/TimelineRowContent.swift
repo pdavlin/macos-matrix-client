@@ -114,7 +114,11 @@ struct TimelineRowContent: View {
                     if let media = textEvent?.media {
                         TimelineMediaView(media: media, context: context)
                     } else {
-                        TimelineFormattedText(text: textEvent?.body ?? "", html: textEvent?.formattedBody)
+                        TimelineFormattedText(
+                            text: textEvent?.body ?? "",
+                            html: textEvent?.formattedBody,
+                            imageLoader: context.imageLoader
+                        )
                     }
                     if case let .sendingFailed(message, _) = event.sendState {
                         UI.MessageSendFailureView(
@@ -335,12 +339,14 @@ struct TimelineCopyButton: View {
 struct TimelineFormattedText: View {
     let text: String
     let html: String?
+    /// Loads the custom emoticons of an HTML body (MATRIX-153).
+    let imageLoader: (any UI.ImageLoader)?
 
     @Environment(\.timelineTypography) private var typography
 
     var body: some View {
         if let html {
-            AttributedTextView(attributedString: parseFormattedBody(html, baseFontSize: typography.base))
+            FormattedBodyText(html: html, baseFontSize: typography.base, imageLoader: imageLoader)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
             Text(text)
@@ -387,7 +393,8 @@ private struct TimelineMessageBody: View {
         case let .text(content):
             TimelineFormattedText(
                 text: content.body,
-                html: content.formatted?.format == .html ? content.formatted?.body : nil
+                html: content.formatted?.format == .html ? content.formatted?.body : nil,
+                imageLoader: context.imageLoader
             )
         case let .notice(content):
             wrapped(content.body)
