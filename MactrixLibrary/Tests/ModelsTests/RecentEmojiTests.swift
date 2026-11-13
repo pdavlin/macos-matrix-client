@@ -85,4 +85,28 @@ struct RecentEmojiStoreTests {
         store.record("👀")
         #expect(store.quickReactionKeys == ["👀", "🙏", "😂"])
     }
+
+    /// MATRIX-155: every reaction toggle (picker, chip, hover row, menu)
+    /// records through this store, so the rule holds on every path.
+    @Test func aCustomEmojiKeyIsNeverRecorded() async throws {
+        let store = RecentEmojiStore()
+        #expect(!store.record("mxc://example.org/parrot"))
+        #expect(store.emojis.isEmpty)
+
+        try await store.loadIfNeeded { [RecentEmojiEntry(emoji: "😂", count: 3)] }
+        #expect(!store.record("mxc://example.org/parrot"))
+        #expect(store.record("🎉"))
+        #expect(store.emojis == ["🎉", "😂"])
+        #expect(!RecentEmojiList.isRecordable("mxc://example.org/parrot"))
+        #expect(RecentEmojiList.isRecordable("🎉"))
+    }
+
+    @Test func aCustomEmojiKeyInTheLoadedListIsLeftOut() async throws {
+        let store = RecentEmojiStore()
+        try await store.loadIfNeeded {
+            ["😂", "mxc://example.org/parrot", "🔥"].map { RecentEmojiEntry(emoji: $0, count: 1) }
+        }
+        #expect(store.emojis == ["😂", "🔥"])
+        #expect(store.quickReactionKeys == ["😂", "🔥", "👍"])
+    }
 }

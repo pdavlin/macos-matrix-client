@@ -130,6 +130,9 @@
     /// picker opens, and the body reads it through observation.
     private struct TimelineReactionPickerContent: View {
         let client: MatrixClient?
+        /// The room the reaction goes to. Its workspace's image packs are
+        /// the custom emoji of the picker (MATRIX-155).
+        let roomId: String
         let onClose: @MainActor () -> Void
         let onPick: @MainActor (String) -> Void
 
@@ -137,6 +140,8 @@
             UI.ReactionPickerView(
                 catalog: .bundled,
                 recents: client?.recentEmojis.emojis ?? [],
+                packs: client?.imagePacks.packs(forRoom: roomId) ?? [],
+                imageLoader: client,
                 onClose: onClose,
                 onPick: onPick
             )
@@ -148,6 +153,9 @@
         /// the source (one, or each member of a merged chat).
         func listenForReactionPickerRequests() {
             for timeline in source.actionTimelines {
+                // MATRIX-155: read the custom emoji of each room's workspace
+                // now, so the picker has them when it opens.
+                coordinator.appState.matrixClient?.loadImagePacks(forRoom: timeline.room.id)
                 listenForReactionPickerRequests(on: timeline)
             }
         }
@@ -235,9 +243,13 @@
             }
 
             let client = coordinator.appState.matrixClient
+            // Again here: the SDK finds no parent space for a room until its
+            // space graph is ready, and the store does not keep that answer.
+            client?.loadImagePacks(forRoom: timeline.room.id)
             let itemId = request.eventId
             let content = TimelineReactionPickerContent(
                 client: client,
+                roomId: timeline.room.id,
                 onClose: { [weak reactionPicker] in reactionPicker?.close() },
                 onPick: { emoji in
                     Task { await timeline.toggleReaction(key: emoji, on: itemId, recordingUseIn: client) }
