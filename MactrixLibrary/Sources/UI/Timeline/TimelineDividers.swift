@@ -1,3 +1,4 @@
+import Models
 import SwiftUI
 import Tokens
 
@@ -5,24 +6,12 @@ import Tokens
 // divider. Every divider row keeps the fixed `DensityToken.dividerHeight`,
 // so the row measurement does not change.
 
-/// The text a day pill shows for a date.
-enum DayDividerLabel {
-    /// "Today", "Yesterday", or the long date. The same rule the date
-    /// divider used before MATRIX-136, so the label does not change.
-    static func text(for date: Date, now: Date = .now) -> String {
-        let dayInSecs: Double = 60 * 60 * 24
-        if now.timeIntervalSince(date).isLess(than: dayInSecs) {
-            return String(localized: "Today")
-        } else if now.timeIntervalSince(date).isLess(than: dayInSecs * 2) {
-            return String(localized: "Yesterday")
-        } else {
-            return date.formatted(date: .long, time: .omitted)
-        }
-    }
-}
-
 /// A centered capsule with the date of a day. Opaque, never glass: it sits
 /// on the timeline.
+///
+/// MATRIX-157: the text comes from `Models.DayDividerLabel`, relative to
+/// `CurrentDay.shared`. The body reads that observable day, so a pill on
+/// screen changes its text when the day changes. Its height stays.
 public struct DayDividerPill: View {
     @Environment(\.displayScale) private var displayScale
     let date: Date
@@ -32,7 +21,7 @@ public struct DayDividerPill: View {
     }
 
     public var body: some View {
-        Text(DayDividerLabel.text(for: date))
+        Text(CurrentDay.shared.dividerLabel(for: date))
             .font(.system(size: TimelineChromeToken.dayPillFontSize, weight: .semibold))
             .lineLimit(1)
             .padding(.vertical, TimelineChromeToken.dayPillVerticalPadding)
