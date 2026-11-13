@@ -26,8 +26,12 @@ public extension MatrixClient {
 
     /// Records one use of `emoji`: the local list updates at once, and the
     /// SDK adds the use to the account's list in the background.
+    ///
+    /// A custom emoji (an `mxc://` key, MATRIX-155) is not recorded, on any
+    /// path: the rule is `RecentEmojiList.isRecordable(_:)`, and the store
+    /// answers false for such a key.
     func recordRecentEmoji(_ emoji: String) {
-        recentEmojis.record(emoji)
+        guard recentEmojis.record(emoji) else { return }
         guard let sdkClient: ClientProtocol = client else { return }
         Task {
             do {

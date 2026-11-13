@@ -32,6 +32,11 @@ public extension EmojiCatalog {
 /// AppKit `NSPopover` (MATRIX-138), where `dismiss` has no presentation to
 /// end, so it passes `onClose` to close the popover.
 ///
+/// In a chat of a workspace that has an image pack (MATRIX-155), the grid
+/// starts with the pack's custom emoji, drawn as images. The search also
+/// searches their shortcodes, and the arrow keys cross the pack's section as
+/// any other. A pick gives `onPick` the emoji's `mxc://` URI.
+///
 /// The picker offers the default (yellow) emoji only; skin tones are not in
 /// M2. The search and the arrow-key rules live in `Models.EmojiCatalog` and
 /// `Models.EmojiPickerContent`.
@@ -60,6 +65,9 @@ public struct ReactionPickerView: View {
 
     let catalog: EmojiCatalog
     let recents: [String]
+    /// The chat's image packs as grid sections, made once per `init`.
+    let packs: [ImagePackSection]
+    let imageLoader: ImageLoader?
     let onPick: @MainActor (String) -> Void
     let onClose: (@MainActor () -> Void)?
 
@@ -67,7 +75,7 @@ public struct ReactionPickerView: View {
     /// The arrowed grid index. Nil means the first entry.
     @State var selection: Int?
     /// The emoji under the pointer, for the highlight and the name line.
-    @State var hoveredValue: String?
+    @State var hovered: EmojiCatalog.Entry?
     @FocusState var isSearchFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
@@ -75,6 +83,11 @@ public struct ReactionPickerView: View {
     ///   - catalog: Every emoji, usually `EmojiCatalog.bundled`.
     ///   - recents: The account's recent emoji, most recent first. The top
     ///     row shows as many as fit.
+    ///   - packs: The custom emoji of the chat's workspace (MATRIX-155). Each
+    ///     pack is a section after the recent emoji and before the Unicode
+    ///     categories. A pick sends the emoji's `mxc://` URI. Empty shows no
+    ///     section.
+    ///   - imageLoader: Loads the images of `packs`.
     ///   - query: The starting search text. Snapshot tests set it.
     ///   - onClose: Closes the picker, after a pick and on Esc. Nil uses
     ///     the environment's `dismiss`, which ends a SwiftUI presentation.
@@ -82,12 +95,16 @@ public struct ReactionPickerView: View {
     public init(
         catalog: EmojiCatalog,
         recents: [String],
+        packs: [ImagePack] = [],
+        imageLoader: ImageLoader? = nil,
         query: String = "",
         onClose: (@MainActor () -> Void)? = nil,
         onPick: @escaping @MainActor (String) -> Void
     ) {
         self.catalog = catalog
         self.recents = recents
+        self.packs = packs.map(ImagePackSection.init)
+        self.imageLoader = imageLoader
         self.onClose = onClose
         self.onPick = onPick
         self._query = State(initialValue: query)
@@ -96,14 +113,16 @@ public struct ReactionPickerView: View {
     // MARK: - Derived state
 
     var gridContent: EmojiPickerContent {
-        EmojiPickerContent(catalog: catalog, query: query)
+        EmojiPickerContent(catalog: catalog, packs: packs, query: query)
     }
 
-    /// The recent emoji the top row shows: distinct, at most one row.
-    var recentRow: [String] {
-        var row: [String] = []
-        for emoji in recents where !emoji.isEmpty && !row.contains(emoji) {
-            row.append(emoji)
+    /// The recent emoji the top row shows: distinct, at most one row. An
+    /// image key that another client put in the shared list is left out: it
+    /// works only in the chats of its workspace.
+    var recentRow: [EmojiCatalog.Entry] {
+        var row: [EmojiCatalog.Entry] = []
+        for emoji in recents where !emoji.isEmpty && !ImagePack.isImageKey(emoji) && !row.contains(where: { $0.value == emoji }) {
+            row.append(catalog.entry(for: emoji) ?? EmojiCatalog.Entry(value: emoji, name: "", group: "", subgroup: ""))
             if row.count == Self.columns { break }
         }
         return row
@@ -114,7 +133,7 @@ public struct ReactionPickerView: View {
     public var body: some View {
         let visible: EmojiPickerContent = gridContent
         let selected: Int? = visible.effectiveSelection(selection)
-        let recentEmoji: [String] = recentRow
+        let recentEmoji: [EmojiCatalog.Entry] = recentRow
 
         VStack(alignment: .leading, spacing: 8) {
             if !recentEmoji.isEmpty {
@@ -133,12 +152,12 @@ public struct ReactionPickerView: View {
         #endif
     }
 
-    func recentsSection(_ emoji: [String]) -> some View {
+    func recentsSection(_ emoji: [EmojiCatalog.Entry]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             sectionTitle(Text("Recent"))
             HStack(spacing: 0) {
-                ForEach(emoji, id: \.self) { value in
-                    cell(value, name: catalog.entry(for: value)?.name, isSelected: false)
+                ForEach(emoji) { entry in
+                    cell(entry, isSelected: false)
                 }
             }
         }
@@ -187,7 +206,7 @@ public struct ReactionPickerView: View {
                     ForEach(content.sections) { section in
                         Section {
                             ForEach(Array(section.entries.enumerated()), id: \.element.id) { offset, entry in
-                                cell(entry.value, name: entry.name, isSelected: section.startIndex + offset == selected)
+                                cell(entry, isSelected: section.startIndex + offset == selected)
                             }
                         } header: {
                             if let title = section.title {
@@ -211,16 +230,15 @@ public struct ReactionPickerView: View {
         }
     }
 
-    /// The selected or pointed-at emoji and its CLDR name.
+    /// The selected or pointed-at emoji and its name: the CLDR name, or the
+    /// shortcode of a custom emoji.
     func nameLine(_ content: EmojiPickerContent, selected: Int?) -> some View {
-        let value: String? = hoveredValue ?? selected.map { content.entries[$0].value }
-        let name: String? = value.flatMap { catalog.entry(for: $0)?.name }
+        let entry: EmojiCatalog.Entry? = hovered ?? selected.map { content.entries[$0] }
         return HStack(spacing: 6) {
-            if let value {
-                Text(verbatim: value)
-                    .font(.system(size: Self.footerEmojiFontSize))
+            if let entry {
+                ReactionPickerGlyph(entry: entry, fontSize: Self.footerEmojiFontSize, imageLoader: imageLoader)
             }
-            if let name {
+            if let name = entry?.name, !name.isEmpty {
                 Text(verbatim: name)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -236,27 +254,29 @@ public struct ReactionPickerView: View {
             .foregroundStyle(.secondary)
     }
 
-    func cell(_ value: String, name: String?, isSelected: Bool) -> some View {
-        Button {
-            pick(value)
+    /// One emoji button. A custom emoji draws its image in the same cell as a
+    /// Unicode emoji, with the shortcode as tooltip and accessibility label.
+    func cell(_ entry: EmojiCatalog.Entry, isSelected: Bool) -> some View {
+        let label: String = entry.name.isEmpty ? entry.value : entry.name
+        return Button {
+            pick(entry.value)
         } label: {
-            Text(verbatim: value)
-                .font(.system(size: Self.emojiFontSize))
+            ReactionPickerGlyph(entry: entry, fontSize: Self.emojiFontSize, imageLoader: imageLoader)
                 .frame(width: Self.cellSize, height: Self.cellSize)
                 .background(
                     RoundedRectangle(cornerRadius: Self.cornerRadius)
-                        .fill(highlight(isSelected: isSelected, isHovered: hoveredValue == value))
+                        .fill(highlight(isSelected: isSelected, isHovered: hovered?.id == entry.id))
                 )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(name ?? value)
-        .accessibilityLabel(Text(verbatim: name ?? value))
+        .help(label)
+        .accessibilityLabel(Text(verbatim: label))
         .onHover { hovering in
             if hovering {
-                hoveredValue = value
-            } else if hoveredValue == value {
-                hoveredValue = nil
+                hovered = entry
+            } else if hovered?.id == entry.id {
+                hovered = nil
             }
         }
     }
@@ -297,7 +317,7 @@ extension ReactionPickerView {
         guard let current = visible.effectiveSelection(selection),
               let next = visible.index(after: move, from: current, columns: Self.columns)
         else { return .ignored }
-        hoveredValue = nil
+        hovered = nil
         selection = next
         return .handled
     }

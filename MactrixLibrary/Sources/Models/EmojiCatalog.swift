@@ -36,11 +36,22 @@ public struct EmojiCatalog: Equatable, Sendable {
         /// matches only these ranks below every name match.
         let keywords: [String]
 
-        public var id: String {
-            value
+        /// `value` for a Unicode emoji. An image-pack emoji has an id of its
+        /// own (`ImagePackSection`), because two shortcodes can share one image.
+        public let id: String
+
+        /// Whether the entry is a custom emoji: `value` is an `mxc://` URI
+        /// and `name` is the shortcode.
+        public var isImage: Bool {
+            ImagePack.isImageKey(value)
         }
 
         public init(value: String, name: String, group: String, subgroup: String) {
+            self.init(id: value, value: value, name: name, group: group, subgroup: subgroup)
+        }
+
+        init(id: String, value: String, name: String, group: String, subgroup: String) {
+            self.id = id
             self.value = value
             self.name = name
             self.group = group

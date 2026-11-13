@@ -33,6 +33,10 @@ public class MatrixClient {
     /// `MatrixClient+RecentEmoji.swift`.
     public let recentEmojis = RecentEmojiStore()
 
+    /// MATRIX-155: the custom emoji of the open chats' workspaces. See
+    /// `MatrixClient+ImagePacks.swift`.
+    public let imagePacks = ImagePackStore()
+
     public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase

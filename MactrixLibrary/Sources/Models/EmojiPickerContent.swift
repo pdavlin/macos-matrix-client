@@ -42,22 +42,35 @@ public struct EmojiPickerContent: Equatable, Sendable {
     /// Whether the content holds search results, not the whole catalog.
     public let isSearch: Bool
 
+    /// With image packs (MATRIX-155), an empty query shows one titled section
+    /// for each pack before the Unicode categories. A query shows the Unicode
+    /// results first, so Return still picks the best Unicode match, then one
+    /// titled section for each pack that has a match.
+    ///
     /// - Parameters:
     ///   - catalog: All emoji.
+    ///   - packs: The custom emoji of the chat, one section for each pack.
     ///   - query: The search text. Blank text shows the whole catalog.
-    public init(catalog: EmojiCatalog, query: String) {
+    public init(catalog: EmojiCatalog, packs: [ImagePackSection] = [], query: String) {
         let isSearch = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         var sections: [Section] = []
         var start = 0
+        func append(title: String?, entries: [EmojiCatalog.Entry]) {
+            guard !entries.isEmpty else { return }
+            sections.append(Section(title: title, entries: entries, startIndex: start))
+            start += entries.count
+        }
         if isSearch {
-            let results = catalog.search(query)
-            if !results.isEmpty {
-                sections.append(Section(title: nil, entries: results, startIndex: 0))
+            append(title: nil, entries: catalog.search(query))
+            for pack in packs {
+                append(title: pack.title, entries: pack.search(query))
             }
         } else {
+            for pack in packs {
+                append(title: pack.title, entries: pack.entries)
+            }
             for category in catalog.categories {
-                sections.append(Section(title: category.name, entries: category.entries, startIndex: start))
-                start += category.entries.count
+                append(title: category.name, entries: category.entries)
             }
         }
         self.sections = sections

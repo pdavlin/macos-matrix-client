@@ -19,6 +19,17 @@ public struct RecentEmojiEntry: Hashable, Sendable {
 
 /// The rules for the local copy of the recent-emoji list.
 public enum RecentEmojiList {
+    /// Whether a reaction key belongs in the recent list (MATRIX-155).
+    ///
+    /// A custom emoji (an `mxc://` key) does not: the list is account data
+    /// that every room and every client shares, and the key works only in
+    /// the chats of its workspace (contract §11, 2026-11-13, decision c).
+    /// `RecentEmojiStore` applies the rule to every use and to the loaded
+    /// list, so it holds for every path that toggles a reaction.
+    public static func isRecordable(_ key: String) -> Bool {
+        !key.isEmpty && !ImagePack.isImageKey(key)
+    }
+
     /// The list after one use of `emoji`.
     ///
     /// The emoji moves to the front and its count goes up by one; a new emoji
@@ -111,7 +122,9 @@ public final class RecentEmojiStore {
         guard phase == .notLoaded else { return }
         phase = .loading
         do {
-            let loaded = try await fetch()
+            // A custom key that an older build or another client wrote is
+            // left out: see `RecentEmojiList.isRecordable(_:)`.
+            let loaded = try await fetch().filter { RecentEmojiList.isRecordable($0.emoji) }
             entries = RecentEmojiList.merging(loaded: loaded, uses: usesBeforeLoad)
             usesBeforeLoad = []
             phase = .loaded
@@ -122,11 +135,20 @@ public final class RecentEmojiStore {
     }
 
     /// Records one use of `emoji` in the local list. The caller also sends
-    /// the use to the SDK.
-    public func record(_ emoji: String) {
-        entries = RecentEmojiList.recording(emoji, in: entries)
-        if phase != .loaded {
-            usesBeforeLoad.append(emoji)
+    /// the use to the SDK, if this returns true.
+    ///
+    /// - Returns: False for a key that does not belong in the list
+    ///   (`RecentEmojiList.isRecordable(_:)`): nothing is recorded, and the
+    ///   caller must not send the use to the SDK.
+    @discardableResult
+    public func record(_ emoji: String) -> Bool {
+        guard RecentEmojiList.isRecordable(emoji) else { return false }
+        defer {
+            if phase != .loaded {
+                usesBeforeLoad.append(emoji)
+            }
         }
+        entries = RecentEmojiList.recording(emoji, in: entries)
+        return true
     }
 }
