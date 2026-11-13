@@ -244,7 +244,8 @@ public struct MessageEventBodyView<
                         active: Binding(
                             get: { reactionIsActive(reaction) },
                             set: { if $0 != reactionIsActive(reaction) { actions.toggleReaction(key: reaction.key) } }
-                        )
+                        ),
+                        imageLoader: imageLoader
                     )
                 }
                 Spacer()

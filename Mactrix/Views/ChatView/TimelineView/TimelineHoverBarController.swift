@@ -30,6 +30,7 @@ extension TimelineViewController {
     /// scroll view is the controller's view.
     func installHoverBar() {
         hoverBar.install(in: scrollView.contentView)
+        hoverBar.imageLoader = coordinator.appState.matrixClient
         hoverBar.tracker.onMove = { [weak self] windowPoint in
             self?.hoverBarPointerMoved(toWindowPoint: windowPoint)
         }

@@ -12,7 +12,9 @@ public enum MessageActionPresentation {
         switch action {
         case .reply: "Reply"
         case .replyInThread: "Reply in Thread"
-        case let .toggleReaction(key): "\(key)"
+        // A menu title is text. An image key shows a name in place of the
+        // `mxc://` string (MATRIX-154).
+        case let .toggleReaction(key): ReactionKeyKind(key: key).isImage ? "Custom Emoji" : "\(key)"
         case .openReactionPicker: "Add Reaction…"
         case .edit: "Edit"
         case .forward: "Forward…"

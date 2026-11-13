@@ -60,11 +60,17 @@ struct HoverActionBarContent: View {
     let items: [MessageActionItem]
     let perform: @MainActor (MessageAction) -> Void
 
+    /// Loads the image of a custom emoji quick reaction.
+    @Environment(\.timelineImageLoader) private var imageLoader
+
     private func button(for item: MessageActionItem) -> some View {
         HoverButton(
             icon: {
                 if let systemImage = MessageActionPresentation.systemImage(of: item.action) {
                     Image(systemName: systemImage)
+                } else if case let .toggleReaction(key) = item.action, ReactionKeyKind(key: key).isImage {
+                    // A custom emoji from the recent list (MATRIX-154).
+                    ReactionKeyLabel(key: key, imageLoader: imageLoader)
                 } else {
                     Text(MessageActionPresentation.title(of: item.action))
                 }

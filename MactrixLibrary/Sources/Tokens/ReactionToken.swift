@@ -22,4 +22,19 @@ public enum ReactionToken {
     /// The opacity of a quick-reaction emoji in the hover action bar while the
     /// pointer is not over it.
     public static let quickReactionRestingOpacity: Double = 0.7
+
+    /// The glyph whose box a custom emoji image takes (MATRIX-154). The chip
+    /// draws it hidden in the current font, so an image key has the size of
+    /// an emoji key at every font size.
+    public static let imageSizeReference = "\u{1F44D}"
+
+    /// Corner radius of the neutral square a custom emoji shows while its
+    /// image loads.
+    public static let imagePlaceholderCornerRadius: CGFloat = 3
+
+    /// Opacity of that square's gray fill.
+    public static let imagePlaceholderOpacity: Double = 0.3
+
+    /// The SF Symbol a custom emoji shows when its image does not load.
+    public static let imageFailedSystemImage = "face.dashed"
 }
