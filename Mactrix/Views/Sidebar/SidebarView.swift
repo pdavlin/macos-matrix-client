@@ -157,7 +157,13 @@ struct SidebarView: View {
 
     private var chatList: some View {
         @Bindable var windowState = windowState
-        let chats = Self.visibleChatList(client: appState.matrixClient, windowState: windowState)
+        // MATRIX-157: the observed clock makes the row timestamps change
+        // bucket when the day changes, not only when a room changes.
+        let chats = Self.visibleChatList(
+            client: appState.matrixClient,
+            windowState: windowState,
+            now: CurrentDay.shared.observedNow
+        )
         let favorites = chats.visible.favorites
         let inbox = chats.visible.list
         let selectedItemId = windowState.chatSelection?.itemId
