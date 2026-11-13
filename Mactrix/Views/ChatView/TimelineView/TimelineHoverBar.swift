@@ -31,6 +31,10 @@ struct TimelineHoverBarRoot: View {
     /// The timeline's base font size. The bar's emoji and symbols draw at
     /// it, as they did inside the row.
     let fontSize: CGFloat
+    /// Loads the image of a custom emoji quick reaction (MATRIX-154). The
+    /// bar has its own hosting view, so the app's environment does not
+    /// reach it.
+    var imageLoader: (any UI.ImageLoader)?
     let perform: @MainActor (MessageAction) -> Void
 
     /// The root before the bar first shows.
@@ -45,12 +49,15 @@ struct TimelineHoverBarRoot: View {
     /// The same bar, revealed or not. The identity stays, so a hide fades
     /// out in place.
     func revealed(_ isRevealed: Bool) -> TimelineHoverBarRoot {
-        TimelineHoverBarRoot(rowId: rowId, items: items, isRevealed: isRevealed, fontSize: fontSize, perform: perform)
+        TimelineHoverBarRoot(
+            rowId: rowId, items: items, isRevealed: isRevealed, fontSize: fontSize, imageLoader: imageLoader, perform: perform
+        )
     }
 
     var body: some View {
         HoverActionBar(items: items, isRevealed: isRevealed, perform: perform)
             .font(.system(size: fontSize))
+            .environment(\.timelineImageLoader, imageLoader)
             .id(rowId)
             .padding(HoverActionBarGeometry.hostMargin)
     }
@@ -102,6 +109,10 @@ final class TimelineHoverTracker: NSResponder {
 final class TimelineHoverBarOverlay {
     let host = TimelineHoverBarHostingView(rootView: .idle)
     let tracker = TimelineHoverTracker()
+
+    /// Loads the image of a custom emoji quick reaction (MATRIX-154). The
+    /// controller sets it when it installs the bar.
+    var imageLoader: (any UI.ImageLoader)?
 
     /// What the bar shows for. Row IDs are `TimelineRow.uniqueId`.
     var state = TimelineHoverBarState<String>()
@@ -176,7 +187,9 @@ final class TimelineHoverBarOverlay {
         placedRowId = rowId
         placedTargetKey = targetKey
         barSize = HoverActionBarGeometry.barSize(for: items)
-        root = TimelineHoverBarRoot(rowId: rowId, items: items, isRevealed: true, fontSize: fontSize, perform: perform)
+        root = TimelineHoverBarRoot(
+            rowId: rowId, items: items, isRevealed: true, fontSize: fontSize, imageLoader: imageLoader, perform: perform
+        )
         host.isHidden = false
         host.rootView = root
     }

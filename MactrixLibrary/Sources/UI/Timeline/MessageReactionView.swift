@@ -83,12 +83,20 @@ private struct ReactionChip<Label: View>: View {
 public struct MessageReactionView<Reaction: Models.Reaction>: View {
     let reaction: Reaction
     let active: Binding<Bool>
+    let imageLoader: ImageLoader?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    public init(reaction: Reaction, active: Binding<Bool>) {
+    /// - Parameters:
+    ///   - reaction: The reaction the chip shows.
+    ///   - active: Whether the account's own user is a sender. A set toggles
+    ///     the reaction with the same key.
+    ///   - imageLoader: Loads the image of an `mxc://` key (MATRIX-154). Nil
+    ///     draws the generic glyph for such a key.
+    public init(reaction: Reaction, active: Binding<Bool>, imageLoader: ImageLoader? = nil) {
         self.reaction = reaction
         self.active = active
+        self.imageLoader = imageLoader
     }
 
     var helpText: String {
@@ -106,7 +114,7 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
     public var body: some View {
         Toggle(isOn: active, label: {
             HStack(spacing: 0) {
-                Text(reaction.key)
+                ReactionKeyLabel(key: reaction.key, imageLoader: imageLoader)
                 countLabel
                     .padding(.horizontal, DensityToken.reactionCountPadding)
             }
