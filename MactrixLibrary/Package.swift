@@ -44,6 +44,8 @@ let package = Package(
             name: "UITests",
             dependencies: [
                 "UI",
+                // MATRIX-153: the body emoticon tests draw a message row.
+                "MessageFormatting",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
             ],
             resources: [.copy("__Snapshots__")]
@@ -61,6 +63,8 @@ let package = Package(
             dependencies: [
                 "ZMarkupParser",
                 "Tokens",
+                // MATRIX-153: the `ImageLoader` protocol, for body emoticons.
+                "UI",
             ]
         ),
         .target(name: "Tokens"),
