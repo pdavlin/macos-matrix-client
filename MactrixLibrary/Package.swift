@@ -63,6 +63,8 @@ let package = Package(
             dependencies: [
                 "ZMarkupParser",
                 "Tokens",
+                // MATRIX-162: the `<img>` reader, shared with `JumboEmoji`.
+                "Models",
                 // MATRIX-153: the `ImageLoader` protocol, for body emoticons.
                 "UI",
             ]

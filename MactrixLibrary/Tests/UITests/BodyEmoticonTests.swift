@@ -309,10 +309,4 @@ struct BodyEmoticonTests {
         }
         return nil
     }
-
-    /// A body of only custom emoticons is not a jumbo-emoji message
-    /// (MATRIX-137 covers Unicode emoji only).
-    @Test func emoticonOnlyBodyIsNotJumbo() {
-        #expect(Models.JumboEmoji.jumboText(body: ":partyparrot:", formattedBody: Self.parrot) == nil)
-    }
 }

@@ -118,6 +118,11 @@ public struct MessageBodyGeometry: Equatable, Sendable {
     /// The second text run the branch draws under the first: a media caption,
     /// or a location's geo URI. Wraps like any other text.
     public let secondaryText: String?
+    /// Whether a `"text"` body draws as jumbo emoji, and how (MATRIX-137,
+    /// MATRIX-162). Decided here, once for each mapped item, from `text` and
+    /// `formattedText`; the row view reads it and does not decide again. Nil
+    /// for body size and for every other variant.
+    public let jumboEmoji: JumboEmoji.Kind?
 
     public init(
         variant: String,
@@ -132,6 +137,7 @@ public struct MessageBodyGeometry: Equatable, Sendable {
         self.variant = variant
         self.text = text
         self.formattedText = formattedText
+        jumboEmoji = variant == "text" ? JumboEmoji.kind(body: text, formattedBody: formattedText) : nil
         self.isEdited = isEdited
         self.mediaWidth = mediaWidth
         self.mediaHeight = mediaHeight

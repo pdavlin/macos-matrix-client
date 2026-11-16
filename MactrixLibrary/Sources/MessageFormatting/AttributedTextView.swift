@@ -83,17 +83,20 @@ import SwiftUI
 #endif
 
 extension NSAttributedString {
+    /// The string without leading and trailing whitespace.
+    ///
+    /// The range is in UTF-16 units, which is what `NSRange` counts. A count
+    /// of `Character`s is shorter by one for each emoji outside the BMP, and
+    /// cut that many units off the end (MATRIX-162).
     var trimmed: NSAttributedString {
+        let text = string as NSString
         let nonWhitespaces = CharacterSet.whitespacesAndNewlines.inverted
-        let startRange = string.rangeOfCharacter(from: nonWhitespaces)
-        let endRange = string.rangeOfCharacter(from: nonWhitespaces, options: .backwards)
-        guard let startLocation = startRange?.upperBound, let endLocation = endRange?.lowerBound else {
+        let first = text.rangeOfCharacter(from: nonWhitespaces)
+        let last = text.rangeOfCharacter(from: nonWhitespaces, options: .backwards)
+        guard first.location != NSNotFound, last.location != NSNotFound else {
             return self
         }
-        let location = string.distance(from: string.startIndex, to: startLocation) - 1
-        let length = string.distance(from: startLocation, to: endLocation) + 2
-        let range = NSRange(location: location, length: length)
-
-        return attributedSubstring(from: range)
+        let end = last.location + last.length
+        return attributedSubstring(from: NSRange(location: first.location, length: end - first.location))
     }
 }

@@ -25,6 +25,10 @@ struct ChatMessageView: View, UI.MessageEventActions {
     /// The row's place in its run (MATRIX-68), drawn through the same
     /// `UI.MessageRunRow` the app uses.
     let grouping: Models.TimelineRowGrouping
+    /// The body of the row's height fingerprint (MATRIX-162). The app reads
+    /// the jumbo emoji decision from it. The stand-in body is plain text, so
+    /// it is taken for the signature only.
+    var bodyGeometry: Models.MessageBodyGeometry?
 
     // The row's hover buttons call these. Nothing is sent anywhere; the point
     // of building them is that the buttons exist in the measured view tree.

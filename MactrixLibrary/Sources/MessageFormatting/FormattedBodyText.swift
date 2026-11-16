@@ -1,4 +1,5 @@
 import SwiftUI
+import Tokens
 import UI
 
 /// A message's HTML body, with its custom emoticons (MATRIX-153).
@@ -9,12 +10,17 @@ import UI
 /// arrival draws the body again in place. The squares do not change size, so
 /// the height is the same before and after.
 ///
+/// A jumbo body (MATRIX-162) draws at `TypographyToken.jumboEmojiSize` in
+/// place of the base size. Each emoticon square takes its side from the font
+/// around it, so the image and its alt text grow with the Unicode emoji.
+///
 /// The same task reports the body's emoticons through `onEmoticons`
 /// (MATRIX-161), from the one parse that finds the images to load. The app
 /// records them as the learned emoji of the chat's workspace.
 public struct FormattedBodyText: View {
     let html: String
     let baseFontSize: CGFloat
+    let isJumbo: Bool
     let imageLoader: (any ImageLoader)?
     let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
 
@@ -25,17 +31,21 @@ public struct FormattedBodyText: View {
     /// - Parameters:
     ///   - html: The formatted body.
     ///   - baseFontSize: The body text size.
+    ///   - isJumbo: True for a body that `Models.JumboEmoji.kind` finds to be
+    ///     `.formatted`. The body then draws at the jumbo emoji size.
     ///   - imageLoader: Loads the emoticon images. Nil draws the alt texts.
     ///   - onEmoticons: Takes the body's emoticons when the body shows, and
     ///     again when the body changes. Not called for a body with none.
     public init(
         html: String,
         baseFontSize: CGFloat,
+        isJumbo: Bool = false,
         imageLoader: (any ImageLoader)?,
         onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil
     ) {
         self.html = html
         self.baseFontSize = baseFontSize
+        self.isJumbo = isJumbo
         self.imageLoader = imageLoader
         self.onEmoticons = onEmoticons
     }
@@ -43,7 +53,11 @@ public struct FormattedBodyText: View {
     /// Takes the arrival count so that `body` depends on it. The cache, not
     /// the count, decides what each emoticon draws.
     private func attributedBody(arrivals _: Int) -> NSAttributedString {
-        parseFormattedBody(html, baseFontSize: baseFontSize, imageLoader: imageLoader)
+        parseFormattedBody(
+            html,
+            baseFontSize: isJumbo ? TypographyToken.jumboEmojiSize : baseFontSize,
+            imageLoader: imageLoader
+        )
     }
 
     public var body: some View {
