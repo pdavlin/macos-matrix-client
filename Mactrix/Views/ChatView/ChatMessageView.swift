@@ -18,6 +18,9 @@ struct ChatMessageView: View, UI.MessageEventActions {
     /// The row's place in its run (MATRIX-68): whether it draws the profile
     /// header, and the rhythm gap above it.
     let grouping: Models.TimelineRowGrouping
+    /// The body of the row's height fingerprint, when the caller has one
+    /// (MATRIX-162). It holds the jumbo emoji decision, made at map time.
+    var bodyGeometry: Models.MessageBodyGeometry?
 
     var name: String {
         if case let .ready(displayName, _, _) = event.senderProfileDetails, let displayName = displayName {
@@ -178,7 +181,12 @@ struct ChatMessageView: View, UI.MessageEventActions {
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         case let .text(content: content):
-            FormattedBodyView(messageContent: content, imageLoader: appState.matrixClient, onEmoticons: learnEmoticons)
+            FormattedBodyView(
+                messageContent: content,
+                bodyGeometry: bodyGeometry,
+                imageLoader: appState.matrixClient,
+                onEmoticons: learnEmoticons
+            )
         case let .location(content: content):
             Text("Location: \(content.body) \(content.geoUri)").textSelection(.enabled)
         case let .other(msgtype: msgtype, body: body):

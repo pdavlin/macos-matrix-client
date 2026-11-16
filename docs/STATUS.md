@@ -45,7 +45,9 @@ Timeline
 - Day dividers compare calendar days ("Today", "Yesterday", then the long
   date) and update when the day changes (MATRIX-157).
 - Slack custom emoji draw in message bodies at the line height. The alt text
-  shows until the image loads (MATRIX-153).
+  shows until the image loads (MATRIX-153). A message of only custom emoji,
+  or of custom and Unicode emoji, 1 to 9 in total, draws them at the jumbo
+  size (MATRIX-162).
 - An `<img>` tag that is not an emoticon shows its alt text only. No `<img>`
   starts a remote request (MATRIX-153).
 - A reaction with an `mxc://` key draws as its image in the chip and in the
@@ -53,7 +55,8 @@ Timeline
 - Back-pagination. Unable-to-decrypt and error rows.
 - Inline images and video, Quick Look, save to Downloads.
 - Threads and pins in the inspector (inherited from Mactrix).
-- Jumbo emoji: 1 to 9 emoji alone render at 40 pt (MATRIX-137).
+- Jumbo emoji: 1 to 9 emoji alone render at 40 pt (MATRIX-137). A custom
+  emoji counts as an emoji (MATRIX-162). Mac only.
 - A jumped-to message flashes. An accent "New" divider glows, then dims.
   Capsule day dividers with a sticky copy at the top while you scroll
   (MATRIX-136).
@@ -154,6 +157,7 @@ Tooling
 | MATRIX-147, 148, 149 | Smoke the merged-chat member labels and workspace icons on real bridged chats, the Edit menu, and the merged-chat inspector |
 | MATRIX-150, 157 | Smoke the pinned grid spacing and the day dividers on the running app |
 | MATRIX-153, 154, 155 | Smoke Slack custom emoji in message bodies, reaction chips, and the reaction picker |
+| MATRIX-162 | Smoke a Slack message of only custom emoji: it draws large, and the row does not move when the images load |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |

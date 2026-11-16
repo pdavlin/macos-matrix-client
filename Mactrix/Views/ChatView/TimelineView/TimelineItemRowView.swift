@@ -55,7 +55,13 @@ struct TimelineItemRowView: View {
                 // The grouping rides in the fingerprint so a change to it is a
                 // height change the cache sees (MATRIX-68). The container
                 // derives it; the view only draws it.
-                ChatMessageView(timeline: timeline, event: event, msg: content, grouping: fingerprint.grouping)
+                ChatMessageView(
+                    timeline: timeline,
+                    event: event,
+                    msg: content,
+                    grouping: fingerprint.grouping,
+                    bodyGeometry: fingerprint.body
+                )
             } else {
                 logAndShow("Message", log: "Message row did not resolve to an SDK event with msg-like content")
             }

@@ -12,6 +12,10 @@ import Foundation
 /// joined by ZWJ, a flag, a keycap, and a thumb with a skin tone each count
 /// as one, which is how a reader counts them.
 ///
+/// A custom emoticon counts as one emoji (MATRIX-162). It exists only in the
+/// HTML body, as an `<img>` that `EmoticonImageTag` accepts, so a message with
+/// an HTML body is judged on that body: see `kind(body:formattedBody:)`.
+///
 /// Only the body decides. A reply qualifies like any other message, because
 /// the reply preview is drawn from the replied-to event, not from this body.
 /// An edited message is judged on the content the SDK reports, which is the
@@ -31,7 +35,125 @@ public enum JumboEmoji {
     /// REGIONAL INDICATOR SYMBOL LETTER A to Z. Two of them make a flag.
     private static let regionalIndicators: ClosedRange<UInt32> = 0x1F1E6 ... 0x1F1FF
 
-    /// The text a jumbo body draws, or nil when the body is not jumbo.
+    /// How a jumbo body draws.
+    public enum Kind: Equatable, Sendable {
+        /// Unicode emoji only, and no markup: the plain body draws large
+        /// (`jumboText(body:formattedBody:)` gives the text).
+        case text
+        /// An HTML body of only emoji, custom emoticons among them or with
+        /// markup that carries no text: the HTML body draws at the jumbo size.
+        case formatted
+    }
+
+    /// The tags a jumbo HTML body may hold besides the emoticon `<img>`. None
+    /// of them draws text. Each must have no attribute.
+    private static let textlessTags = ["p", "/p", "br", "span", "/span", "/img"]
+
+    /// Whether a text message draws jumbo, and how. Nil means body size.
+    ///
+    /// - With no HTML body, the plain body decides (`isEmojiOnly`).
+    /// - With an HTML body equal to the plain body, the same, as before
+    ///   MATRIX-162.
+    /// - With any other HTML body, that body decides
+    ///   (`isEmojiOnly(formattedBody:)`). The plain body does not: for a
+    ///   bridged custom emoji it holds `:name:`, which is text.
+    ///
+    /// The answer comes from the two bodies alone, before any image loads.
+    /// `MessageBodyGeometry` asks once for each mapped item and stores it.
+    ///
+    /// ```swift
+    /// JumboEmoji.kind(body: "👍", formattedBody: nil) // .text
+    /// JumboEmoji.kind(body: ":parrot:", formattedBody: #"<img data-mx-emoticon src="mxc://a/b" alt=":parrot:">"#) // .formatted
+    /// JumboEmoji.kind(body: ":parrot:", formattedBody: nil) // nil
+    /// ```
+    public static func kind(body: String, formattedBody: String?) -> Kind? {
+        if jumboText(body: body, formattedBody: formattedBody) != nil {
+            return .text
+        }
+        if let formattedBody, isEmojiOnly(formattedBody: formattedBody) {
+            return .formatted
+        }
+        return nil
+    }
+
+    /// Whether an HTML body holds only emoji and whitespace, with 1 to
+    /// `maximumCount` emoji, where an emoji is a Unicode emoji or a custom
+    /// emoticon `<img>`.
+    ///
+    /// The body qualifies when every piece of it is one of these:
+    /// - an `<img>` that `EmoticonImageTag` accepts as a custom emoticon,
+    /// - a Unicode emoji (`isEmoji`),
+    /// - whitespace,
+    /// - `<p>`, `</p>`, `<br>`, `<span>`, `</span>`, or `</img>`, with no
+    ///   attribute (`<br/>` is fine).
+    ///
+    /// Anything else means false: other text, a character entity, any other
+    /// tag, an `<img>` that is not a custom emoticon, a `<span>` with an
+    /// attribute (it can be a spoiler), a `<` with no `>`.
+    ///
+    /// One pass, and it stops at the first piece that does not qualify, so a
+    /// prose message costs a tag or two and one character. Only an `<img>`
+    /// runs the tag reader's regular expressions, at most `maximumCount + 1`
+    /// times.
+    public static func isEmojiOnly(formattedBody html: String) -> Bool {
+        var emojiCount = 0
+        var index = html.startIndex
+        while index < html.endIndex {
+            let character = html[index]
+            if character == "<" {
+                guard let end = html[index...].firstIndex(of: ">") else { return false }
+                let tag = html[index ... end]
+                index = html.index(after: end)
+                if isTextlessTag(tag) {
+                    continue
+                }
+                guard isEmoticonTag(tag) else { return false }
+            } else {
+                index = html.index(after: index)
+                if character.isWhitespace {
+                    continue
+                }
+                guard isEmoji(character) else { return false }
+            }
+            emojiCount += 1
+            if emojiCount > maximumCount {
+                return false
+            }
+        }
+        return emojiCount > 0
+    }
+
+    /// Whether `tag`, from `<` to `>`, is one of `textlessTags`. Compared as
+    /// UTF-8 bytes, because this runs for the first tag of every HTML body.
+    private static func isTextlessTag(_ tag: Substring) -> Bool {
+        var name = tag.utf8.dropFirst().dropLast()
+        // `<br/>`, `<br />`, `<p >`.
+        while let last = name.last, last == UInt8(ascii: "/") || isASCIIWhitespace(last), name.count > 1 {
+            name = name.dropLast()
+        }
+        return textlessTags.contains { $0.utf8.elementsEqual(name.lazy.map(asciiLowercased)) }
+    }
+
+    private static func isASCIIWhitespace(_ byte: UInt8) -> Bool {
+        byte == 0x20 || (0x09 ... 0x0D).contains(byte)
+    }
+
+    private static func asciiLowercased(_ byte: UInt8) -> UInt8 {
+        (UInt8(ascii: "A") ... UInt8(ascii: "Z")).contains(byte) ? byte | 0x20 : byte
+    }
+
+    /// Whether `tag`, from `<` to `>`, is a custom emoticon `<img>`.
+    ///
+    /// A tag that holds one of the body renderer's two marker characters
+    /// (U+FFF9, U+FFFB) does not count: the renderer removes them before it
+    /// reads the tag, so it could read another name than this does.
+    private static func isEmoticonTag(_ tag: Substring) -> Bool {
+        guard "img".utf8.elementsEqual(tag.utf8.dropFirst().prefix(3).lazy.map(asciiLowercased)) else { return false }
+        guard !tag.unicodeScalars.contains(where: { $0 == "\u{FFF9}" || $0 == "\u{FFFB}" }) else { return false }
+        return EmoticonImageTag.isEmoticon(tag: String(tag))
+    }
+
+    /// The text a jumbo body draws, or nil when the body is not jumbo text.
     ///
     /// The returned text is the body without leading or trailing whitespace,
     /// so a stray trailing newline cannot add an empty 40 pt line.
@@ -41,8 +163,9 @@ public enum JumboEmoji {
     ///   - formattedBody: the HTML body, when the message has one. A message
     ///     with an HTML body qualifies only when that body is the same text as
     ///     the plain body (after trimming). Any markup, link, or custom emoji
-    ///     image makes it differ, and it then renders as formatted text.
-    /// - Returns: the trimmed body when it is jumbo, else nil.
+    ///     image makes it differ, and it then renders as formatted text, which
+    ///     `kind(body:formattedBody:)` can still find to be jumbo.
+    /// - Returns: the trimmed body when it is jumbo text, else nil.
     ///
     /// ```swift
     /// JumboEmoji.jumboText(body: " 👍🏽 ", formattedBody: nil) // "👍🏽"
@@ -121,15 +244,14 @@ public enum JumboEmoji {
 }
 
 public extension MessageBodyGeometry {
-    /// Whether this body draws as jumbo emoji (MATRIX-137).
+    /// Whether this body draws as jumbo emoji (MATRIX-137, MATRIX-162).
     ///
     /// A jumbo body is taller than the same text at body size, so the flip is
-    /// a height change. It needs no field of its own in the fingerprint: the
-    /// rule reads only `variant`, `text`, and `formattedText`, and those are
-    /// already compared, so a body cannot flip between jumbo and not while its
-    /// fingerprint stays equal. An edit from "👍" to "ok 👍" changes `text`,
-    /// and the row is measured again.
+    /// a height change. `jumboEmoji` is derived from `variant`, `text`, and
+    /// `formattedText` alone, so a body cannot flip between jumbo and not
+    /// while those three stay equal. An edit from "👍" to "ok 👍" changes
+    /// `text`, and the row is measured again.
     var isJumboEmoji: Bool {
-        variant == "text" && JumboEmoji.jumboText(body: text, formattedBody: formattedText) != nil
+        jumboEmoji != nil
     }
 }
