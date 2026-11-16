@@ -47,7 +47,7 @@ struct ChatInputView: View {
             return
         }
         guard !chatInput.isEmpty else { return }
-        guard let innerTimeline = timeline.timeline else { return }
+        guard timeline.timeline != nil else { return }
 
         // MATRIX-105 (D-6): chips become pill links in the markdown, and the
         // mentioned users go into `m.mentions`.
@@ -61,11 +61,10 @@ struct ChatInputView: View {
             : markdownContent.withMentions(mentions: MatrixRustSDK.Mentions(userIds: outgoing.mentionedUserIds, room: false))
 
         do {
-            if let replyTo {
-                _ = try await innerTimeline.sendReply(msg: msg, eventId: replyTo.eventOrTransactionId.id)
-            } else {
-                _ = try await innerTimeline.send(msg: msg)
-            }
+            // MATRIX-169: `Models.ReplyRoute` says if a reply goes into a
+            // thread; the timeline sends it through the SDK timeline of
+            // that destination.
+            guard try await timeline.send(msg, replyingTo: replyTo) else { return }
         } catch {
             // The message never reached the send queue, so no local echo will
             // carry a retry affordance. Keep the input so nothing is lost.
@@ -88,15 +87,18 @@ struct ChatInputView: View {
         isSendingMedia = true
         defer { isSendingMedia = false }
 
+        // MATRIX-169: the same route as a text reply.
+        let route = replyTo.map { timeline.replyRoute(to: $0) }
         let measured = await attachments.measuredAttachments()
         guard let request = MediaSendRequest.make(
             attachments: measured,
             draftText: chatInput,
-            inReplyTo: replyTo?.eventOrTransactionId.id
+            inReplyTo: route?.inReplyTo
         ) else { return }
 
         do {
-            try timeline.sendMedia(request)
+            let sendTimeline = try await timeline.sdkTimeline(for: route)
+            try timeline.sendMedia(request, on: sendTimeline)
         } catch {
             // The send never started, so keep the attachments and the text.
             Logger.viewCycle.error("failed to start media send: \(error)")

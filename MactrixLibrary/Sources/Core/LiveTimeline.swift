@@ -163,18 +163,7 @@ public final class LiveTimeline {
             TimelineFocus.live(hideThreadedEvents: true)
         }
 
-        let config = TimelineConfiguration(
-            focus: focus,
-            filter: .all,
-            internalIdPrefix: nil,
-            dateDividerMode: .daily,
-            trackReadReceipts: .allEvents,
-            // Forward this timeline's UTDs to the client's delegate
-            // (`UtdReporter`), so a failure to decrypt is recorded with the
-            // cause the crypto layer assigns it instead of being silent.
-            reportUtds: true
-        )
-        timeline = try await room.room.timelineWithConfiguration(configuration: config)
+        timeline = try await room.room.timelineWithConfiguration(configuration: Self.configuration(focus: focus))
 
         await listenToTimelineChanges()
         fetchMissingSenderProfiles()
@@ -221,7 +210,10 @@ public final class LiveTimeline {
         if threadId == nil {
             paginateHandle = try await timeline.subscribeToBackPaginationStatus(listener: listener)
         } else {
-            // if in a thread, instead push one initial status manually to kick off message fetching
+            // A thread timeline has no status to subscribe to (the SDK
+            // refuses the call on a focused timeline). One initial status
+            // starts the first fetch. After that, `fetchOlderMessages` sets
+            // the status from the result of each pagination (MATRIX-169).
             listener.publishValue(.idle(hitTimelineStart: false))
         }
 
@@ -257,9 +249,23 @@ public final class LiveTimeline {
         }
 
         Logger.liveTimeline.info("fetch more messages")
+        // A thread timeline gets no status from the SDK, so this call owns
+        // the status there: it stops a second call while one runs, and it
+        // records the start of the thread so a later scroll does not ask
+        // again (MATRIX-169).
+        let ownsStatus = focusedThreadId != nil
+        if ownsStatus {
+            paginating = .paginating
+        }
         do {
-            _ = try await timeline?.paginateBackwards(numEvents: 100)
+            let hitStart = try await timeline?.paginateBackwards(numEvents: 100)
+            if ownsStatus {
+                paginating = .idle(hitTimelineStart: hitStart ?? false)
+            }
         } catch {
+            if ownsStatus {
+                paginating = .idle(hitTimelineStart: false)
+            }
             Logger.liveTimeline.error("failed to fetch older messages: \(String(describing: error), privacy: .public)")
             paginationFailure = error.localizedDescription
         }

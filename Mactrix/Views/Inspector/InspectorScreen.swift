@@ -37,7 +37,12 @@ struct InspectorScreen: View {
                         windowState.inspectorContent = .roomInfo
                     }
                 }
+                // One timeline container for each thread timeline. The
+                // container keeps the source it was made with, so with no
+                // identity a second thread shows the rows of the first
+                // (MATRIX-169).
                 ChatView(timeline: thread)
+                    .id(ObjectIdentifier(thread))
             }
             .inspectorColumnWidth(min: 200, ideal: 400, max: nil)
         case .roomInfo:

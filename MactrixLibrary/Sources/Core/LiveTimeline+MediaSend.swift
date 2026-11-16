@@ -20,14 +20,18 @@ public extension LiveTimeline {
     /// The send queue owns the media from here: the local echo shows the
     /// upload, and a failure shows on the echo with retry and discard.
     ///
-    /// - Parameter request: the attachments, the caption, and the reply
-    ///   target.
+    /// - Parameters:
+    ///   - request: the attachments, the caption, and the reply target.
+    ///   - sendTimeline: the SDK timeline that sends, from
+    ///     `sdkTimeline(for:)` (MATRIX-169: media for a thread goes out
+    ///     through a timeline with the focus on that thread). Nil uses this
+    ///     timeline's own.
     /// - Returns: the ticket for the send. `mediaSends.cancel(_:)` cancels it.
     /// - Throws: `MediaSendError.timelineUnavailable`, or the SDK error if the
     ///   send could not start (for example, a file the SDK cannot read).
     @discardableResult
-    func sendMedia(_ request: MediaSendRequest) throws -> MediaSendTicket {
-        guard let timeline else { throw MediaSendError.timelineUnavailable }
+    func sendMedia(_ request: MediaSendRequest, on sendTimeline: Timeline? = nil) throws -> MediaSendTicket {
+        guard let timeline = sendTimeline ?? timeline else { throw MediaSendError.timelineUnavailable }
 
         let caption = request.caption?.markdown
         let mentions = request.caption.flatMap { caption in

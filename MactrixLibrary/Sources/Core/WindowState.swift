@@ -183,6 +183,11 @@ public final class WindowState {
         guard case let .joinedRoom(timeline: roomTimeline) = selectedScreen else { return }
 
         inspectorVisible = true
+        // The panel already holds this thread: keep its timeline, which is
+        // loaded and gets each new reply (MATRIX-169).
+        if case let .focusThread(threadTimeline: shown) = inspectorContent {
+            guard shown.room.id != roomTimeline.room.id || shown.focusedThreadId != rootEventId else { return }
+        }
         inspectorContent = .focusThread(threadTimeline: LiveTimeline(room: roomTimeline.room, focusThread: rootEventId))
     }
 

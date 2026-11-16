@@ -175,6 +175,7 @@ Tooling
 | MATRIX-165 | Smoke own messages in two Slack workspaces and in a merged chat: each shows the Slack profile image of its workspace. Checks 2 and 3 of `docs/research/own-service-profile.md` say why if it does not |
 | MATRIX-167 | Smoke the spaces on the rail: each Slack workspace is an item, a click filters the list, the unread marks agree with the list, the selection is there after a relaunch, and "Browse Rooms…" opens the rooms |
 | MATRIX-170 | Quit and relaunch two times: the rail shows the spaces at once and they do not go away, the chat rows show their workspace icons at once, and a selected space is still selected with its chats. Then leave a space (dev account): it goes off the rail and is not there after the next relaunch |
+| MATRIX-169 | Smoke threads in a Slack chat: open the panel of a root with replies and see the root and each reply; open a second thread and see its rows, not those of the first; reply to a root from the main composer and see the count under the root go up, the reply in the panel, no quoted reply in the main timeline, and a thread reply in Slack; reply from the panel composer; reply to a message with no thread and see a plain quoted reply |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
