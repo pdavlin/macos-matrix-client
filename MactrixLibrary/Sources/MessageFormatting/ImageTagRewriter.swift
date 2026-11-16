@@ -5,10 +5,15 @@ import Foundation
 ///
 /// Two outcomes, and no third:
 ///
-/// - A custom emoticon, `<img data-mx-emoticon src="mxc://…" alt=":name:">`,
-///   becomes its alt text between two marker characters. The renderer
-///   carries the markers through as text, and `EmoticonAttachment.resolve`
-///   swaps each marked range for a fixed-size attachment.
+/// - A custom emoticon becomes its alt text (else its title) between two
+///   marker characters. The renderer carries the markers through as text,
+///   and `EmoticonAttachment.resolve` swaps each marked range for a
+///   fixed-size attachment. An `<img>` is a custom emoticon when its source
+///   is a well-formed `mxc://server/mediaId` URL and it has
+///   `data-mx-emoticon`, or an alt of the form `:name:`, or no alt and a
+///   title of that form. The SDK timeline removes `data-mx-emoticon` from
+///   the body it gives back (MATRIX-159), so the attribute cannot be the
+///   only signal.
 /// - Every other `<img>` becomes its alt text, or nothing when it has none.
 ///
 /// So no `<img>` reaches ZMarkupParser, whose default handler downloads
@@ -73,13 +78,27 @@ enum ImageTagRewriter {
         return Output(html: withoutClosing, emoticonSources: sources)
     }
 
+    /// `mxc://server/mediaId`, with nothing after the media ID.
+    private static let matrixContentURL = makeExpression(#"\Amxc://[^/\s?#]+/[^/\s?#]+\z"#)
+    /// `:name:`, where the name has no whitespace and no colon.
+    private static let shortcode = makeExpression(#"\A:[^\s:]+:\z"#)
+
+    private static func matches(_ expression: NSRegularExpression?, _ text: String) -> Bool {
+        guard let expression else { return false }
+        return expression.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) != nil
+    }
+
     /// The `mxc://` source, when the tag is a custom emoticon. A source with
     /// any other scheme never counts, whatever else the tag says.
     private static func emoticonSource(_ attributes: [String: String]) -> String? {
-        guard attributes["data-mx-emoticon"] != nil, let source = attributes["src"] else { return nil }
+        guard let source = attributes["src"] else { return nil }
         let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.lowercased().hasPrefix("mxc://"), trimmed.count > "mxc://".count else { return nil }
-        return trimmed
+        guard matches(matrixContentURL, trimmed) else { return nil }
+        if attributes["data-mx-emoticon"] != nil { return trimmed }
+        // The same choice as the text shown for the emoticon: the alt, else the title.
+        let alt = attributes["alt"] ?? ""
+        let name = alt.isEmpty ? attributes["title"] ?? "" : alt
+        return matches(shortcode, name) ? trimmed : nil
     }
 
     /// Attribute names in lower case. The first use of a name wins, as in HTML.

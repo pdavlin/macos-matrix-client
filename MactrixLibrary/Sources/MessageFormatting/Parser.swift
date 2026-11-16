@@ -11,7 +11,8 @@ import ZMarkupParser
 /// Renders a message's HTML body.
 ///
 /// `<img>` never reaches the HTML renderer (MATRIX-153). A custom emoticon
-/// (`data-mx-emoticon` with an `mxc://` source) becomes a fixed-size inline
+/// (an `mxc://` source with `data-mx-emoticon` or a `:name:` alt or title,
+/// see `ImageTagRewriter`) becomes a fixed-size inline
 /// attachment that draws from `imageLoader`'s cache, or its alt text when the
 /// cache has no image. Every other `<img>` becomes its alt text. This
 /// function starts no load; `FormattedBodyText` does that.
