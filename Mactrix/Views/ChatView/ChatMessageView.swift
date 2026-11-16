@@ -1,5 +1,6 @@
 import Core
 import MatrixRustSDK
+import MessageFormatting
 import Models
 import OSLog
 import SwiftUI
@@ -177,11 +178,22 @@ struct ChatMessageView: View, UI.MessageEventActions {
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         case let .text(content: content):
-            FormattedBodyView(messageContent: content, imageLoader: appState.matrixClient)
+            FormattedBodyView(messageContent: content, imageLoader: appState.matrixClient, onEmoticons: learnEmoticons)
         case let .location(content: content):
             Text("Location: \(content.body) \(content.geoUri)").textSelection(.enabled)
         case let .other(msgtype: msgtype, body: body):
             Text("Other: \(msgtype) \(body)").textSelection(.enabled)
+        }
+    }
+
+    /// Records the custom emoticons of the message's body as learned emoji
+    /// of the room's workspace (MATRIX-161). The body view reports them from
+    /// the parse it makes to load their images. Own messages count too.
+    private var learnEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? {
+        guard let client = appState.matrixClient, let roomId = timeline?.room.id else { return nil }
+        return { [weak client] found in
+            let emoji: [ImagePackEmoji] = found.compactMap { LearnedEmoji.emoji(name: $0.name, url: $0.source) }
+            client?.learnEmoji(emoji, inRoom: roomId)
         }
     }
 

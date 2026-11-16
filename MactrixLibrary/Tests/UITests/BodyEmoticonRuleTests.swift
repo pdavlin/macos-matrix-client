@@ -23,6 +23,21 @@ struct BodyEmoticonRuleTests {
     /// `data-mx-emoticon`, attributes in alphabetical order, not self-closed.
     static let sanitized = #"<img alt=":party:" height="32" src="mxc://davlin.io/abc" title=":party:">"#
 
+    /// MATRIX-161: the body reports each emoticon's name with its source,
+    /// from the same parse, for the learned emoji.
+    @Test func theBodyGivesEachEmoticonsNameAndSourceOnce() {
+        let titled = #"<img data-mx-emoticon src="mxc://davlin.io/def" title=":shipit:">"#
+        let plain = #"<img src="https://example.org/a.png" alt=":nope:">"#
+        let html = "a \(Self.sanitized) b \(titled) c \(plain) d \(Self.sanitized)"
+
+        #expect(emoticons(inFormattedBody: html) == [
+            BodyEmoticon(name: ":party:", source: "mxc://davlin.io/abc"),
+            BodyEmoticon(name: ":shipit:", source: "mxc://davlin.io/def"),
+        ])
+        #expect(emoticonSources(inFormattedBody: html) == ["mxc://davlin.io/abc", "mxc://davlin.io/def"])
+        #expect(emoticons(inFormattedBody: "<p>no image</p>").isEmpty)
+    }
+
     @Test func sanitizedEmoticonIsAnEmoticon() throws {
         let output = ImageTagRewriter.rewrite("ship it \(Self.sanitized) now")
         #expect(output.html == "ship it \u{FFF9}:party:\u{FFFB} now")

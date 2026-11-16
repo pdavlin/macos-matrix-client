@@ -8,19 +8,36 @@ import UI
 /// The task then loads each missing image through the loader, and each
 /// arrival draws the body again in place. The squares do not change size, so
 /// the height is the same before and after.
+///
+/// The same task reports the body's emoticons through `onEmoticons`
+/// (MATRIX-161), from the one parse that finds the images to load. The app
+/// records them as the learned emoji of the chat's workspace.
 public struct FormattedBodyText: View {
     let html: String
     let baseFontSize: CGFloat
     let imageLoader: (any ImageLoader)?
+    let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
 
     /// Counts the emoticon images that arrived. `body` reads it, so each
     /// arrival parses the body again against the cache.
     @State private var arrivals = 0
 
-    public init(html: String, baseFontSize: CGFloat, imageLoader: (any ImageLoader)?) {
+    /// - Parameters:
+    ///   - html: The formatted body.
+    ///   - baseFontSize: The body text size.
+    ///   - imageLoader: Loads the emoticon images. Nil draws the alt texts.
+    ///   - onEmoticons: Takes the body's emoticons when the body shows, and
+    ///     again when the body changes. Not called for a body with none.
+    public init(
+        html: String,
+        baseFontSize: CGFloat,
+        imageLoader: (any ImageLoader)?,
+        onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil
+    ) {
         self.html = html
         self.baseFontSize = baseFontSize
         self.imageLoader = imageLoader
+        self.onEmoticons = onEmoticons
     }
 
     /// Takes the arrival count so that `body` depends on it. The cache, not
@@ -32,8 +49,11 @@ public struct FormattedBodyText: View {
     public var body: some View {
         AttributedTextView(attributedString: attributedBody(arrivals: arrivals))
             .task(id: html) {
+                let found: [BodyEmoticon] = emoticons(inFormattedBody: html)
+                guard !found.isEmpty else { return }
+                onEmoticons?(found)
                 guard let imageLoader else { return }
-                for source in emoticonSources(inFormattedBody: html) where imageLoader.cachedImage(matrixUrl: source) == nil {
+                for source in found.map(\.source) where imageLoader.cachedImage(matrixUrl: source) == nil {
                     // `size: nil` on purpose: the loader caches a sized load under
                     // another key, which `cachedImage(matrixUrl:)` does not find.
                     // A failed load leaves the alt text in place.

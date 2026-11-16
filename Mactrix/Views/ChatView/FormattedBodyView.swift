@@ -17,10 +17,18 @@ struct FormattedBodyView: View {
     let jumboText: String?
     /// Loads the custom emoticons of an HTML body (MATRIX-153).
     let imageLoader: (any UI.ImageLoader)?
+    /// Takes the custom emoticons of an HTML body when it shows
+    /// (MATRIX-161): the learned emoji of the chat's workspace.
+    let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
 
-    init(messageContent: some Core.MessageContent, imageLoader: (any UI.ImageLoader)?) {
+    init(
+        messageContent: some Core.MessageContent,
+        imageLoader: (any UI.ImageLoader)?,
+        onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil
+    ) {
         self.rawBody = messageContent.body
         self.imageLoader = imageLoader
+        self.onEmoticons = onEmoticons
 
         if let formatted = messageContent.formatted, formatted.format == .html {
             self.htmlBody = formatted.body
@@ -35,7 +43,7 @@ struct FormattedBodyView: View {
         if let jumboText {
             UI.JumboEmojiText(jumboText)
         } else if let htmlBody {
-            FormattedBodyText(html: htmlBody, baseFontSize: typography.base, imageLoader: imageLoader)
+            FormattedBodyText(html: htmlBody, baseFontSize: typography.base, imageLoader: imageLoader, onEmoticons: onEmoticons)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
             Text(rawBody)

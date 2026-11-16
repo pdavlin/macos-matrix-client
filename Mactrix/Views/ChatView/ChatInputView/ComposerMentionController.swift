@@ -48,12 +48,22 @@ final class ComposerMentionController {
     /// The location of the ":" whose list the user closed with Esc.
     @ObservationIgnored private var dismissedEmojiLocation: Int?
 
+    /// The open ":" query, also when no emoji matches it and no list shows
+    /// (MATRIX-161). A pack change runs the query again.
+    @ObservationIgnored private var emojiTrigger: ComposerEmojiTrigger?
+
+    /// Called when a new ":" query opens (MATRIX-161). `ChatInputView` asks
+    /// the store for the room's packs, which reads the homeserver again when
+    /// the last read is old.
+    @ObservationIgnored var onEmojiQueryOpen: () -> Void = {}
+
     /// Opens, updates, or closes the popup for the text and caret in the text
     /// view. Call it after each text change and each selection change.
     func refresh() {
         guard let textView else {
             state = nil
             emojiState = nil
+            emojiTrigger = nil
             return
         }
         let selection = textView.selectedRange()
@@ -89,17 +99,40 @@ final class ComposerMentionController {
     private func refreshEmoji(in text: String, caret: Int?) {
         guard let trigger = ComposerEmojiTrigger.find(in: text, caret: caret) else {
             dismissedEmojiLocation = nil
+            emojiTrigger = nil
             emojiState = nil
             return
         }
         guard trigger.range.location != dismissedEmojiLocation else {
+            emojiTrigger = nil
             emojiState = nil
             return
         }
+        if emojiTrigger?.range.location != trigger.range.location {
+            onEmojiQueryOpen()
+        }
+        emojiTrigger = trigger
         if emojiState?.trigger == trigger { return }
 
         let suggestions = ComposerEmojiCompletion.suggestions(for: trigger.query, in: emojiPackProvider())
         emojiState = EmojiAutocompleteState(trigger: trigger, suggestions: suggestions)
+    }
+
+    /// Runs the open ":" query again after the room's packs changed
+    /// (MATRIX-161): a newer pack or a learned emoji shows in the open list,
+    /// and a query that had no match can open the list. The selected row
+    /// stays selected if it is still a row.
+    func emojiPacksDidChange() {
+        guard let emojiTrigger else { return }
+        let suggestions = ComposerEmojiCompletion.suggestions(for: emojiTrigger.query, in: emojiPackProvider())
+        let updated: EmojiAutocompleteState? = if let emojiState {
+            emojiState.replacing(suggestions: suggestions)
+        } else {
+            EmojiAutocompleteState(trigger: emojiTrigger, suggestions: suggestions)
+        }
+        if updated != emojiState {
+            emojiState = updated
+        }
     }
 
     /// Handles a popup key from the text view.
@@ -139,6 +172,7 @@ final class ComposerMentionController {
         case .dismiss:
             dismissedEmojiLocation = current.trigger.range.location
             emojiState = nil
+            emojiTrigger = nil
         }
         return true
     }
@@ -152,6 +186,7 @@ final class ComposerMentionController {
         let range = emojiState.trigger.range
         dismissedEmojiLocation = nil
         self.emojiState = nil
+        emojiTrigger = nil
         guard NSMaxRange(range) <= (textView.string as NSString).length else { return }
         let insertion = NSAttributedString(
             string: ComposerEmojiCompletion.insertion(for: emoji),
