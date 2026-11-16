@@ -14,18 +14,24 @@ enum SidebarRail {
     /// The account's chat rooms: every non-space room the Dock badge's
     /// unfiltered room list holds, plus the sidebar's rooms. The sidebar's
     /// own rooms are not enough: the selected filter narrows them.
+    ///
+    /// MATRIX-170: plus the chats of the launch cache until the SDK's space
+    /// graph is ready, because the live lists are empty in the first frames.
     static func chatIds(client: MatrixClient) -> Set<String> {
         var ids = Set(client.dockBadge.unreadChats.chats.keys)
+        ids.formUnion(client.roomAccounts.launchChatIds)
         for room in client.rooms where !room.room.isSpace() {
             ids.insert(room.id)
         }
         return ids
     }
 
-    /// The top-level joined spaces, in the SDK's order.
+    /// The top-level joined spaces, in the SDK's order. MATRIX-170: from
+    /// `RoomAccountNames.topLevelSpaces`, which holds the cached list until
+    /// the SDK gives its list.
     private static func joinedSpaces(client: MatrixClient) -> [ChatListRailSpace] {
-        (client.spaceService?.spaceRooms ?? []).map { space in
-            ChatListRailSpace(id: space.id, name: space.spaceRoom.displayName, avatarUrl: space.spaceRoom.avatarUrl)
+        client.roomAccounts.topLevelSpaces.map { space in
+            ChatListRailSpace(id: space.id, name: space.name, avatarUrl: space.avatarUrl)
         }
     }
 
@@ -87,7 +93,7 @@ enum SidebarRail {
         case .inbox:
             nil
         case let .space(id):
-            client?.spaceService?.spaceRooms.first { $0.id == id }?.spaceRoom.displayName
+            client?.roomAccounts.topLevelSpaces.first { $0.id == id }?.name
         case let .label(id):
             client?.labels?.document.label(id: id)?.name
         }

@@ -40,8 +40,11 @@ public extension MatrixClient {
         return OwnServiceAvatarStore.Source(
             cacheDirectory: URL.sessionCaches(for: storeID).appending(component: "OwnServiceProfiles"),
             accountUserId: accountUserId,
-            parentSpaces: { roomId in
-                try await service.joinedParentsOfChild(childId: roomId).map(\.roomId)
+            parentSpaces: { [roomAccounts] roomId in
+                let live = try await service.joinedParentsOfChild(childId: roomId).map(\.roomId)
+                // MATRIX-170: the cached parents, until the SDK's space
+                // graph is ready.
+                return live.isEmpty ? roomAccounts.launchParents(of: roomId).map(\.id) : live
             },
             candidates: { [weak self] spaceId, excluding, limit in
                 await self?.ownServiceCandidates(

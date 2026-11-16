@@ -84,6 +84,30 @@ struct SpaceRailSnapshotTests {
         assertTextFieldSnapshot(of: rail(spaces: spaces(), labels: labels, selection: .inbox), as: .scaledImage)
     }
 
+    /// MATRIX-170: the rail's items from the launch cache alone, before a
+    /// live space, a live room, or a live parent answer. The restored space
+    /// selection applies too.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func railSpacesFromLaunchCache() {
+        let dev = KnownSpace(id: "!dev", name: "DevObsessed", avatarUrl: "mxc://a/dev")
+        let pizza = KnownSpace(id: "!pizza", name: "pizza box audit committee")
+        let graph = SpaceGraph(cache: SpaceLaunchCache(
+            topLevel: [dev, pizza],
+            rooms: ["!d1": .init(parents: [dev]), "!p1": .init(parents: [pizza])]
+        ))
+        let items = ChatListRailSpace.items(
+            joined: graph.topLevel.map { ChatListRailSpace(id: $0.id, name: $0.name, avatarUrl: $0.avatarUrl) },
+            spaces: RoomSpaceMap(parents: graph.parents.mapValues { $0.map(\.id) }),
+            chatIds: graph.launchChatIds,
+            unread: [:]
+        )
+        let selection = ChatListRailFilter.space("!dev").resolved(
+            labels: ChatLabelDocument(),
+            spaceIds: Set(items.map(\.id))
+        )
+        assertTextFieldSnapshot(of: rail(spaces: items, labels: [], selection: selection), as: .scaledImage)
+    }
+
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func railSpaceSelectedWithUnreadMarks() {
         let marked = spaces(devBadge: .count(2), pizzaBadge: .dot)

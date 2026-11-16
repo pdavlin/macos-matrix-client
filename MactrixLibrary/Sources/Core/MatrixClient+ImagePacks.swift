@@ -69,9 +69,14 @@ public extension MatrixClient {
         let service: SpaceService = spaceService.spaceService
         return ImagePackStore.Source(
             cacheDirectory: URL.sessionCaches(for: storeID).appending(component: "ImagePacks"),
-            parentSpaces: { roomId in
-                try await service.joinedParentsOfChild(childId: roomId)
+            parentSpaces: { [roomAccounts] roomId in
+                let live = try await service.joinedParentsOfChild(childId: roomId)
                     .map { ImagePackStore.Space(id: $0.roomId, name: $0.displayName) }
+                // MATRIX-170: the cached parents, until the SDK's space
+                // graph is ready.
+                return live.isEmpty
+                    ? roomAccounts.launchParents(of: roomId).map { ImagePackStore.Space(id: $0.id, name: $0.name) }
+                    : live
             },
             fetchState: { spaceId in
                 try await RoomStateTransport.state(of: spaceId, client: sdkClient)

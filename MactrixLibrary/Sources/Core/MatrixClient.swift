@@ -49,12 +49,14 @@ public class MatrixClient {
     public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase
+        restoreSpaceLaunchCache()
 
         client = try await Self.clientBuilder(homeServer: userSession.homeserverURL, storeId: storeID, storePassphrase: storePassphrase)
             .setSessionDelegate(sessionDelegate: self)
             .build()
 
         spaceService = await LiveSpaceService(spaceService: client.spaceService())
+        followJoinedSpaces()
         clientDelegateHandle = try? client.setDelegate(delegate: self)
         await installUtdHook()
     }
@@ -63,10 +65,25 @@ public class MatrixClient {
         self.storeID = storeID
         self.storePassphrase = storePassphrase
         self.client = client
+        restoreSpaceLaunchCache()
 
         spaceService = await LiveSpaceService(spaceService: client.spaceService())
+        followJoinedSpaces()
         clientDelegateHandle = try? self.client.setDelegate(delegate: self)
         await installUtdHook()
+    }
+
+    /// MATRIX-170: the last session's space data, before any SDK answer, so
+    /// the rail, the workspace icons and a restored space filter are right
+    /// in the first frame.
+    private func restoreSpaceLaunchCache() {
+        roomAccounts.restore(cacheFile: SpaceLaunchCache.file(in: URL.sessionCaches(for: storeID)))
+    }
+
+    /// MATRIX-170: the live list of joined spaces replaces the cached list.
+    private func followJoinedSpaces() {
+        guard let spaceService else { return }
+        roomAccounts.attach(spaces: spaceService)
     }
 
     /// Installs the UTD reporter at client creation, before any view code can

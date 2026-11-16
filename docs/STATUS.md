@@ -42,6 +42,7 @@ Chat list (sidebar)
   selection: the Inbox, one space, or one label. "Browse Rooms…" in the
   item's menu shows the rooms of the space. The Spaces section at the bottom
   of the list is gone.
+- The rail's spaces, the workspace icons, the merged-chat member labels and a restored space filter are there in the first frame after a relaunch, from a launch cache of the space data (`SpaceLaunchCache.json` in the session cache folder, MATRIX-170).
 - New chat: start a DM or a group, or join a room.
 
 Timeline
@@ -173,6 +174,7 @@ Tooling
 | MATRIX-162 | Smoke a Slack message of only custom emoji: it draws large, and the row does not move when the images load |
 | MATRIX-165 | Smoke own messages in two Slack workspaces and in a merged chat: each shows the Slack profile image of its workspace. Checks 2 and 3 of `docs/research/own-service-profile.md` say why if it does not |
 | MATRIX-167 | Smoke the spaces on the rail: each Slack workspace is an item, a click filters the list, the unread marks agree with the list, the selection is there after a relaunch, and "Browse Rooms…" opens the rooms |
+| MATRIX-170 | Quit and relaunch two times: the rail shows the spaces at once and they do not go away, the chat rows show their workspace icons at once, and a selected space is still selected with its chats. Then leave a space (dev account): it goes off the rail and is not there after the next relaunch |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |

@@ -116,6 +116,8 @@ public extension MatrixClient {
 
         spaceService?.cancelSubscriptions()
         spaceService = nil
+        // MATRIX-170: no cache write after the cache folder is removed.
+        await roomAccounts.stop()
 
         await syncService?.stop()
         syncService = nil
