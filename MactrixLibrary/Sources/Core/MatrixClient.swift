@@ -42,6 +42,10 @@ public class MatrixClient {
     /// `MatrixClient+OwnProfile.swift`.
     public internal(set) var ownAvatarUrl: String?
 
+    /// MATRIX-165: the avatar of the user's own bridge ghost, by workspace.
+    /// See `MatrixClient+OwnServiceProfile.swift`.
+    public let ownServiceAvatars = OwnServiceAvatarStore()
+
     public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase

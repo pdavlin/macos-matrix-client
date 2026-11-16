@@ -258,7 +258,7 @@ struct ImagePackStoreRefreshTests: ImagePackStoreFixture {
         let store = makeStore(PackStoreClock())
         await store.load(roomId: Self.room, from: backend.source)
 
-        backend.states[Self.space.id] = .failure(ImagePackStateReader.Failure.status(502))
+        backend.states[Self.space.id] = .failure(RoomStateReader.Failure.status(502))
         let outcome = await store.refresh(roomId: Self.room, from: backend.source)
 
         #expect(outcome == .failed)

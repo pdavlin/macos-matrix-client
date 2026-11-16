@@ -114,6 +114,12 @@ Merged chats (M2.5, MATRIX-139)
   member room that holds it (MATRIX-149).
 - The inspector shows the merged chat details: the name, the member chats,
   and "Edit Merged Chat…" (MATRIX-149).
+- In a chat of a Slack workspace, an own message shows the user's Slack
+  profile image of that workspace, and each row of a merged chat shows the
+  image of its own member room's workspace. The app learns the own bridge
+  ghost from the bridge info of one direct chat of the workspace, with no
+  setup step. Order: the service image, the room member image, the account
+  image, initials. Mac only (MATRIX-165).
 - By design: Pin, Unpin, and Reply in Thread are off in a merged chat
   (MATRIX-149).
 - Drafts are in memory for the session.
@@ -158,6 +164,7 @@ Tooling
 | MATRIX-150, 157 | Smoke the pinned grid spacing and the day dividers on the running app |
 | MATRIX-153, 154, 155 | Smoke Slack custom emoji in message bodies, reaction chips, and the reaction picker |
 | MATRIX-162 | Smoke a Slack message of only custom emoji: it draws large, and the row does not move when the images load |
+| MATRIX-165 | Smoke own messages in two Slack workspaces and in a merged chat: each shows the Slack profile image of its workspace. Checks 2 and 3 of `docs/research/own-service-profile.md` say why if it does not |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |

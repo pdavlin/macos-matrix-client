@@ -135,6 +135,10 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
     /// without a room member avatar draws it.
     @Environment(\.ownAccountAvatarUrl) private var ownAccountAvatarUrl
 
+    /// The user's profile image on the service of this row's room
+    /// (MATRIX-165). Only an own message draws it, before the member avatar.
+    @Environment(\.ownServiceAvatarUrl) private var ownServiceAvatarUrl
+
     public init(event: EventTimelineItem, actions: MessageEventActions, imageLoader: ImageLoader?) {
         self.event = event
         self.actions = actions
@@ -142,7 +146,12 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
     }
 
     var avatarUrl: String? {
-        MessageAvatarRule.avatarUrl(memberAvatarUrl: event.avatarUrl, accountAvatarUrl: ownAccountAvatarUrl, isOwn: event.isOwn)
+        MessageAvatarRule.avatarUrl(
+            serviceAvatarUrl: ownServiceAvatarUrl,
+            memberAvatarUrl: event.avatarUrl,
+            accountAvatarUrl: ownAccountAvatarUrl,
+            isOwn: event.isOwn
+        )
     }
 
     var name: String {
@@ -327,6 +336,14 @@ public extension EnvironmentValues {
     /// whose room member profile has no avatar; see `MessageAvatarRule`. The
     /// default, nil, keeps the member avatar or the initials.
     @Entry var ownAccountAvatarUrl: String?
+
+    /// The avatar of the user's own bridge ghost in the workspace of the
+    /// row's room, an `mxc://` URL (MATRIX-165). The timeline container sets
+    /// it for each row from the client's observable store, by the row's
+    /// room, so a merged chat draws each member room's own image. A message
+    /// profile row draws it for an own message, first; see
+    /// `MessageAvatarRule`. The default, nil, keeps the MATRIX-163 order.
+    @Entry var ownServiceAvatarUrl: String?
 }
 
 public struct MockMessageEventActions: MessageEventActions {

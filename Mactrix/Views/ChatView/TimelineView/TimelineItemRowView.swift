@@ -70,6 +70,19 @@ struct TimelineItemRowView: View {
         #endif
     }
 
+    /// The user's profile image on the service of this row's room
+    /// (MATRIX-165): the Slack image of the room's workspace. `timeline` is
+    /// the row's own timeline, so a merged chat reads each member room. The
+    /// store is observable, so the row redraws when the answer arrives, with
+    /// no SDK call per row.
+    private var ownServiceAvatarUrl: String? {
+        #if canImport(Core)
+            timeline.flatMap { appState.matrixClient?.ownServiceAvatars.avatarUrl(forRoom: $0.room.id) }
+        #else
+            nil
+        #endif
+    }
+
     @ViewBuilder
     var contentView: some View {
         switch row {
@@ -130,5 +143,6 @@ struct TimelineItemRowView: View {
         .environment(\.timelineRowIsHovered, isHovered)
         .environment(\.ownAccountAvatarUrl, ownAccountAvatarUrl)
         .environment(\.reactionEmojiName, reactionEmojiName)
+        .environment(\.ownServiceAvatarUrl, ownServiceAvatarUrl)
     }
 }

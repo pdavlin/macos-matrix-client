@@ -8,9 +8,11 @@ import OSLog
 ///
 /// The rules and the parser live in `Models` (`ImagePackStore`, `ImagePack`),
 /// where they are unit-tested. The one HTTP request is
-/// `Models.ImagePackStateReader`, the bounded exception to hard rule 1 in the
-/// contract §11 row of 2026-11-13. This file gives it its transport and the
-/// session's homeserver URL and access token.
+/// `Models.RoomStateReader`, the bounded exception to hard rule 1 in the
+/// contract §11 rows of 2026-11-13 and 2026-11-16. This file gives it its
+/// transport and the session's homeserver URL and access token
+/// (`RoomStateTransport`), for the image packs and for
+/// `MatrixClient+OwnServiceProfile.swift`.
 public extension MatrixClient {
     /// Loads the image packs of the room's parent spaces into `imagePacks`
     /// and returns at once. Call it when a chat opens, when the picker opens,
@@ -23,6 +25,9 @@ public extension MatrixClient {
     ///   - roomId: The room of the chat. In a merged chat, the member room.
     ///   - refresh: Reads the homeserver again.
     func loadImagePacks(forRoom roomId: String, refresh: Bool = false) {
+        // MATRIX-165: the same triggers load the own image of the room's
+        // workspace. The store reads only when its answer is absent or old.
+        loadOwnServiceAvatar(forRoom: roomId)
         guard let source = imagePackSource else { return }
         Task { await imagePacks.load(roomId: roomId, refresh: refresh, from: source) }
     }
@@ -69,14 +74,7 @@ public extension MatrixClient {
                     .map { ImagePackStore.Space(id: $0.roomId, name: $0.displayName) }
             },
             fetchState: { spaceId in
-                // The token stays in this closure: it goes into the request
-                // header and nowhere else.
-                let session: Session = try sdkClient.session()
-                return try await ImagePackTransport.reader.state(
-                    of: spaceId,
-                    homeserverURL: session.homeserverUrl,
-                    accessToken: session.accessToken
-                )
+                try await RoomStateTransport.state(of: spaceId, client: sdkClient)
             },
             report: { line in
                 Logger.matrixClient.error("image packs: \(line, privacy: .public)")
@@ -85,13 +83,32 @@ public extension MatrixClient {
     }
 }
 
-/// The `URLSession` behind `ImagePackStateReader`.
+/// The `URLSession` behind `RoomStateReader`, and the one place that reads
+/// the session's access token for it.
 ///
 /// The session is ephemeral, so the room state does not go into a URL cache
 /// on disk, and it has no cookies. A redirect is not followed, so the
 /// `Authorization` header goes only to the homeserver of the SDK session.
-private enum ImagePackTransport {
-    static let reader = ImagePackStateReader { request in
+enum RoomStateTransport {
+    /// The state of a room, read from the homeserver of the SDK session.
+    ///
+    /// - Parameters:
+    ///   - roomId: A workspace space (image packs), or one direct chat of a
+    ///     workspace (MATRIX-165). No other room: see `RoomStateReader`.
+    ///   - client: The SDK client of the session.
+    @MainActor
+    static func state(of roomId: String, client: ClientProtocol) async throws -> Data {
+        // The token stays in this function: it goes into the request header
+        // and nowhere else.
+        let session: Session = try client.session()
+        return try await reader.state(
+            of: roomId,
+            homeserverURL: session.homeserverUrl,
+            accessToken: session.accessToken
+        )
+    }
+
+    private static let reader = RoomStateReader { request in
         try await session.data(for: request, delegate: RefuseRedirects())
     }
 
