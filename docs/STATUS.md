@@ -97,6 +97,11 @@ Merged chats (M2.5, MATRIX-139)
 - Member labels show the network and the account, for example
   "Slack • DevObsessed". The account is the name of the room's parent space
   (MATRIX-147).
+- The account's icon (the Slack workspace's icon) is the avatar badge in place
+  of the network letter: on chat rows, pinned tiles, merged rows (one per
+  account, up to three), the composer target chip, source notes, and the quick
+  switcher. The letter shows while the icon loads and when there is none
+  (MATRIX-148).
 - The menu-bar Edit menu acts on the hovered or selected message, in the
   member room that holds it (MATRIX-149).
 - The inspector shows the merged chat details: the name, the member chats,
@@ -182,7 +187,8 @@ Tooling
 ### Not started
 
 - M3: local FTS5 index, in-room and global search, media browser.
-- M4: custom emoji, share extension, App Intents, app icon, invites.
+- M4: share extension, App Intents, app icon, invites. Custom emoji moved
+  into scope on 2026-11-13 (contract §11); pack management stays deferred.
 - Deferred flair (contract §11, 2026-11-09): bubble setting, single-hue
   theme, sounds, send animation, typing bubble, send-state styling.
 - Epics MATRIX-36 (design system, first flair batch in Review), 37 (broadcast composer),
