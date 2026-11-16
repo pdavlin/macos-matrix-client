@@ -1,6 +1,6 @@
 # Project status
 
-Snapshot of 2026-11-10, main at `135863a` (PR #105). Plane holds the live
+Snapshot of 2026-11-13, main at `d3de850` (PR #129). Plane holds the live
 state of each story. The contract (`docs/PROJECT_CONTRACT.md`) holds scope and
 decisions. Update this file when a milestone or an epic changes state.
 
@@ -29,6 +29,9 @@ Chat list (sidebar)
 
 - Dense rows: 36 pt avatars, one preview line, small secondary time.
 - Pinned favourites as tiles, SDK filters, labels with a space-bar filter.
+- The pinned grid uses the layout of the chat list: the tile avatars start
+  at the row avatar edge, with 12 pt between tile contents (MATRIX-150).
+- The row timestamps change bucket when the day changes (MATRIX-157).
 - Group avatars: a bubble cluster from the room heroes, else from the local
   member list. Colored initials when no picture exists.
 - Network badge for bridged rooms. Unread and send-failure dots.
@@ -39,6 +42,14 @@ Timeline
 
 - AppKit `NSTableView` container with pre-measured rows and stable prepend.
 - Day separators, sender grouping, sender colors, read receipts, reactions.
+- Day dividers compare calendar days ("Today", "Yesterday", then the long
+  date) and update when the day changes (MATRIX-157).
+- Slack custom emoji draw in message bodies at the line height. The alt text
+  shows until the image loads (MATRIX-153).
+- An `<img>` tag that is not an emoticon shows its alt text only. No `<img>`
+  starts a remote request (MATRIX-153).
+- A reaction with an `mxc://` key draws as its image in the chip and in the
+  hover bar (MATRIX-154).
 - Back-pagination. Unable-to-decrypt and error rows.
 - Inline images and video, Quick Look, save to Downloads.
 - Threads and pins in the inspector (inherited from Mactrix).
@@ -55,6 +66,10 @@ Composer and message actions
 - Enter or Shift-Enter behavior is a setting. Drafts survive relaunch.
 - Replies, edits (Up arrow edits the last own message), redaction.
 - Reaction picker with SDK recent emoji.
+- The reaction picker shows the Slack workspace's custom emoji as a section,
+  and the search finds their shortcodes. This needs the bridge's
+  `import-image-pack`. An `mxc://` key does not go into the recent list
+  (MATRIX-155).
 - Mentions with atomic chips.
 - Media send: file picker, paste, drag and drop, upload progress.
 - Forward text and media to another room.
@@ -79,13 +94,34 @@ Merged chats (M2.5, MATRIX-139)
   its own room.
 - The composer sends to the room with the newest message, with a target
   picker. Notifications and the Dock badge count a merged chat once.
-- Not yet: the menu-bar Edit menu, the inspector, Pins, and Reply in Thread
-  do nothing in a merged chat.
+- Member labels show the network and the account, for example
+  "Slack • DevObsessed". The account is the name of the room's parent space
+  (MATRIX-147).
+- The menu-bar Edit menu acts on the hovered or selected message, in the
+  member room that holds it (MATRIX-149).
+- The inspector shows the merged chat details: the name, the member chats,
+  and "Edit Merged Chat…" (MATRIX-149).
+- By design: Pin, Unpin, and Reply in Thread are off in a merged chat
+  (MATRIX-149).
+- Drafts are in memory for the session.
 
 Stability fixes of note
 
 - SQLite pools capped and the open-file limit raised (MATRIX-122).
 - Objective-C exceptions kept out of the SwiftUI timeline update (MATRIX-130).
+
+Tooling
+
+- `scripts/build.sh` and `scripts/test.sh` keep the build data in
+  `build/DerivedData` in the checkout. `DERIVED_DATA_PATH` overrides the
+  folder (MATRIX-128).
+- CI pins SwiftFormat 0.64.6, the local version, so `scripts/lint.sh` runs
+  locally (MATRIX-134).
+- `MatrixClient.swift` is split into topic files: Session, Sync,
+  Verification, ImageCache, Actions (MATRIX-127).
+- The local snapshot suite is stable: new scrollChip references, a retry for
+  text-field snapshots (MATRIX-126), and no search spinner in the quick
+  switcher snapshot (MATRIX-152).
 
 ## iOS app: what works (simulator and code)
 
@@ -105,6 +141,10 @@ Stability fixes of note
 | MATRIX-130 | One day of use with no SIGBUS in `SidebarRoom.updateRoom` |
 | MATRIX-135, 136, 137, 138, 145 | Smoke the visual flair batch on the running app |
 | MATRIX-141, 142, 143, 144 | Smoke merged chats on the running app |
+| MATRIX-147, 148, 149 | Smoke the merged-chat member labels and workspace icons on real bridged chats, the Edit menu, and the merged-chat inspector |
+| MATRIX-150, 157 | Smoke the pinned grid spacing and the day dividers on the running app |
+| MATRIX-153, 154, 155 | Smoke Slack custom emoji in message bodies, reaction chips, and the reaction picker |
+| MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
 | MATRIX-92 | Apple Developer enrollment, Team ID, keys. Then MATRIX-90, 91 |
@@ -116,9 +156,8 @@ Stability fixes of note
 
 | Issue | Work |
 |---|---|
-| MATRIX-126 | scrollChip snapshots fail on this Mac only |
-| MATRIX-134 | Move the CI SwiftFormat pin to 0.64.6 (the local version) |
-| MATRIX-127 | Split `MatrixClient.swift` (544 lines) |
+| MATRIX-156 | Custom emoji in the composer (in progress) |
+| MATRIX-158 | Deterministic text-field snapshots (in progress) |
 | MATRIX-72, 73, 74 | Google Chat and GroupMe bridges, then the Beeper cutover |
 
 ### Watch list (no new evidence)
@@ -135,8 +174,10 @@ Stability fixes of note
 - The pinned "+N" text can touch the third bubble. Tiny bubbles show
   initials that are hard to read. Both are polish items noted on MATRIX-129,
   not filed.
-- Local `scripts/test.sh` stays red on the three scrollChip snapshots
-  (MATRIX-126). CI is green.
+- The SwiftUI text-field fault in snapshot tests (MATRIX-120) is hidden by a
+  retry, not removed (MATRIX-158).
+- Animated custom emoji draw as a still image. A long emoticon alt text is
+  cut to fit the square while the image loads.
 
 ### Not started
 
