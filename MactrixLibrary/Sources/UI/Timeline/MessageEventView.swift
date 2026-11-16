@@ -131,10 +131,18 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
     let actions: MessageEventActions
     let imageLoader: ImageLoader?
 
+    /// The account's global profile avatar (MATRIX-163). Only an own message
+    /// without a room member avatar draws it.
+    @Environment(\.ownAccountAvatarUrl) private var ownAccountAvatarUrl
+
     public init(event: EventTimelineItem, actions: MessageEventActions, imageLoader: ImageLoader?) {
         self.event = event
         self.actions = actions
         self.imageLoader = imageLoader
+    }
+
+    var avatarUrl: String? {
+        MessageAvatarRule.avatarUrl(memberAvatarUrl: event.avatarUrl, accountAvatarUrl: ownAccountAvatarUrl, isOwn: event.isOwn)
     }
 
     var name: String {
@@ -156,9 +164,11 @@ public struct MessageEventProfileView<EventTimelineItem: Models.EventTimelineIte
         Button(action: actions.focusUser) {
             HStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    AvatarImage(userProfile: event, imageLoader: imageLoader)
-                        .frame(width: DensityToken.profileAvatarSize, height: DensityToken.profileAvatarSize)
-                        .clipShape(Circle())
+                    AvatarImage(avatarUrl: avatarUrl, imageLoader: imageLoader) {
+                        UserAvatarPlaceholder(userProfile: event)
+                    }
+                    .frame(width: DensityToken.profileAvatarSize, height: DensityToken.profileAvatarSize)
+                    .clipShape(Circle())
                 }.frame(width: DensityToken.leadingColumnWidth)
 
                 Username(userProfile: event, color: nameColor)
@@ -305,6 +315,13 @@ public extension EnvironmentValues {
     /// covers a neighbor row. It is a background only: it never changes a
     /// row's height. Rows outside the Mac timeline keep the default, false.
     @Entry var timelineRowIsHovered: Bool = false
+
+    /// The signed-in account's global profile avatar, an `mxc://` URL
+    /// (MATRIX-163). The timeline container sets it from the client's one
+    /// observable value. A message profile row draws it for an own message
+    /// whose room member profile has no avatar; see `MessageAvatarRule`. The
+    /// default, nil, keeps the member avatar or the initials.
+    @Entry var ownAccountAvatarUrl: String?
 }
 
 public struct MockMessageEventActions: MessageEventActions {

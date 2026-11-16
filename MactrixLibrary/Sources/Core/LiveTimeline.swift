@@ -177,11 +177,25 @@ public final class LiveTimeline {
         timeline = try await room.room.timelineWithConfiguration(configuration: config)
 
         await listenToTimelineChanges()
+        fetchMissingSenderProfiles()
 
         do {
             try await listenToPaginationStatus(threadId: threadId)
         } catch {
             Logger.liveTimeline.error("Failed to listen to pagination status: \(error)")
+        }
+    }
+
+    /// Asks the SDK timeline to load the room's members, so it fills the
+    /// sender profiles it has not resolved (MATRIX-163). Nothing made this
+    /// call before: a profile that is unavailable when its item is built can
+    /// stay that way in a room whose members load lazily, and the row then
+    /// shows the user ID and initials. The SDK owns the fetch and the item
+    /// updates; they arrive as normal timeline diffs.
+    private func fetchMissingSenderProfiles() {
+        guard let timeline else { return }
+        Task(priority: .utility) {
+            await timeline.fetchMembers()
         }
     }
 

@@ -73,7 +73,8 @@ private struct LiveTimelineContainer: View {
                         imageLoader: imageLoader,
                         ownUserId: ownUserId,
                         showsReadReceipts: timeline.room.roomInfo?.isDirect == true,
-                        media: mediaLoader
+                        media: mediaLoader,
+                        ownAvatarUrl: appState.matrixClient?.ownAvatarUrl
                     )
                 } composer: {
                     ComposerBar(
@@ -132,6 +133,8 @@ struct TimelineContainer: View {
     let showsReadReceipts: Bool
     var media: (any TimelineMediaLoading)?
     var fallbackActions: (any TimelineFallbackRowActions)?
+    /// The account's global profile avatar (MATRIX-163).
+    var ownAvatarUrl: String?
 
     /// The file the full-screen viewer shows. Presented from here, not from
     /// a cell: a cell is recycled or reconfigured at any update.
@@ -155,7 +158,8 @@ struct TimelineContainer: View {
                 retryPagination: { [feed] in feed.retryPagination() },
                 media: media,
                 openMedia: { viewerItem = $0 },
-                fallbackActions: fallbackActions
+                fallbackActions: fallbackActions,
+                ownAvatarUrl: ownAvatarUrl
             )
         )
         .overlay(alignment: .bottomTrailing) {

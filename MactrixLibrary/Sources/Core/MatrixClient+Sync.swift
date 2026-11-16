@@ -71,6 +71,10 @@ public extension MatrixClient {
         // the new room list service.
         await dockBadge.start(roomListService: _roomListService, labels: labels)
 
+        // MATRIX-163: read the account's profile avatar. Not awaited: the
+        // read is a server request and must not hold the sync start.
+        Task { [weak self] in await self?.refreshOwnAvatar(readsCache: true) }
+
         // Start the sync loop.
         await _syncService.start()
         Logger.matrixClient.info("Matrix sync started")
