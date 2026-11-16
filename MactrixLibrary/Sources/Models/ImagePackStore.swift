@@ -139,6 +139,23 @@ public final class ImagePackStore {
         (spacesByRoom[roomId] ?? []).flatMap { shownPacksBySpace[$0] ?? [] }
     }
 
+    /// The shortcode of the custom emoji with the image `url` among the
+    /// packs of `roomId`, learned emoji included, or nil (MATRIX-166). A
+    /// scan of the packs in memory: no read of the homeserver or the disk.
+    /// The read is observable.
+    ///
+    /// - Parameters:
+    ///   - url: The emoji's `mxc://` URL, as a reaction key carries it.
+    ///   - roomId: The room of the reaction.
+    public func shortcode(forImageUrl url: String, inRoom roomId: String) -> String? {
+        for pack in packs(forRoom: roomId) {
+            if let emoji = pack.emoji.first(where: { $0.url == url }) {
+                return emoji.shortcode
+            }
+        }
+        return nil
+    }
+
     /// Whether the room has a known parent space, so a refresh has something
     /// to read. The read is observable.
     public func hasSpace(forRoom roomId: String) -> Bool {

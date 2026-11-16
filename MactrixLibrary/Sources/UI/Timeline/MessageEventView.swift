@@ -255,7 +255,12 @@ public struct MessageEventBodyView<
                             get: { reactionIsActive(reaction) },
                             set: { if $0 != reactionIsActive(reaction) { actions.toggleReaction(key: reaction.key) } }
                         ),
-                        imageLoader: imageLoader
+                        imageLoader: imageLoader,
+                        ownUserId: ownUserId,
+                        // MATRIX-166: names from the member list the row
+                        // already has. The chip asks only for the few
+                        // senders its tooltip names.
+                        displayName: { userId in roomMembers.first { $0.userId == userId }?.displayName }
                     )
                 }
                 Spacer()
