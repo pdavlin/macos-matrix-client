@@ -114,7 +114,8 @@ public extension ChatListLatestEvent {
         let body: String
         switch content {
         case let .text(text):
-            guard let collapsed = Self.collapse(text) else { return nil }
+            // MATRIX-156: an emoticon tag in the body reads as its ":name:".
+            guard let collapsed = Self.collapse(ComposerEmojiMarkup.draftText(fromBody: text)) else { return nil }
             body = collapsed
         case let .emote(text):
             return "* \(sender.name) \(Self.collapse(text) ?? "")".trimmingCharacters(in: .whitespaces)

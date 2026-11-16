@@ -51,7 +51,10 @@ struct ChatInputView: View {
 
         // MATRIX-105 (D-6): chips become pill links in the markdown, and the
         // mentioned users go into `m.mentions`.
+        // MATRIX-156: each `:name:` of the target room's image packs becomes
+        // an emoticon tag. With no such token the markdown is unchanged.
         let outgoing = MentionMarkdown.outgoingMessage(fromDraftText: chatInput)
+            .resolvingEmoji(in: emojiPacks(for: timeline))
         let markdownContent = messageEventContentFromMarkdown(md: outgoing.markdown)
         let msg = outgoing.mentionedUserIds.isEmpty
             ? markdownContent
@@ -137,6 +140,22 @@ struct ChatInputView: View {
         if let ownUserId = try? appState.matrixClient?.client.userId() {
             mentions.excludedUserIds = [ownUserId]
         }
+        // MATRIX-156: the custom emoji of the room the message goes to. In a
+        // merged chat `timeline` is the target, and this runs again when the
+        // target changes.
+        let client = appState.matrixClient
+        let roomId = timeline.room.id
+        client?.loadImagePacks(forRoom: roomId)
+        mentions.emojiPackProvider = { [weak client] in
+            client?.imagePacks.packs(forRoom: roomId) ?? []
+        }
+    }
+
+    /// The image packs of a timeline's room, for the send-time emoji
+    /// resolution (MATRIX-156). Empty when the room has no pack or the pack
+    /// has not loaded; the `:name:` tokens then stay text.
+    private func emojiPacks(for timeline: LiveTimeline) -> [ImagePack] {
+        appState.matrixClient?.imagePacks.packs(forRoom: timeline.room.id) ?? []
     }
 
     /// Inserts the chip that the user profile "Mention" action asked for,
@@ -164,6 +183,14 @@ struct ChatInputView: View {
                 UI.MentionSuggestionList(
                     suggestions: mentionState.suggestions,
                     selectedIndex: mentionState.selectedIndex,
+                    imageLoader: appState.matrixClient,
+                    onPick: { mentions.pick($0) }
+                )
+                Divider()
+            } else if let emojiState = mentions.emojiState {
+                UI.EmojiSuggestionList(
+                    suggestions: emojiState.suggestions,
+                    selectedIndex: emojiState.selectedIndex,
                     imageLoader: appState.matrixClient,
                     onPick: { mentions.pick($0) }
                 )
@@ -332,6 +359,8 @@ extension ChatInputView {
         replyTo = nil
         chatInput = target.originalDraftText
         merged?.editDidBegin(in: owner)
+        // MATRIX-156: the save resolves emoji against the message's room.
+        appState.matrixClient?.loadImagePacks(forRoom: owner.room.id)
         if let textView = mentions.textView {
             unsafe textView.window?.makeFirstResponder(textView)
         }
@@ -407,7 +436,7 @@ extension ChatInputView {
             // A merged chat's edit goes to the room of the message.
             let owner = merged?.editTimeline ?? timeline
             do {
-                try await owner.edit(session.target, with: content)
+                try await owner.edit(session.target, with: content.resolvingEmoji(in: emojiPacks(for: owner)))
             } catch {
                 Logger.viewCycle.error("failed to edit message: \(error)")
                 return
