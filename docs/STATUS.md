@@ -68,7 +68,8 @@ Timeline
   (MATRIX-136).
 - Capsule reaction chips with an own-reaction ring and a press scale. The
   hover action bar fades and slides in. One motion token set with Reduce
-  Motion support (MATRIX-135).
+  Motion support (MATRIX-135). A chip's tooltip lists who reacted, and
+  tooltips show after 400 ms (`NSInitialToolTipDelay`, MATRIX-166).
 
 Composer and message actions
 

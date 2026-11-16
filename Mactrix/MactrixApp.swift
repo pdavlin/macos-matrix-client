@@ -15,6 +15,9 @@ struct MactrixApp: App {
         if let limit = FileDescriptorLimit.raiseSoftLimit() {
             Logger.matrixClient.info("open-file soft limit: \(limit.before) -> \(limit.after)")
         }
+        // MATRIX-166 follow-up: tooltips show after 400 ms. Registered here,
+        // before AppKit makes its tooltip manager and before any window shows.
+        ToolTipDelay.register()
     }
 
     var body: some Scene {
