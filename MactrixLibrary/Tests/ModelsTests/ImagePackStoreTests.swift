@@ -154,6 +154,19 @@ struct ImagePackStoreTests {
         #expect(backend.reports.isEmpty)
     }
 
+    /// MATRIX-166: the reaction chip's tooltip names a custom emoji key.
+    @Test func findsTheShortcodeOfAnImageUrlInTheRoomsPacks() async throws {
+        let backend = try backend()
+        let store = ImagePackStore()
+        #expect(store.shortcode(forImageUrl: "mxc://example.org/parrot", inRoom: Self.room) == nil)
+
+        await store.load(roomId: Self.room, from: backend.source)
+
+        #expect(store.shortcode(forImageUrl: "mxc://example.org/parrot", inRoom: Self.room) == "parrot")
+        #expect(store.shortcode(forImageUrl: "mxc://example.org/unknown", inRoom: Self.room) == nil)
+        #expect(store.shortcode(forImageUrl: "mxc://example.org/parrot", inRoom: "!other:example.org") == nil)
+    }
+
     @Test func aPackWithoutANameTakesTheWorkspaceName() async throws {
         let backend = try backend()
         backend.states[Self.space.id] = .success(Self.state(shortcodes: ["shipit"], displayName: nil))

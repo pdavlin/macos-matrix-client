@@ -58,6 +58,18 @@ struct TimelineItemRowView: View {
         #endif
     }
 
+    /// Names a custom emoji reaction key for the chip's tooltip
+    /// (MATRIX-166): a scan of the room's image packs in memory. The spike's
+    /// stand-in client has no packs.
+    private var reactionEmojiName: (@MainActor (String) -> String?)? {
+        #if canImport(Core)
+            guard let client = appState.matrixClient, let roomId = timeline?.room.id else { return nil }
+            return { url in client.imagePacks.shortcode(forImageUrl: url, inRoom: roomId) }
+        #else
+            nil
+        #endif
+    }
+
     @ViewBuilder
     var contentView: some View {
         switch row {
@@ -117,5 +129,6 @@ struct TimelineItemRowView: View {
         .environment(\.timelineShowsReadReceipts, showsReadReceipts)
         .environment(\.timelineRowIsHovered, isHovered)
         .environment(\.ownAccountAvatarUrl, ownAccountAvatarUrl)
+        .environment(\.reactionEmojiName, reactionEmojiName)
     }
 }

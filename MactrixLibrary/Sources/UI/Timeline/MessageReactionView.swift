@@ -80,12 +80,24 @@ private struct ReactionChip<Label: View>: View {
     }
 }
 
+public extension EnvironmentValues {
+    /// The shortcode of a custom emoji reaction key, an `mxc://` URL, without
+    /// its colons, or nil when it is not known (MATRIX-166). The timeline
+    /// container sets it from the room's image packs. The chip's tooltip and
+    /// accessibility label name the emoji with it. The lookup must be
+    /// synchronous and cheap: a chip calls it on each draw.
+    @Entry var reactionEmojiName: (@MainActor (String) -> String?)?
+}
+
 public struct MessageReactionView<Reaction: Models.Reaction>: View {
     let reaction: Reaction
     let active: Binding<Bool>
     let imageLoader: ImageLoader?
+    let ownUserId: String
+    let displayName: (String) -> String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.reactionEmojiName) private var customEmojiName
 
     /// - Parameters:
     ///   - reaction: The reaction the chip shows.
@@ -93,18 +105,49 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
     ///     the reaction with the same key.
     ///   - imageLoader: Loads the image of an `mxc://` key (MATRIX-154). Nil
     ///     draws the generic glyph for such a key.
-    public init(reaction: Reaction, active: Binding<Bool>, imageLoader: ImageLoader? = nil) {
+    ///   - ownUserId: The account's own user ID. The tooltip names it "You".
+    ///   - displayName: The display name of a sender's user ID, from data
+    ///     the caller already has, or nil. The tooltip then shows the
+    ///     localpart of the user ID (MATRIX-166).
+    public init(
+        reaction: Reaction,
+        active: Binding<Bool>,
+        imageLoader: ImageLoader? = nil,
+        ownUserId: String = "",
+        displayName: @escaping (String) -> String? = { _ in nil }
+    ) {
         self.reaction = reaction
         self.active = active
         self.imageLoader = imageLoader
+        self.ownUserId = ownUserId
+        self.displayName = displayName
     }
 
-    var helpText: String {
-        let sendersString = reaction.senders.prefix(5)
-            .map(\.senderId)
-            .joined(separator: ", ")
+    /// Who posted the reaction. See `ReactionSenderSummary` for the rule.
+    var senderSummary: ReactionSenderSummary {
+        ReactionSenderSummary(senderIds: reaction.senders.map(\.senderId), ownUserId: ownUserId, displayName: displayName)
+    }
 
-        return "Reacted by \(sendersString)"
+    /// The name of a custom emoji key when it is known: the shortcode from
+    /// the room's image packs for an `mxc://` key, or the name of a `:name:`
+    /// key. Nil for a Unicode key, and for an image with no known shortcode.
+    var emojiName: String? {
+        switch ReactionKeyKind(key: reaction.key) {
+        case let .image(mxcUrl): customEmojiName?(mxcUrl)
+        case let .shortcode(name): name
+        case .unicode: nil
+        }
+    }
+
+    /// The system tooltip of the chip on the Mac: the people who posted the
+    /// reaction, after the custom emoji's name when it is known.
+    var toolTipText: String {
+        senderSummary.tooltip(emojiName: emojiName)
+    }
+
+    /// The chip's accessibility label: the key, the tally, and the people.
+    var accessibilityText: String {
+        senderSummary.accessibilityLabel(keyName: emojiName ?? ReactionKeyKind(key: reaction.key).spokenName)
     }
 
     private var count: Int {
@@ -112,6 +155,12 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
     }
 
     public var body: some View {
+        chip
+            .accessibilityLabel(Text(verbatim: accessibilityText))
+            .reactionChipToolTip(toolTipText)
+    }
+
+    private var chip: some View {
         Toggle(isOn: active, label: {
             HStack(spacing: 0) {
                 ReactionKeyLabel(key: reaction.key, imageLoader: imageLoader)
@@ -121,7 +170,6 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
             .padding(DensityToken.reactionPadding)
         })
         .toggleStyle(MessageReactionToggleStyle())
-        .help(helpText)
     }
 
     /// The tally. It is semibold for the account's own reaction. A hidden
