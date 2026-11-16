@@ -179,15 +179,16 @@ public struct MentionTrigger: Equatable, Sendable {
     }
 }
 
-/// The open autocomplete popup: the query, the rows, and the selected row.
-public struct MentionAutocompleteState: Equatable, Sendable {
-    public let trigger: MentionTrigger
-    public let suggestions: [MentionCandidate]
+/// An open completion popup of the composer: the query, the rows, and the
+/// selected row. The mention popup and the emoji list (MATRIX-156) share it.
+public struct ComposerAutocompleteState<Trigger: Equatable & Sendable, Suggestion: Equatable & Sendable>: Equatable, Sendable {
+    public let trigger: Trigger
+    public let suggestions: [Suggestion]
     public private(set) var selectedIndex: Int
 
     /// - Returns: nil when no candidate matches, because an empty popup must
     ///   not take Return away from send.
-    public init?(trigger: MentionTrigger, suggestions: [MentionCandidate], selectedIndex: Int = 0) {
+    public init?(trigger: Trigger, suggestions: [Suggestion], selectedIndex: Int = 0) {
         guard !suggestions.isEmpty else { return nil }
         self.trigger = trigger
         self.suggestions = suggestions
@@ -195,7 +196,7 @@ public struct MentionAutocompleteState: Equatable, Sendable {
     }
 
     /// The row that Return or Tab picks.
-    public var selected: MentionCandidate {
+    public var selected: Suggestion {
         suggestions[selectedIndex]
     }
 
@@ -205,6 +206,9 @@ public struct MentionAutocompleteState: Equatable, Sendable {
         selectedIndex = ((selectedIndex + delta) % count + count) % count
     }
 }
+
+/// The open mention popup.
+public typealias MentionAutocompleteState = ComposerAutocompleteState<MentionTrigger, MentionCandidate>
 
 /// A key the open popup handles before the composer does.
 public enum MentionAutocompleteKey: Sendable {

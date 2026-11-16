@@ -201,7 +201,7 @@ public extension MatrixNotifications {
                         case .notice:
                             return "Notice"
                         case let .text(content):
-                            return content.body
+                            return content.displayBody
                         case .location:
                             return "Location"
                         case let .other(msgtype, body):

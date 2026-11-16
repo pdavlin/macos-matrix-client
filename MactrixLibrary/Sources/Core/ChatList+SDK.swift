@@ -147,7 +147,7 @@ extension MatrixRustSDK.MessageType {
     var chatListContent: Models.ChatListPreviewContent {
         switch self {
         case let .text(content: content):
-            return .text(content.body)
+            return .text(content.displayBody)
         case let .notice(content: content):
             return .text(content.body)
         case let .emote(content: content):

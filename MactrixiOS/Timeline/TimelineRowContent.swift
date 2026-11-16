@@ -246,7 +246,8 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
     /// non-message rows.
     private var copyableText: String? {
         guard case let .message(content) = msgLike.kind, TimelineMedia(content.msgType) == nil else { return nil }
-        return content.body
+        // MATRIX-156: a custom emoji tag copies as its ":name:".
+        return content.displayBody
     }
 
     var body: some View {

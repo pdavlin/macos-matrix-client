@@ -43,7 +43,7 @@ public extension Models.MessageTranscriptLine {
     private static func body(of msgType: MatrixRustSDK.MessageType) -> Body {
         switch msgType {
         case let .text(content):
-            return .text(content.body)
+            return .text(content.displayBody)
         case let .notice(content):
             return .text(content.body)
         case let .emote(content):
