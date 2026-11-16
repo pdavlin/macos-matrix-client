@@ -167,31 +167,38 @@ struct JumboEmoticonTests {
 
     // MARK: - Cost
 
-    /// The scan stops at the first piece that is not an emoji, so a 90 kB
-    /// prose body costs the same as a short one. The limits are bounds, not
-    /// benchmarks. A scan of the whole prose body would break the first one.
-    /// Measured on an M-series Mac: 0.3 microseconds for the prose body, 5
-    /// for one emoticon, 46 for nine (optimized build); 8 and 190 for the
-    /// first and the last in a debug build.
-    @Test func scanIsCheap() {
-        let prose = "<p>" + String(repeating: "The quick brown fox jumps over the lazy dog. ", count: 2000) + "</p>"
-        let nine = String(repeating: Self.parrot, count: 9)
-        let clock = ContinuousClock()
-        let rounds = 1000
+    /// The scan stops at the first piece that is not an emoji, so a long
+    /// prose body costs the same as a short one. The test reads where the
+    /// scan stopped. It does not measure time.
+    @Test func scanStopsAtTheFirstPieceThatIsNotAnEmoji() {
+        let tail = String(repeating: "The quick brown fox jumps over the lazy dog. ", count: 2000)
 
-        var hits = 0
-        let proseTime = clock.measure {
-            for _ in 0 ..< rounds where JumboEmoji.kind(body: "The quick", formattedBody: prose) == nil {
-                hits += 1
-            }
-        }
-        let emoticonTime = clock.measure {
-            for _ in 0 ..< rounds where JumboEmoji.kind(body: ":partyparrot:", formattedBody: nine) == .formatted {
-                hits += 1
-            }
-        }
-        #expect(hits == rounds * 2)
-        #expect(proseTime / rounds < .microseconds(500))
-        #expect(emoticonTime / rounds < .milliseconds(10))
+        // `<p>`, then the first letter.
+        let prose = "<p>" + tail + "</p>"
+        let proseScan = JumboEmoji.scan(formattedBody: prose)
+        #expect(!proseScan.isEmojiOnly)
+        #expect(prose.distance(from: prose.startIndex, to: proseScan.stop) == 4)
+
+        // An emoticon, a space, then the first letter.
+        let afterEmoticon = Self.parrot + " " + tail
+        let emoticonScan = JumboEmoji.scan(formattedBody: afterEmoticon)
+        #expect(!emoticonScan.isEmojiOnly)
+        #expect(afterEmoticon.distance(from: afterEmoticon.startIndex, to: emoticonScan.stop) == Self.parrot.count + 2)
+
+        // A tag that is not allowed: the scan reads that tag and no more.
+        let bold = "<b>" + tail + "</b>"
+        #expect(bold.distance(from: bold.startIndex, to: JumboEmoji.scan(formattedBody: bold).stop) == 3)
+
+        // The tenth emoji: the scan does not read the ninety after it.
+        let many = String(repeating: Self.thumb, count: 100)
+        let manyScan = JumboEmoji.scan(formattedBody: many)
+        #expect(!manyScan.isEmojiOnly)
+        #expect(many.distance(from: many.startIndex, to: manyScan.stop) == JumboEmoji.maximumCount + 1)
+
+        // A jumbo body is read to its end.
+        let nine = String(repeating: Self.parrot, count: 9)
+        let nineScan = JumboEmoji.scan(formattedBody: nine)
+        #expect(nineScan.isEmojiOnly)
+        #expect(nineScan.stop == nine.endIndex)
     }
 }

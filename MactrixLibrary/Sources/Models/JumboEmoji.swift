@@ -96,31 +96,38 @@ public enum JumboEmoji {
     /// runs the tag reader's regular expressions, at most `maximumCount + 1`
     /// times.
     public static func isEmojiOnly(formattedBody html: String) -> Bool {
+        scan(formattedBody: html).isEmojiOnly
+    }
+
+    /// The scan behind `isEmojiOnly(formattedBody:)`, with the place where it
+    /// stopped: the end of the last piece it read. Internal, so a test can
+    /// prove that the scan stops at the first piece that does not qualify.
+    static func scan(formattedBody html: String) -> (isEmojiOnly: Bool, stop: String.Index) {
         var emojiCount = 0
         var index = html.startIndex
         while index < html.endIndex {
             let character = html[index]
             if character == "<" {
-                guard let end = html[index...].firstIndex(of: ">") else { return false }
+                guard let end = html[index...].firstIndex(of: ">") else { return (false, index) }
                 let tag = html[index ... end]
                 index = html.index(after: end)
                 if isTextlessTag(tag) {
                     continue
                 }
-                guard isEmoticonTag(tag) else { return false }
+                guard isEmoticonTag(tag) else { return (false, index) }
             } else {
                 index = html.index(after: index)
                 if character.isWhitespace {
                     continue
                 }
-                guard isEmoji(character) else { return false }
+                guard isEmoji(character) else { return (false, index) }
             }
             emojiCount += 1
             if emojiCount > maximumCount {
-                return false
+                return (false, index)
             }
         }
-        return emojiCount > 0
+        return (emojiCount > 0, index)
     }
 
     /// Whether `tag`, from `<` to `>`, is one of `textlessTags`. Compared as
