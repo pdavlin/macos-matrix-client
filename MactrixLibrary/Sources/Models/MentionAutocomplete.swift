@@ -200,6 +200,15 @@ public struct ComposerAutocompleteState<Trigger: Equatable & Sendable, Suggestio
         suggestions[selectedIndex]
     }
 
+    /// The popup for the same query after the candidates changed
+    /// (MATRIX-161): the new rows, with the selection on the row that was
+    /// selected if it is still a row, else on the first row.
+    ///
+    /// - Returns: nil when no candidate matches now.
+    public func replacing(suggestions: [Suggestion]) -> Self? {
+        Self(trigger: trigger, suggestions: suggestions, selectedIndex: suggestions.firstIndex(of: selected) ?? 0)
+    }
+
     /// Moves the selection by `delta` rows and wraps at both ends.
     public mutating func moveSelection(by delta: Int) {
         let count = suggestions.count

@@ -32,11 +32,34 @@ public func parseFormattedBody(
     )
 }
 
+/// One custom emoticon of a message body (MATRIX-161).
+public struct BodyEmoticon: Equatable, Sendable {
+    /// The tag's alt, else its title, as the sender wrote it: for a bridge
+    /// emoticon, `:name:`. Can be empty.
+    public let name: String
+    /// The `mxc://` source.
+    public let source: String
+
+    public init(name: String, source: String) {
+        self.name = name
+        self.source = source
+    }
+}
+
+/// The custom emoticons in an HTML body, in document order. A source that
+/// occurs twice counts once, with its first name.
+public func emoticons(inFormattedBody body: String) -> [BodyEmoticon] {
+    let rewritten = ImageTagRewriter.rewrite(body)
+    var seen = Set<String>()
+    return zip(rewritten.emoticonNames, rewritten.emoticonSources).compactMap { name, source in
+        seen.insert(source).inserted ? BodyEmoticon(name: name, source: source) : nil
+    }
+}
+
 /// The `mxc://` sources of the custom emoticons in an HTML body, in document
 /// order, without duplicates.
 public func emoticonSources(inFormattedBody body: String) -> [String] {
-    var seen = Set<String>()
-    return ImageTagRewriter.rewrite(body).emoticonSources.filter { seen.insert($0).inserted }
+    emoticons(inFormattedBody: body).map(\.source)
 }
 
 /// The ZMarkupParser step. Internal so a test can hand it a raw `<img>` and

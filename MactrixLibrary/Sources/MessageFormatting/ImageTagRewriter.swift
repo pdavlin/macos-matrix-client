@@ -29,6 +29,10 @@ enum ImageTagRewriter {
         var html: String
         /// The `mxc://` source of each marked emoticon, in document order.
         var emoticonSources: [String]
+        /// The name of each marked emoticon, as its tag gives it: the alt,
+        /// else the title. One for each source, in the same order
+        /// (MATRIX-161).
+        var emoticonNames: [String] = []
     }
 
     /// `<img …>` with quoted attribute values that may hold a `>`.
@@ -54,6 +58,7 @@ enum ImageTagRewriter {
         let source = clean as NSString
         var result = ""
         var sources: [String] = []
+        var names: [String] = []
         var cursor = 0
         for match in imageTag.matches(in: clean, range: NSRange(location: 0, length: source.length)) {
             result += source.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
@@ -62,8 +67,10 @@ enum ImageTagRewriter {
             let attributes = parseAttributes(source.substring(with: match.range(at: 1)))
             let alt = escapeText(attributes["alt"] ?? "")
             if let emoticonSource = emoticonSource(attributes) {
+                let name = emoticonName(attributes)
                 sources.append(emoticonSource)
-                result += openMarker + (alt.isEmpty ? escapeText(attributes["title"] ?? "") : alt) + closeMarker
+                names.append(name)
+                result += openMarker + (alt.isEmpty ? escapeText(name) : alt) + closeMarker
             } else {
                 result += alt
             }
@@ -75,7 +82,7 @@ enum ImageTagRewriter {
             range: NSRange(location: 0, length: (result as NSString).length),
             withTemplate: ""
         )
-        return Output(html: withoutClosing, emoticonSources: sources)
+        return Output(html: withoutClosing, emoticonSources: sources, emoticonNames: names)
     }
 
     /// `mxc://server/mediaId`, with nothing after the media ID.
@@ -95,10 +102,13 @@ enum ImageTagRewriter {
         let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
         guard matches(matrixContentURL, trimmed) else { return nil }
         if attributes["data-mx-emoticon"] != nil { return trimmed }
-        // The same choice as the text shown for the emoticon: the alt, else the title.
+        return matches(shortcode, emoticonName(attributes)) ? trimmed : nil
+    }
+
+    /// The text shown for an emoticon, and its name: the alt, else the title.
+    private static func emoticonName(_ attributes: [String: String]) -> String {
         let alt = attributes["alt"] ?? ""
-        let name = alt.isEmpty ? attributes["title"] ?? "" : alt
-        return matches(shortcode, name) ? trimmed : nil
+        return alt.isEmpty ? attributes["title"] ?? "" : alt
     }
 
     /// Attribute names in lower case. The first use of a name wins, as in HTML.

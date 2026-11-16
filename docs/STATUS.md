@@ -70,6 +70,11 @@ Composer and message actions
   and the search finds their shortcodes. This needs the bridge's
   `import-image-pack`. An `mxc://` key does not go into the recent list
   (MATRIX-155).
+- The custom emoji are read again while the app runs (at most each 5
+  minutes per workspace), and "Refresh Custom Emoji" (the pack section's
+  header, and the View menu) reads them now. An emoji seen in a message body
+  is learned for its workspace and shows in the picker and the composer
+  without a new import (MATRIX-161).
 - Mentions with atomic chips.
 - Media send: file picker, paste, drag and drop, upload progress.
 - Forward text and media to another room.

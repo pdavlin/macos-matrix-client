@@ -136,12 +136,24 @@
         let onClose: @MainActor () -> Void
         let onPick: @MainActor (String) -> Void
 
+        /// The "Refresh Custom Emoji" button of the pack section
+        /// (MATRIX-161). The status read is observed, so the header follows
+        /// the refresh; so are the packs, which a refresh or a learned emoji
+        /// changes while the picker is open.
+        private var packRefresh: UI.ImagePackRefreshControl? {
+            guard let client else { return nil }
+            return UI.ImagePackRefreshControl(status: client.imagePacks.refreshStatusByRoom[roomId]) { [roomId] in
+                client.refreshImagePacks(forRoom: roomId)
+            }
+        }
+
         var body: some View {
             UI.ReactionPickerView(
                 catalog: .bundled,
                 recents: client?.recentEmojis.emojis ?? [],
                 packs: client?.imagePacks.packs(forRoom: roomId) ?? [],
                 imageLoader: client,
+                packRefresh: packRefresh,
                 onClose: onClose,
                 onPick: onPick
             )
@@ -245,6 +257,8 @@
             let client = coordinator.appState.matrixClient
             // Again here: the SDK finds no parent space for a room until its
             // space graph is ready, and the store does not keep that answer.
+            // The store also reads a space again when its last read is old
+            // (MATRIX-161), so an emoji import shows without a restart.
             client?.loadImagePacks(forRoom: timeline.room.id)
             let itemId = request.eventId
             let content = TimelineReactionPickerContent(

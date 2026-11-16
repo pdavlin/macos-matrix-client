@@ -22,6 +22,10 @@ public struct EmojiPickerContent: Equatable, Sendable {
         public let entries: [EmojiCatalog.Entry]
         /// The index of the section's first entry in `EmojiPickerContent.entries`.
         public let startIndex: Int
+        /// Whether the entries are the custom emoji of an image pack. The
+        /// first such section's header holds the refresh control
+        /// (MATRIX-161).
+        public let isImagePack: Bool
 
         public var id: Int {
             startIndex
@@ -55,19 +59,19 @@ public struct EmojiPickerContent: Equatable, Sendable {
         let isSearch = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         var sections: [Section] = []
         var start = 0
-        func append(title: String?, entries: [EmojiCatalog.Entry]) {
+        func append(title: String?, entries: [EmojiCatalog.Entry], isImagePack: Bool = false) {
             guard !entries.isEmpty else { return }
-            sections.append(Section(title: title, entries: entries, startIndex: start))
+            sections.append(Section(title: title, entries: entries, startIndex: start, isImagePack: isImagePack))
             start += entries.count
         }
         if isSearch {
             append(title: nil, entries: catalog.search(query))
             for pack in packs {
-                append(title: pack.title, entries: pack.search(query))
+                append(title: pack.title, entries: pack.search(query), isImagePack: true)
             }
         } else {
             for pack in packs {
-                append(title: pack.title, entries: pack.entries)
+                append(title: pack.title, entries: pack.entries, isImagePack: true)
             }
             for category in catalog.categories {
                 append(title: category.name, entries: category.entries)

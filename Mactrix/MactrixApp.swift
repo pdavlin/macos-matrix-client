@@ -27,6 +27,7 @@ struct MactrixApp: App {
             AppCommands()
             GoCommands()
             MessageCommands()
+            CustomEmojiCommands(appState: appState)
         }
         // Keyed on the window, not only on whether one is key: moving from a
         // room window to a main window hands that window a waiting

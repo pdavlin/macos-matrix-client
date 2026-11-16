@@ -13,17 +13,56 @@ import OSLog
 /// session's homeserver URL and access token.
 public extension MatrixClient {
     /// Loads the image packs of the room's parent spaces into `imagePacks`
-    /// and returns at once. Call it when a chat opens and when the picker
-    /// opens: the store reads the homeserver at most once per space per
-    /// session. Does nothing after a sign-out.
+    /// and returns at once. Call it when a chat opens, when the picker opens,
+    /// and when the composer's emoji list opens: the store reads the
+    /// homeserver only when its last good read of the space is older than
+    /// `ImagePackStore.refreshInterval` (MATRIX-161). Does nothing after a
+    /// sign-out.
     ///
     /// - Parameters:
     ///   - roomId: The room of the chat. In a merged chat, the member room.
     ///   - refresh: Reads the homeserver again.
     func loadImagePacks(forRoom roomId: String, refresh: Bool = false) {
-        guard let spaceService, let sdkClient: ClientProtocol = client else { return }
+        guard let source = imagePackSource else { return }
+        Task { await imagePacks.load(roomId: roomId, refresh: refresh, from: source) }
+    }
+
+    /// The "Refresh Custom Emoji" command (MATRIX-161): reads the state of
+    /// the room's workspace now and returns at once. The picker shows
+    /// `imagePacks.refreshStatusByRoom[roomId]`: busy, then the outcome for
+    /// `refreshResultDuration`. Does nothing for a room with no parent
+    /// space, and after a sign-out.
+    ///
+    /// - Parameter roomId: The room of the chat. In a merged chat, the
+    ///   member room.
+    func refreshImagePacks(forRoom roomId: String) {
+        guard let source = imagePackSource else { return }
+        Task {
+            guard await imagePacks.refresh(roomId: roomId, from: source) != nil else { return }
+            try? await Task.sleep(for: Self.refreshResultDuration)
+            imagePacks.clearRefreshStatus(forRoom: roomId)
+        }
+    }
+
+    /// How long the outcome of a refresh shows.
+    static let refreshResultDuration: Duration = .seconds(4)
+
+    /// Records the custom emoji that a message body of the room showed
+    /// (MATRIX-161). The store keeps them for the room's workspace, apart
+    /// from the imported pack, and makes no request.
+    ///
+    /// - Parameters:
+    ///   - emoji: The emoji of the body, see `LearnedEmoji.emoji(name:url:)`.
+    ///   - roomId: The room of the message.
+    func learnEmoji(_ emoji: [ImagePackEmoji], inRoom roomId: String) {
+        imagePacks.learn(emoji, roomId: roomId)
+    }
+
+    /// Where the store reads from, or nil after a sign-out.
+    private var imagePackSource: ImagePackStore.Source? {
+        guard let spaceService, let sdkClient: ClientProtocol = client else { return nil }
         let service: SpaceService = spaceService.spaceService
-        let source = ImagePackStore.Source(
+        return ImagePackStore.Source(
             cacheDirectory: URL.sessionCaches(for: storeID).appending(component: "ImagePacks"),
             parentSpaces: { roomId in
                 try await service.joinedParentsOfChild(childId: roomId)
@@ -43,7 +82,6 @@ public extension MatrixClient {
                 Logger.matrixClient.error("image packs: \(line, privacy: .public)")
             }
         )
-        Task { await imagePacks.load(roomId: roomId, refresh: refresh, from: source) }
     }
 }
 

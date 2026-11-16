@@ -67,12 +67,13 @@ struct ReactionPickerImagePackSnapshotTests {
         emoji: shortcodes.enumerated().map { ImagePackEmoji(shortcode: $0.element, url: "mxc://example.org/\($0.offset)") }
     )
 
-    private func host(query: String) -> NSViewController {
+    private func host(query: String, refresh: ImagePackRefreshControl? = nil) -> NSViewController {
         let picker = ReactionPickerView(
             catalog: .bundled,
             recents: ["😂", "🔥", "mxc://example.org/3", "👀"],
             packs: [Self.pack],
             imageLoader: SquareLoader(),
+            packRefresh: refresh,
             query: query
         ) { _ in }
         let controller = NSHostingController(rootView: picker)
@@ -94,6 +95,45 @@ struct ReactionPickerImagePackSnapshotTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func searchFindsPackEmojiByShortcode() {
         assertTextFieldSnapshot(of: host(query: "parrot"), as: .scaledImage)
+    }
+
+    /// MATRIX-161: the pack section's header with the refresh button at its
+    /// trailing edge, idle: the title, then the button, no text.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func packHeaderWithTheRefreshButtonIdle() {
+        let control = ImagePackRefreshControl(status: nil) {}
+        assertTextFieldSnapshot(of: host(query: "", refresh: control), as: .scaledImage)
+    }
+
+    /// During a refresh: "Refreshing…" beside the dimmed button.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func packHeaderWithTheRefreshButtonBusy() {
+        let control = ImagePackRefreshControl(status: .busy) {}
+        assertTextFieldSnapshot(of: host(query: "", refresh: control), as: .scaledImage)
+    }
+
+    /// After a refresh: the emoji count beside the button.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func packHeaderWithTheRefreshResult() {
+        let control = ImagePackRefreshControl(status: .loaded(emojiCount: 12)) {}
+        assertTextFieldSnapshot(of: host(query: "", refresh: control), as: .scaledImage)
+    }
+
+    @Test func theRefreshTextFollowsTheStatus() {
+        #expect(ImagePackRefreshButton.statusText(nil) == nil)
+        #expect(ImagePackRefreshButton.statusText(.busy) == "Refreshing…")
+        #expect(ImagePackRefreshButton.statusText(.loaded(emojiCount: 1204)) == "1204 emoji")
+        #expect(ImagePackRefreshButton.statusText(.failed) == "Refresh failed")
+    }
+
+    @Test func onlyThePackSectionsAreMarkedForTheRefreshButton() {
+        let sections = [ImagePackSection(pack: Self.pack)]
+        let whole = EmojiPickerContent(catalog: .bundled, packs: sections, query: "")
+        #expect(whole.sections.map(\.isImagePack).prefix(2) == [true, false])
+        #expect(whole.sections.filter(\.isImagePack).count == 1)
+
+        let search = EmojiPickerContent(catalog: .bundled, packs: sections, query: "parrot")
+        #expect(search.sections.map(\.isImagePack) == [false, true])
     }
 
     @Test func theRecentRowLeavesOutACustomKey() {

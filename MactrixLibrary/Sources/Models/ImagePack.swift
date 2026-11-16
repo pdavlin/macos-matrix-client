@@ -155,7 +155,7 @@ public extension ImagePack {
         guard !urls.isEmpty else { return nil }
         let emoji = urls
             .map { ImagePackEmoji(shortcode: $0.key, url: $0.value) }
-            .sorted { ($0.shortcode.lowercased(), $0.shortcode) < ($1.shortcode.lowercased(), $1.shortcode) }
+            .sorted(by: inShortcodeOrder)
         let name = ordered.lazy.compactMap(\.content.displayName).first.map(withoutPartSuffix)
         return ImagePack(key: key, displayName: name, emoji: emoji)
     }

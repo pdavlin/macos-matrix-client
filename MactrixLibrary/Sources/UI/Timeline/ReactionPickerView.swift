@@ -37,6 +37,10 @@ public extension EmojiCatalog {
 /// searches their shortcodes, and the arrow keys cross the pack's section as
 /// any other. A pick gives `onPick` the emoji's `mxc://` URI.
 ///
+/// The header of the first pack section holds the "Refresh Custom Emoji"
+/// button (MATRIX-161) when the host gives a `packRefresh`: the button, and
+/// beside it "Refreshing…" or the outcome of the last refresh.
+///
 /// The picker offers the default (yellow) emoji only; skin tones are not in
 /// M2. The search and the arrow-key rules live in `Models.EmojiCatalog` and
 /// `Models.EmojiPickerContent`.
@@ -68,6 +72,7 @@ public struct ReactionPickerView: View {
     /// The chat's image packs as grid sections, made once per `init`.
     let packs: [ImagePackSection]
     let imageLoader: ImageLoader?
+    let packRefresh: ImagePackRefreshControl?
     let onPick: @MainActor (String) -> Void
     let onClose: (@MainActor () -> Void)?
 
@@ -88,6 +93,8 @@ public struct ReactionPickerView: View {
     ///     categories. A pick sends the emoji's `mxc://` URI. Empty shows no
     ///     section.
     ///   - imageLoader: Loads the images of `packs`.
+    ///   - packRefresh: The refresh command of the pack sections, or nil
+    ///     for no button.
     ///   - query: The starting search text. Snapshot tests set it.
     ///   - onClose: Closes the picker, after a pick and on Esc. Nil uses
     ///     the environment's `dismiss`, which ends a SwiftUI presentation.
@@ -97,6 +104,7 @@ public struct ReactionPickerView: View {
         recents: [String],
         packs: [ImagePack] = [],
         imageLoader: ImageLoader? = nil,
+        packRefresh: ImagePackRefreshControl? = nil,
         query: String = "",
         onClose: (@MainActor () -> Void)? = nil,
         onPick: @escaping @MainActor (String) -> Void
@@ -105,6 +113,7 @@ public struct ReactionPickerView: View {
         self.recents = recents
         self.packs = packs.map(ImagePackSection.init)
         self.imageLoader = imageLoader
+        self.packRefresh = packRefresh
         self.onClose = onClose
         self.onPick = onPick
         self._query = State(initialValue: query)
@@ -203,6 +212,7 @@ public struct ReactionPickerView: View {
                     alignment: .leading,
                     spacing: 0
                 ) {
+                    let refreshSection: Int? = content.sections.first(where: \.isImagePack)?.id
                     ForEach(content.sections) { section in
                         Section {
                             ForEach(Array(section.entries.enumerated()), id: \.element.id) { offset, entry in
@@ -210,9 +220,16 @@ public struct ReactionPickerView: View {
                             }
                         } header: {
                             if let title = section.title {
-                                sectionTitle(Text(verbatim: title))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.top, 6)
+                                HStack(spacing: 6) {
+                                    sectionTitle(Text(verbatim: title))
+                                        .lineLimit(1)
+                                    Spacer(minLength: 0)
+                                    if let packRefresh, section.id == refreshSection {
+                                        ImagePackRefreshButton(control: packRefresh)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 6)
                             }
                         }
                     }

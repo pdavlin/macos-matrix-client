@@ -149,6 +149,11 @@ struct ChatInputView: View {
         mentions.emojiPackProvider = { [weak client] in
             client?.imagePacks.packs(forRoom: roomId) ?? []
         }
+        // MATRIX-161: each new ":" query asks again. The store reads the
+        // homeserver only when its last read of the workspace is old.
+        mentions.onEmojiQueryOpen = { [weak client] in
+            client?.loadImagePacks(forRoom: roomId)
+        }
     }
 
     /// The image packs of a timeline's room, for the send-time emoji
@@ -256,6 +261,10 @@ struct ChatInputView: View {
         }
         .task(id: ObjectIdentifier(timeline)) {
             configureMentions()
+        }
+        // MATRIX-161: a newer pack or a learned emoji updates the open list.
+        .onChange(of: emojiPacks(for: timeline)) {
+            mentions.emojiPacksDidChange()
         }
         .onChange(of: timeline.pendingComposerMention, initial: true) {
             insertPendingMention()
