@@ -81,7 +81,7 @@ extension NotificationItem {
     private static func body(of messageType: MessageType) -> NotificationSummary.Body {
         switch messageType {
         case let .text(content: content):
-            .text(content.body)
+            .text(content.displayBody)
         case let .notice(content: content):
             .text(content.body)
         case let .emote(content: content):

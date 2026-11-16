@@ -117,8 +117,9 @@ public enum ComposerEmojiMarkup {
     ///
     /// The SDK's markdown call puts the markdown source into the plain
     /// `body`, so the body of a message with a resolved emoji holds the tag.
-    /// The edit draft and the chat list preview read the body; they show the
-    /// token.
+    /// Every reader of the plain body that shows or copies it goes through
+    /// this function (`displayBody` in `Core`). Only a tag of the exact form
+    /// that `tag` writes is mapped; other HTML in a body stays as typed.
     ///
     /// - Parameter body: the plain body of a message.
     public static func draftText(fromBody body: String) -> String {

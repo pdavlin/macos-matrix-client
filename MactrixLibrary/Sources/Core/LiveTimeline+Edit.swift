@@ -46,7 +46,7 @@ public struct MessageEditTarget: Equatable, Identifiable {
         case let .text(content):
             // MATRIX-156: a sent custom emoji is its ":name:" token in the
             // draft again. The save resolves it again.
-            return (.message, ComposerEmojiMarkup.draftText(fromBody: content.body))
+            return (.message, content.displayBody)
         case let .image(content):
             return (.caption, content.caption ?? "")
         case let .video(content):

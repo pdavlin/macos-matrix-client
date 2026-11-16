@@ -455,7 +455,8 @@ extension MatrixRustSDK.MsgLikeKind: @retroactive CustomStringConvertible {
     public var description: String {
         switch self {
         case let .message(content: content):
-            return content.body
+            // MATRIX-156: reply quotes and pins read this.
+            return content.displayBody
         case .sticker(body: let body, info: _, source: _):
             return "Sticker: \(body)"
         case .poll(question: let question, kind: _, maxSelections: _, answers: _, votes: _, endTime: _, hasBeenEdited: _):

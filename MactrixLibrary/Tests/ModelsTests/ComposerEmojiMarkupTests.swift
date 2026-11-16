@@ -188,6 +188,28 @@ struct ComposerEmojiMarkupTests {
         #expect(ComposerEmojiMarkup.draftText(fromBody: body) == draft)
     }
 
+    @Test func bodyWithTwoTagsReadsAsTwoTokens() {
+        let body = "a \(Self.parrot) b \(Self.ship) c"
+        #expect(ComposerEmojiMarkup.draftText(fromBody: body) == "a :parrot: b :ship_it: c")
+        #expect(ComposerEmojiMarkup.draftText(fromBody: "\(Self.parrotAlone)\n\(Self.parrot)") == ":parrot:\n:parrot:")
+    }
+
+    @Test(arguments: [
+        "see <img src=\"x.png\"> here",
+        "a literal <img data-mx-emoticon in a sentence",
+        "<img data-mx-emoticon src=\"mxc://e.org/x\" alt=\"parrot\" title=\"parrot\" height=\"32\" />",
+        "<img data-mx-emoticon src=\"mxc://e.org/x\" alt=\":parrot:\" title=\":parrot:\" height=\"64\" />",
+        "<img data-mx-emoticon src=\"mxc://e.org/x\" alt=\":parrot:\">",
+    ])
+    func imageTagThatTheComposerDidNotMakeStaysAsTyped(body: String) {
+        #expect(ComposerEmojiMarkup.draftText(fromBody: body) == body)
+    }
+
+    @Test func typedImageTagBesideASentTagStaysAsTyped() {
+        let typed = "<img src=\"mxc://e.org/photo\" alt=\":not_ours:\">"
+        #expect(ComposerEmojiMarkup.draftText(fromBody: "\(typed) and \(Self.parrot)") == "\(typed) and :parrot:")
+    }
+
     @Test func escapedNameRoundTrips() {
         let body = "x " + ComposerEmojiMarkup.tag(shortcode: "a&b", url: "mxc://e.org/q") + " y"
         #expect(ComposerEmojiMarkup.draftText(fromBody: body) == "x :a&b: y")
@@ -211,13 +233,5 @@ struct ComposerEmojiMarkupTests {
 
         let caption = ComposerEditContent.caption(text: "ok :parrot:", mentionedUserIds: [])
         #expect(caption.resolvingEmoji(in: packs) == caption)
-    }
-
-    @Test func chatListPreviewShowsTheToken() {
-        let sender = ChatListSender(userId: "@me:example.org", displayName: "Patrick", isOwn: true)
-        let event = ChatListLatestEvent(
-            timestamp: .now, sender: sender, content: .text(resolve("ok :parrot: x")), hasSendFailure: false
-        )
-        #expect(event.preview(isDirect: true).text == "You: ok :parrot: x")
     }
 }

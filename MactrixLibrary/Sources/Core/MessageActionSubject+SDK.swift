@@ -65,7 +65,7 @@ public extension Models.MessageActionSubject {
     private static func content(of msgType: MatrixRustSDK.MessageType) -> (Content, String?) {
         switch msgType {
         case let .text(content):
-            return (.text, content.body)
+            return (.text, content.displayBody)
         case let .notice(content):
             return (.text, content.body)
         case let .emote(content):
