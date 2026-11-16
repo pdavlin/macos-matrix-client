@@ -178,8 +178,8 @@ public extension MatrixClient {
 
     /// A live timeline for the send only. The forward adds no listener to
     /// it, and it reports no decryption failures (the room view's own
-    /// timeline does that).
-    private static var forwardTimelineConfiguration: TimelineConfiguration {
+    /// timeline does that). A broadcast (MATRIX-168) uses it too.
+    internal static var forwardTimelineConfiguration: TimelineConfiguration {
         TimelineConfiguration(
             focus: .live(hideThreadedEvents: true),
             filter: .all,

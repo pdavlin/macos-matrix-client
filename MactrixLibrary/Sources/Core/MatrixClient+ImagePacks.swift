@@ -32,6 +32,20 @@ public extension MatrixClient {
         Task { await imagePacks.load(roomId: roomId, refresh: refresh, from: source) }
     }
 
+    /// Loads the image packs of the room's parent spaces and returns the
+    /// packs when the load is done (MATRIX-168). A broadcast sends to rooms
+    /// that are not open, so it cannot rely on a load an open chat started.
+    /// The store's rules are those of `loadImagePacks(forRoom:refresh:)`.
+    ///
+    /// - Parameter roomId: The room the message goes to.
+    /// - Returns: The packs a message in the room can use. Empty for a room
+    ///   with no pack, and after a sign-out.
+    func loadedImagePacks(forRoom roomId: String) async -> [ImagePack] {
+        guard let source = imagePackSource else { return [] }
+        await imagePacks.load(roomId: roomId, from: source)
+        return imagePacks.packs(forRoom: roomId)
+    }
+
     /// The "Refresh Custom Emoji" command (MATRIX-161): reads the state of
     /// the room's workspace now and returns at once. The picker shows
     /// `imagePacks.refreshStatusByRoom[roomId]`: busy, then the outcome for

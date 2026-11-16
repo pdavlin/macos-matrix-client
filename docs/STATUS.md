@@ -43,6 +43,18 @@ Chat list (sidebar)
   item's menu shows the rooms of the space. The Spaces section at the bottom
   of the list is gone.
 - The rail's spaces, the workspace icons, the merged-chat member labels and a restored space filter are there in the first frame after a relaunch, from a launch cache of the space data (`SpaceLaunchCache.json` in the session cache folder, MATRIX-170).
+- Broadcast to the chats of the rail filter (MATRIX-168). With a label or a
+  space selected, "Broadcast…" shows in the chat list's header, and File >
+  "Broadcast to <name>…" is enabled. The sheet takes one text message and
+  lists the chats the sidebar shows, each with a checkbox. "Review…" opens
+  an explicit second step: "Send to N Chats", and above 20 chats the count
+  must be typed. The sends go one chat at a time with a 400 ms pause, through
+  the composer's text path (Markdown, and custom emoji per target room). Each
+  chat shows waiting, sending, sent, or failed. Stop ends the run after the
+  send in flight, and Retry Failed sends again to the failed chats only. A
+  merged chat is one target: its default room if the filter shows it, else
+  the first member the filter shows. Text only. Nothing is stored. Never for
+  the Inbox.
 - New chat: start a DM or a group, or join a room.
 
 Timeline
@@ -174,6 +186,7 @@ Tooling
 | MATRIX-162 | Smoke a Slack message of only custom emoji: it draws large, and the row does not move when the images load |
 | MATRIX-165 | Smoke own messages in two Slack workspaces and in a merged chat: each shows the Slack profile image of its workspace. Checks 2 and 3 of `docs/research/own-service-profile.md` say why if it does not |
 | MATRIX-167 | Smoke the spaces on the rail: each Slack workspace is an item, a click filters the list, the unread marks agree with the list, the selection is there after a relaunch, and "Browse Rooms…" opens the rooms |
+| MATRIX-168 | Smoke the broadcast on the dev account: select a label with 2 scratch chats, see "Broadcast…" in the list header and in the File menu, and see neither for the Inbox. Send one message with Markdown: both chats show it one time. Clear one checkbox: that chat gets nothing. Press Escape while a run is active: the sheet asks before it stops. Then one label with a merged chat: one message, in the expected member room |
 | MATRIX-170 | Quit and relaunch two times: the rail shows the spaces at once and they do not go away, the chat rows show their workspace icons at once, and a selected space is still selected with its chats. Then leave a space (dev account): it goes off the rail and is not there after the next relaunch |
 | MATRIX-169 | Smoke threads in a Slack chat: open the panel of a root with replies and see the root and each reply; open a second thread and see its rows, not those of the first; reply to a root from the main composer and see the count under the root go up, the reply in the panel, no quoted reply in the main timeline, and a thread reply in Slack; reply from the panel composer; reply to a message with no thread and see a plain quoted reply |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |

@@ -113,6 +113,9 @@ public final class WindowState {
     /// The label sheet to show, if any (MATRIX-77). Not restored.
     public var labelEditor: LabelEditorRequest?
 
+    /// The broadcast sheet to show, if any (MATRIX-168). Not restored.
+    public var broadcast: BroadcastRequest?
+
     /// The Merge Chats sheet to show, if any (MATRIX-141). Not restored.
     public var mergeEditor: MergedChatEditorRequest?
 
@@ -282,6 +285,22 @@ extension WindowState: @MainActor RawRepresentable {
     }
 
     public typealias RawValue = String
+}
+
+/// A request to open the broadcast sheet (MATRIX-168): the filter's name
+/// and its targets, read when the sheet opens.
+public struct BroadcastRequest: Identifiable, Equatable {
+    public let id: UUID
+    /// The label's or the space's name.
+    public let filterName: String
+    /// The chats the filter shows, in sidebar order. Never empty.
+    public let targets: [BroadcastTarget]
+
+    public init(id: UUID = UUID(), filterName: String, targets: [BroadcastTarget]) {
+        self.id = id
+        self.filterName = filterName
+        self.targets = targets
+    }
 }
 
 /// A request to open the label sheet (MATRIX-77).

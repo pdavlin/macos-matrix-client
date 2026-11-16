@@ -181,6 +181,8 @@ struct MainView: View {
         .focusedSceneValue(\.quickSwitcherPresented, appState.matrixClient == nil ? nil : $showQuickSwitcher)
         // ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ in the Go menu (MATRIX-115).
         .modifier(GoNavigationPublisher(windowState: windowState))
+        // File > "Broadcast to <filter>…" (MATRIX-168).
+        .modifier(BroadcastCommandPublisher(windowState: windowState))
     }
 
     func attemptLoadUserSession() async {

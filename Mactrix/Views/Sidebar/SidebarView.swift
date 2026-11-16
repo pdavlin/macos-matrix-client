@@ -138,6 +138,9 @@ struct SidebarView: View {
         .sheet(item: $windowState.spaceBrowser) { request in
             SpaceBrowserSheet(request: request)
         }
+        .sheet(item: $windowState.broadcast) { request in
+            BroadcastHost(request: request)
+        }
     }
 
     private func applyChatListFilter() {
@@ -180,6 +183,12 @@ struct SidebarView: View {
         let favorites = chats.visible.favorites
         let inbox = chats.visible.list
         let selectedItemId = windowState.chatSelection?.itemId
+        // MATRIX-168: nil for the Inbox and for a filter that shows no chat.
+        let broadcast = SidebarBroadcast.request(
+            filterName: SidebarRail.filterName(client: appState.matrixClient, windowState: windowState),
+            items: chats.visible.ordered,
+            filter: SidebarRail.filter(client: appState.matrixClient, windowState: windowState)
+        )
 
         return List(selection: listSelection) {
             SidebarSyncStateView()
@@ -224,7 +233,20 @@ struct SidebarView: View {
                         }
                 }
             } header: {
-                Text(listTitle)
+                HStack(spacing: 6) {
+                    Text(listTitle)
+                    Spacer(minLength: 0)
+                    // MATRIX-168: shows for a label or a space with chats.
+                    if let broadcast {
+                        Button {
+                            windowState.broadcast = broadcast
+                        } label: {
+                            Label("Broadcast…", systemImage: "megaphone")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Send one message to the chats of \(broadcast.filterName)")
+                    }
+                }
             }
         }
     }

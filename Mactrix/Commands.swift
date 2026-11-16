@@ -6,6 +6,8 @@ import Tokens
 struct AppCommands: Commands {
     @FocusedValue(WindowState.self) private var windowState: WindowState?
     @Environment(\.openWindow) private var openWindow
+    /// The key window's broadcast (MATRIX-168), or nil when it has none.
+    @FocusedValue(\.broadcastCommand) private var broadcastCommand: BroadcastCommand?
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     /// The key window's state when it is a main window. A single-room
@@ -80,6 +82,16 @@ struct AppCommands: Commands {
                 Text("New Tab")
             }
             .keyboardShortcut("t", modifiers: [.command])
+
+            Divider()
+
+            // MATRIX-168: enabled while the key window's rail filter is a
+            // label or a space that shows a chat. No shortcut: the sheet
+            // sends to many chats.
+            Button(broadcastCommand.map { "Broadcast to \($0.filterName)…" } ?? "Broadcast…") {
+                broadcastCommand?.open()
+            }
+            .disabled(broadcastCommand == nil)
         }
     }
 
