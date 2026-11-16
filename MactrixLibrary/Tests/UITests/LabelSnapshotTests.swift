@@ -48,13 +48,13 @@ struct LabelSnapshotTests {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func railInboxSelected() {
-        let rail = LabelRail(labels: labels, badges: badges, selection: nil, actions: .none)
+        let rail = LabelRail(labels: labels, badges: badges, selection: .inbox, actions: .none)
         assertTextFieldSnapshot(of: snapshot(of: rail, width: 68, height: 360), as: .scaledImage)
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func railLabelSelected() {
-        let rail = LabelRail(labels: labels, badges: badges, selection: "games", actions: .none)
+        let rail = LabelRail(labels: labels, badges: badges, selection: .label("games"), actions: .none)
         assertTextFieldSnapshot(of: snapshot(of: rail, width: 68, height: 360), as: .scaledImage)
     }
 

@@ -17,12 +17,27 @@ public enum ChatLabelBadge: Equatable, Sendable {
     /// A room is muted here when its own notification mode is mute OR the
     /// label itself is muted, so a muted label shows at most a dot.
     public static func badge(for label: ChatLabel, unread: [String: ChatListUnread]) -> ChatLabelBadge {
+        badge(forRooms: label.rooms, isMuted: label.isMuted, unread: unread)
+    }
+
+    /// The badge for a set of rooms: a label's rooms, or the chats of a space
+    /// (MATRIX-167). Rooms with no entry in `unread` count as read.
+    ///
+    /// - Parameters:
+    ///   - rooms: the room IDs.
+    ///   - isMuted: the whole set is muted, so it shows at most a dot.
+    ///   - unread: the unread state by room ID.
+    public static func badge(
+        forRooms rooms: some Sequence<String>,
+        isMuted: Bool = false,
+        unread: [String: ChatListUnread]
+    ) -> ChatLabelBadge {
         var counted = 0
         var hasActivity = false
-        for roomId in label.rooms {
+        for roomId in rooms {
             guard let state = unread[roomId], state.isUnread else { continue }
             hasActivity = true
-            if state.count > 0, !state.isMuted, !label.isMuted {
+            if state.count > 0, !state.isMuted, !isMuted {
                 counted += 1
             }
         }

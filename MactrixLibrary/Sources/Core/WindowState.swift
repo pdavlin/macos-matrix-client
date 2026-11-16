@@ -93,10 +93,22 @@ public final class WindowState {
     /// The sidebar chat-list filter (MATRIX-67). Restored per window.
     public var chatListFilter: ChatListFilter = .inbox
 
-    /// The label selected in the sidebar rail (MATRIX-77), or nil for the
-    /// Inbox. Restored per window. An ID the labels do not hold (yet, or any
-    /// more) shows the Inbox.
-    public var selectedLabelId: String?
+    /// The sidebar rail's selection (MATRIX-167): the Inbox, one space, or
+    /// one label. Restored per window. A label the labels do not hold, or a
+    /// space that is not on the rail (yet, or any more), shows the Inbox:
+    /// see `ChatListRailFilter.resolved(labels:spaceIds:)`.
+    public var railFilter: ChatListRailFilter = .inbox
+
+    /// The label selected in the sidebar rail (MATRIX-77), or nil when the
+    /// rail selects the Inbox or a space. A view of `railFilter`.
+    public var selectedLabelId: String? {
+        get { railFilter.labelId }
+        set { railFilter = newValue.map(ChatListRailFilter.label) ?? .inbox }
+    }
+
+    /// The space whose rooms the "Browse Rooms" sheet shows, if any
+    /// (MATRIX-167). Not restored.
+    public var spaceBrowser: SpaceBrowserRequest?
 
     /// The label sheet to show, if any (MATRIX-77). Not restored.
     public var labelEditor: LabelEditorRequest?
@@ -214,6 +226,9 @@ extension WindowState: @MainActor RawRepresentable {
         public let chatListFilter: ChatListFilter?
         /// MATRIX-77. Optional, so older windows restore with the Inbox.
         public let selectedLabelId: String?
+        /// MATRIX-167. Optional, so older windows restore their label or
+        /// the Inbox.
+        public let selectedSpaceId: String?
 
         @MainActor public init(windowState: WindowState) {
             self.selectedRoomId = windowState.selectedRoomId
@@ -221,7 +236,8 @@ extension WindowState: @MainActor RawRepresentable {
             self.inspectorVisible = windowState.inspectorVisible
             self.sidebarSections = windowState.sidebarSections
             self.chatListFilter = windowState.chatListFilter
-            self.selectedLabelId = windowState.selectedLabelId
+            self.selectedLabelId = windowState.railFilter.labelId
+            self.selectedSpaceId = windowState.railFilter.spaceId
         }
 
         @MainActor public func restore(windowState: WindowState) {
@@ -229,7 +245,9 @@ extension WindowState: @MainActor RawRepresentable {
             windowState.inspectorVisible = inspectorVisible
             windowState.sidebarSections = sidebarSections
             windowState.chatListFilter = chatListFilter ?? .inbox
-            windowState.selectedLabelId = selectedLabelId
+            windowState.railFilter = selectedSpaceId.map(ChatListRailFilter.space)
+                ?? selectedLabelId.map(ChatListRailFilter.label)
+                ?? .inbox
         }
     }
 
@@ -274,6 +292,18 @@ public enum LabelEditorRequest: Identifiable, Equatable {
         case let .edit(labelId): "edit:\(labelId)"
         }
     }
+}
+
+/// A request to show the rooms of one space (MATRIX-167).
+public struct SpaceBrowserRequest: Identifiable, Equatable {
+    /// The space's room ID.
+    public let spaceId: String
+
+    public init(spaceId: String) {
+        self.spaceId = spaceId
+    }
+
+    public var id: String { spaceId }
 }
 
 public enum SearchToken: Hashable, Identifiable {

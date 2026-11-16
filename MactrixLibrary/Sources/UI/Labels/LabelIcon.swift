@@ -51,6 +51,50 @@ public struct LabelIcon: View {
     }
 }
 
+/// A space's icon on the rail (MATRIX-167): the space's picture as a rounded
+/// square of the label icon's size, or the first letter of its name on a
+/// tinted square when it has no picture.
+///
+/// The initials show while the picture loads and when the load fails.
+public struct SpaceRailIcon: View {
+    let space: ChatListRailSpace
+    let imageLoader: ImageLoader?
+    let size: CGFloat
+
+    public init(space: ChatListRailSpace, imageLoader: ImageLoader?, size: CGFloat = LabelToken.railIconSize) {
+        self.space = space
+        self.imageLoader = imageLoader
+        self.size = size
+    }
+
+    private var initials: LabelIcon {
+        LabelIcon(
+            name: space.name,
+            colorIndex: space.colorIndex(paletteCount: LabelToken.palette.count),
+            icon: space.monogram.isEmpty ? "square.grid.2x2" : nil,
+            size: size
+        )
+    }
+
+    public var body: some View {
+        if let avatarUrl = space.avatarUrl {
+            AvatarImage(avatarUrl: avatarUrl, imageLoader: imageLoader) {
+                initials
+            }
+            .frame(width: size, height: size)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: LabelToken.railIconCornerRadius * size / LabelToken.railIconSize,
+                    style: .continuous
+                )
+            )
+            .accessibilityHidden(true)
+        } else {
+            initials
+        }
+    }
+}
+
 /// The unread mark on a rail item: Beeper's AccountBadge (MATRIX-77).
 struct LabelBadgeView: View {
     let badge: ChatLabelBadge

@@ -35,7 +35,13 @@ Chat list (sidebar)
 - Group avatars: a bubble cluster from the room heroes, else from the local
   member list. Colored initials when no picture exists.
 - Network badge for bridged rooms. Unread and send-failure dots.
-- Joined spaces in the sidebar.
+- Joined spaces on the sidebar rail, under the Inbox (MATRIX-167). A
+  top-level space with at least one chat is a rail item: its icon, an unread
+  mark, and its name as help text. A click filters the chat list to the
+  chats of the space, also the chats of its sub-spaces. The rail has one
+  selection: the Inbox, one space, or one label. "Browse Rooms…" in the
+  item's menu shows the rooms of the space. The Spaces section at the bottom
+  of the list is gone.
 - New chat: start a DM or a group, or join a room.
 
 Timeline
@@ -165,6 +171,7 @@ Tooling
 | MATRIX-153, 154, 155 | Smoke Slack custom emoji in message bodies, reaction chips, and the reaction picker |
 | MATRIX-162 | Smoke a Slack message of only custom emoji: it draws large, and the row does not move when the images load |
 | MATRIX-165 | Smoke own messages in two Slack workspaces and in a merged chat: each shows the Slack profile image of its workspace. Checks 2 and 3 of `docs/research/own-service-profile.md` say why if it does not |
+| MATRIX-167 | Smoke the spaces on the rail: each Slack workspace is an item, a click filters the list, the unread marks agree with the list, the selection is there after a relaunch, and "Browse Rooms…" opens the rooms |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |

@@ -21,6 +21,18 @@ public final class RoomAccountNames {
     /// updates once per batch.
     public private(set) var spaces: [String: [ChatAccount]] = [:]
 
+    /// The room IDs of the direct joined parent spaces, by child room ID
+    /// (MATRIX-167). Set with `spaces`. A child is a room that was requested,
+    /// or a parent space of one: the parents of each parent space are read
+    /// too, so a chat in a nested sub-space maps to the top-level space
+    /// (`RoomSpaceMap`).
+    public private(set) var parentIds: [String: [String]] = [:]
+
+    /// Which spaces hold which rooms, for the rail's space filter.
+    public var spaceMap: RoomSpaceMap {
+        RoomSpaceMap(parents: parentIds)
+    }
+
     /// The account of a room: see `ChatAccount.choose(from:network:)`.
     public func account(of roomId: String, network: ChatListNetwork?) -> ChatAccount? {
         guard let parents = spaces[roomId], !parents.isEmpty else { return nil }
@@ -93,17 +105,24 @@ public final class RoomAccountNames {
         var found = 0
         var newNames = names
         var newSpaces = spaces
+        var newParentIds = parentIds
         defer {
-            if newSpaces != spaces {
+            if newSpaces != spaces || newParentIds != parentIds {
                 names = newNames
                 spaces = newSpaces
+                parentIds = newParentIds
             }
         }
         while let roomId = pending.first {
             pending.removeFirst()
             do {
-                let parents = try await spaceService.joinedParentsOfChild(childId: roomId)
-                    .map { ChatAccount(name: $0.displayName, avatarUrl: $0.avatarUrl) }
+                let parentRooms = try await spaceService.joinedParentsOfChild(childId: roomId)
+                let parents = parentRooms.map { ChatAccount(name: $0.displayName, avatarUrl: $0.avatarUrl) }
+                newParentIds[roomId] = parentRooms.map(\.roomId)
+                // MATRIX-167: read the parents of each parent space too.
+                for parent in parentRooms where requested.insert(parent.roomId).inserted {
+                    pending.append(parent.roomId)
+                }
                 newSpaces[roomId] = parents
                 newNames[roomId] = parents.map(\.name)
                 if parents.isEmpty {

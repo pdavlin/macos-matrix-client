@@ -5,8 +5,10 @@ import Tokens
 /// What the label rail asks the app to do (MATRIX-77). The rail owns no
 /// state beyond the delete confirmation; every change goes through here.
 public struct LabelRailActions {
-    /// Select a rail item: nil is the Inbox.
-    public var select: (String?) -> Void
+    /// Select a rail item: the Inbox, a space, or a label.
+    public var select: (ChatListRailFilter) -> Void
+    /// Show the rooms of a space (MATRIX-167).
+    public var browseSpace: (ChatListRailSpace) -> Void
     public var newLabel: () -> Void
     public var edit: (ChatLabel) -> Void
     public var toggleMute: (ChatLabel) -> Void
@@ -15,7 +17,8 @@ public struct LabelRailActions {
     public var delete: (ChatLabel) -> Void
 
     public init(
-        select: @escaping (String?) -> Void,
+        select: @escaping (ChatListRailFilter) -> Void,
+        browseSpace: @escaping (ChatListRailSpace) -> Void = { _ in },
         newLabel: @escaping () -> Void,
         edit: @escaping (ChatLabel) -> Void,
         toggleMute: @escaping (ChatLabel) -> Void,
@@ -23,6 +26,7 @@ public struct LabelRailActions {
         delete: @escaping (ChatLabel) -> Void
     ) {
         self.select = select
+        self.browseSpace = browseSpace
         self.newLabel = newLabel
         self.edit = edit
         self.toggleMute = toggleMute
@@ -39,16 +43,22 @@ public struct LabelRailActions {
 }
 
 /// The narrow vertical rail at the leading edge of the sidebar: Beeper's
-/// space bar, carrying labels (MATRIX-77).
+/// space bar, carrying spaces (MATRIX-167) and labels (MATRIX-77).
 ///
-/// The Inbox is the top item, then one item per label in document order,
-/// then a "+" button. Selecting an item filters the chat list. ⌃1…⌃9 select
-/// the first nine items; ⌘1…⌘9 stay reserved for room pinning (contract M2).
+/// The Inbox is the top item, then one item per space in the order given,
+/// then a divider when there are both spaces and labels, then one item per
+/// label in document order, then a "+" button. Selecting an item filters the
+/// chat list; a click on the selected item keeps it selected. ⌃1…⌃9 select
+/// the first nine items in rail order; ⌘1…⌘9 stay reserved for room pinning
+/// (contract M2).
 public struct LabelRail: View {
+    let spaces: [ChatListRailSpace]
     let labels: [ChatLabel]
     let badges: [String: ChatLabelBadge]
-    /// The selected label's ID; nil selects the Inbox.
-    let selection: String?
+    /// The selected item.
+    let selection: ChatListRailFilter
+    /// Loads the space icons. Nil draws the initials.
+    let imageLoader: ImageLoader?
     /// False when the labels document cannot be written (unreadable, or a
     /// newer schema): the menus and the "+" button turn off.
     let isEditable: Bool
@@ -57,15 +67,19 @@ public struct LabelRail: View {
     @State private var pendingDelete: ChatLabel?
 
     public init(
+        spaces: [ChatListRailSpace] = [],
         labels: [ChatLabel],
         badges: [String: ChatLabelBadge] = [:],
-        selection: String?,
+        selection: ChatListRailFilter,
         isEditable: Bool = true,
+        imageLoader: ImageLoader? = nil,
         actions: LabelRailActions
     ) {
+        self.spaces = spaces
         self.labels = labels
         self.badges = badges
         self.selection = selection
+        self.imageLoader = imageLoader
         self.isEditable = isEditable
         self.actions = actions
     }
@@ -76,9 +90,9 @@ public struct LabelRail: View {
                 VStack(spacing: LabelToken.railItemSpacing) {
                     LabelRailItem(
                         title: "Inbox",
-                        isSelected: selection == nil,
+                        isSelected: selection == .inbox,
                         shortcutIndex: 0,
-                        action: { actions.select(nil) },
+                        action: { actions.select(.inbox) },
                         icon: {
                             RoundedRectangle(cornerRadius: LabelToken.railIconCornerRadius, style: .continuous)
                                 .fill(LabelToken.neutralFill)
@@ -90,14 +104,34 @@ public struct LabelRail: View {
                         }
                     )
 
+                    ForEach(Array(spaces.enumerated()), id: \.element.id) { offset, space in
+                        LabelRailItem(
+                            title: space.name,
+                            badge: space.badge,
+                            isSelected: selection == .space(space.id),
+                            shortcutIndex: offset + 1,
+                            action: { actions.select(.space(space.id)) },
+                            icon: { SpaceRailIcon(space: space, imageLoader: imageLoader) }
+                        )
+                        .contextMenu {
+                            Button("Browse Rooms…") { actions.browseSpace(space) }
+                        }
+                    }
+
+                    if !spaces.isEmpty, !labels.isEmpty {
+                        Divider()
+                            .frame(width: LabelToken.railIconSize)
+                            .padding(.vertical, LabelToken.railItemSpacing)
+                    }
+
                     ForEach(Array(labels.enumerated()), id: \.element.id) { offset, label in
                         LabelRailItem(
                             label: label,
                             badge: badges[label.id] ?? .none,
-                            isSelected: selection == label.id,
-                            shortcutIndex: offset + 1
+                            isSelected: selection == .label(label.id),
+                            shortcutIndex: spaces.count + offset + 1
                         ) {
-                            actions.select(label.id)
+                            actions.select(.label(label.id))
                         }
                         .contextMenu {
                             menu(for: label)
@@ -276,12 +310,13 @@ private struct OptionalControlShortcut: ViewModifier {
 
 #Preview {
     LabelRail(
+        spaces: [ChatListRailSpace(id: "!s", name: "DevObsessed", badge: .dot)],
         labels: [
             ChatLabel(id: "w", name: "Work", colorIndex: 6, icon: "briefcase"),
             ChatLabel(id: "f", name: "Family", colorIndex: 0, isMuted: true),
         ],
         badges: ["w": .count(3)],
-        selection: nil,
+        selection: .inbox,
         actions: .none
     )
     .frame(height: 300)

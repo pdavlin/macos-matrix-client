@@ -10,7 +10,16 @@ struct SpaceDisclosureGroup: View {
     @Environment(WindowState.self) var windowState
 
     @State var space: SidebarSpaceRoom
-    @State private var isExpanded: Bool = false
+    @State private var isExpanded: Bool
+
+    /// - Parameters:
+    ///   - space: the space or room of the row.
+    ///   - isExpanded: whether the row starts open (MATRIX-167: the root of
+    ///     the "Browse Rooms" sheet does).
+    init(space: SidebarSpaceRoom, isExpanded: Bool = false) {
+        _space = State(initialValue: space)
+        _isExpanded = State(initialValue: isExpanded)
+    }
 
     var loadingRooms: some View {
         Label {

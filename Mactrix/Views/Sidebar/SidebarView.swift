@@ -15,6 +15,10 @@ import UI
 /// MATRIX-77: the label rail sits at the leading edge. A selected label
 /// narrows the SDK filter to its rooms; the Inbox drops rooms of hidden
 /// labels here, because the SDK has no negated identifiers filter.
+///
+/// MATRIX-167: the joined spaces are rail items too. A selected space
+/// narrows the SDK filter to its chats, as a label does. The rail has one
+/// selection, `WindowState.railFilter`.
 struct SidebarView: View {
     @Environment(AppState.self) var appState
     @Environment(WindowState.self) var windowState
@@ -38,10 +42,10 @@ struct SidebarView: View {
     /// chat list (MATRIX-115), with merged chats folded in (MATRIX-141).
     ///
     /// The sidebar draws this and the Go menu's ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ walk it
-    /// (`GoNavigationPublisher`), so the two cannot disagree. Spaces are
-    /// left out: they live in the Spaces section. The rules (filter, then
+    /// (`GoNavigationPublisher`), so the two cannot disagree. Space rooms
+    /// are left out: a space is a rail filter. The rules (filter, then
     /// merge, then split favourites) are in
-    /// `ChatListMerging.visible(entries:labels:selectedLabelId:document:)`.
+    /// `ChatListMerging.visible(entries:filter:labels:spaces:document:)`.
     ///
     /// - Parameter now: decides the rows' timestamp buckets.
     static func visibleChatList(client: MatrixClient?, windowState: WindowState, now: Date = .now) -> SidebarChatList {
@@ -57,8 +61,9 @@ struct SidebarView: View {
         }
         let visible = ChatListMerging.visible(
             entries: entries,
+            filter: SidebarRail.filter(client: client, windowState: windowState),
             labels: labels,
-            selectedLabelId: windowState.selectedLabelId,
+            spaces: accounts?.spaceMap ?? RoomSpaceMap(),
             document: client?.mergedChats?.document ?? MergedChatDocument()
         )
         return SidebarChatList(visible: visible, rooms: chatRooms)
@@ -68,17 +73,15 @@ struct SidebarView: View {
         appState.matrixClient?.labels
     }
 
-    private var labelDocument: ChatLabelDocument {
-        labels?.document ?? ChatLabelDocument()
+    /// The rooms the SDK list is narrowed to: the selected label's or
+    /// space's rooms, or nil for the Inbox.
+    private var narrowingRoomIds: [String]? {
+        SidebarRail.narrowingRoomIds(client: appState.matrixClient, windowState: windowState)
     }
 
-    /// The window's label, if the labels still hold it.
-    private var selectedLabel: ChatLabel? {
-        windowState.selectedLabelId.flatMap(labelDocument.label(id:))
-    }
-
-    var spaces: [SidebarSpaceRoom] {
-        appState.matrixClient?.spaceService?.spaceRooms ?? []
+    /// The account's chat rooms, for the room-to-space map.
+    private var accountChatIds: Set<String> {
+        appState.matrixClient.map(SidebarRail.chatIds(client:)) ?? []
     }
 
     var body: some View {
@@ -91,9 +94,11 @@ struct SidebarView: View {
         }
         .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
         // MATRIX-148: read each room's account once; new rooms as they come.
-        .task(id: appState.matrixClient?.rooms.count) {
+        // MATRIX-167: also for the chats the window's filter leaves out, so
+        // the rail's spaces do not depend on the filter.
+        .task(id: accountChatIds.count) {
             guard let client = appState.matrixClient else { return }
-            client.loadRoomAccounts(client.rooms.map(\.id))
+            client.loadRoomAccounts(client.rooms.map(\.id) + accountChatIds.sorted())
         }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width in
             widthRecorder.record(width)
@@ -111,8 +116,10 @@ struct SidebarView: View {
             applyChatListFilter()
         }
         // MATRIX-77: a label's room set changes when it is edited, here or
-        // on another device.
-        .onChange(of: selectedLabel?.rooms) {
+        // on another device. MATRIX-167: a space's room set changes when
+        // the space graph loads or a chat joins the space, and the rail
+        // selection changes it too.
+        .onChange(of: narrowingRoomIds) {
             applyChatListFilter()
         }
         // The SDK filter is per client: when several windows chose different
@@ -128,18 +135,25 @@ struct SidebarView: View {
         .sheet(item: $windowState.labelEditor) { request in
             LabelEditorHost(request: request)
         }
+        .sheet(item: $windowState.spaceBrowser) { request in
+            SpaceBrowserSheet(request: request)
+        }
     }
 
     private func applyChatListFilter() {
-        appState.matrixClient?.setChatListFilter(windowState.chatListFilter, labelRooms: selectedLabel?.rooms)
+        // `labelRooms` carries a space's chats too: the SDK narrowing is the
+        // same for both.
+        appState.matrixClient?.setChatListFilter(windowState.chatListFilter, labelRooms: narrowingRoomIds)
     }
 
     private var listTitle: String {
-        guard let selectedLabel else { return windowState.chatListFilter.title }
-        if windowState.chatListFilter == .inbox {
-            return selectedLabel.name
+        guard let name = SidebarRail.filterName(client: appState.matrixClient, windowState: windowState) else {
+            return windowState.chatListFilter.title
         }
-        return "\(selectedLabel.name) · \(windowState.chatListFilter.title)"
+        if windowState.chatListFilter == .inbox {
+            return name
+        }
+        return "\(name) · \(windowState.chatListFilter.title)"
     }
 
     /// The List's selection: the selected row's ID, a room ID or a merged
@@ -156,7 +170,6 @@ struct SidebarView: View {
     }
 
     private var chatList: some View {
-        @Bindable var windowState = windowState
         // MATRIX-157: the observed clock makes the row timestamps change
         // bucket when the day changes, not only when a room changes.
         let chats = Self.visibleChatList(
@@ -212,12 +225,6 @@ struct SidebarView: View {
                 }
             } header: {
                 Text(listTitle)
-            }
-
-            Section("Spaces", isExpanded: $windowState.sidebarSections.spaces) {
-                ForEach(spaces) { space in
-                    SpaceDisclosureGroup(space: space)
-                }
             }
         }
     }

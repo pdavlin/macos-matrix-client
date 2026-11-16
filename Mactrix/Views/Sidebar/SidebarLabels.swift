@@ -6,30 +6,36 @@ import UI
 // MATRIX-77: the app-side glue for chat labels. The views live in
 // `UI/Labels`; these wrappers bind them to `LabelsModel` and `WindowState`.
 
-/// The label rail at the leading edge of the sidebar.
+/// The rail at the leading edge of the sidebar: the Inbox, the spaces
+/// (MATRIX-167), and the labels.
 struct SidebarLabelRail: View {
+    @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
 
     let labels: LabelsModel?
 
     var body: some View {
         let document = labels?.document ?? ChatLabelDocument()
-        // An ID the labels do not hold shows the Inbox: see
-        // `WindowState.selectedLabelId`.
-        let selection = windowState.selectedLabelId.flatMap { document.label(id: $0)?.id }
+        let spaces = SidebarRail.spaces(client: appState.matrixClient)
+        // A label or a space the rail does not hold shows the Inbox: see
+        // `WindowState.railFilter`.
+        let selection = windowState.railFilter.resolved(labels: document, spaceIds: Set(spaces.map(\.id)))
 
         LabelRail(
+            spaces: spaces,
             labels: document.labels,
             badges: labels?.badges ?? [:],
             selection: selection,
             isEditable: labels?.isEditable ?? false,
+            imageLoader: appState.matrixClient,
             actions: actions
         )
     }
 
     private var actions: LabelRailActions {
         LabelRailActions(
-            select: { windowState.selectedLabelId = $0 },
+            select: { windowState.railFilter = $0 },
+            browseSpace: { windowState.spaceBrowser = SpaceBrowserRequest(spaceId: $0.id) },
             newLabel: { windowState.labelEditor = .create(preselectedRoomId: nil) },
             edit: { windowState.labelEditor = .edit(labelId: $0.id) },
             toggleMute: { label in
@@ -41,8 +47,8 @@ struct SidebarLabelRail: View {
                 labels?.mutate { $0.setInboxVisibility(label.id, visibility) }
             },
             delete: { label in
-                if windowState.selectedLabelId == label.id {
-                    windowState.selectedLabelId = nil
+                if windowState.railFilter == .label(label.id) {
+                    windowState.railFilter = .inbox
                 }
                 labels?.mutate { $0.delete(label.id) }
             }
