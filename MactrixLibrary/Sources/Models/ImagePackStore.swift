@@ -8,7 +8,7 @@ import Foundation
 /// the store finds the parent spaces, then loads each space's packs: first
 /// from one JSON cache file per space, then from the homeserver. The store
 /// has no SDK and no network of its own: `Source` gives it the parent lookup,
-/// the state read (`ImagePackStateReader`), and the cache folder, so tests run
+/// the state read (`RoomStateReader`), and the cache folder, so tests run
 /// from fixtures.
 ///
 /// Rules:
@@ -113,9 +113,7 @@ public final class ImagePackStore {
     @ObservationIgnored private var spaces: [String: Space] = [:]
     @ObservationIgnored private var resolvingRooms: Set<String> = []
     @ObservationIgnored private var importedShortcodes: [String: Set<String>] = [:]
-    @ObservationIgnored private var lastGoodRead: [String: Date] = [:]
-    @ObservationIgnored private var lastFailedRead: [String: Date] = [:]
-    @ObservationIgnored private var failedReads: [String: Int] = [:]
+    @ObservationIgnored private var schedules: [String: ReadSchedule] = [:]
     @ObservationIgnored private var stateReads: [String: Task<Bool, Never>] = [:]
     /// The cache read of each space. A finished task stays, so the file is
     /// read once and every caller waits for the same read.
@@ -269,32 +267,25 @@ public final class ImagePackStore {
     }
 
     private func isReadDue(of spaceId: String) -> Bool {
-        let time = now()
-        if let last = lastGoodRead[spaceId], time.timeIntervalSince(last) < Self.refreshInterval {
-            return false
-        }
-        guard failedReads[spaceId, default: 0] >= Self.maxFailedReads else { return true }
-        guard let last = lastFailedRead[spaceId], time.timeIntervalSince(last) >= Self.refreshInterval else {
-            return false
-        }
-        failedReads[spaceId] = nil
-        return true
+        schedules[spaceId, default: ReadSchedule()].isDue(
+            at: now(),
+            refreshInterval: Self.refreshInterval,
+            maxFailedReads: Self.maxFailedReads,
+            backOff: Self.refreshInterval
+        )
     }
 
     private func readState(of space: Space, from source: Source) async -> Bool {
         do {
             let state = try await source.fetchState(space.id)
             let packs = try ImagePack.parse(roomState: state).map { $0.named(fallback: space.name) }
-            lastGoodRead[space.id] = now()
-            failedReads[space.id] = nil
-            lastFailedRead[space.id] = nil
+            schedules[space.id, default: ReadSchedule()].recordSuccess(at: now())
             setImported(packs, of: space.id)
             writeCache(of: space.id)
             await cacheWrites[space.id]?.value
             return true
         } catch {
-            failedReads[space.id, default: 0] += 1
-            lastFailedRead[space.id] = now()
+            schedules[space.id, default: ReadSchedule()].recordFailure(at: now())
             source.report("failed to read the image packs of \(space.id): \(Self.name(of: error))")
             return false
         }
@@ -431,14 +422,9 @@ extension ImagePackStore {
     /// errors, else the error's domain and code. Never the description, which
     /// can hold a URL.
     private nonisolated static func name(of error: Error) -> String {
-        switch error {
-        case let failure as ImagePackStateReader.Failure:
-            return String(describing: failure)
-        case is ImagePack.MalformedRoomState:
+        if error is ImagePack.MalformedRoomState {
             return "the room state is not a JSON array of events"
-        default:
-            let nsError = error as NSError
-            return "\(nsError.domain) \(nsError.code)"
         }
+        return RoomStateReader.logName(of: error)
     }
 }

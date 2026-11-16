@@ -143,6 +143,13 @@ private struct MergedChatScreen: View {
             .task {
                 await appState.matrixClient?.loadRecentEmojisIfNeeded()
             }
+            // MATRIX-165: each member room draws the own image of its own
+            // workspace. The composer loads the target room only.
+            .task {
+                for member in session.members {
+                    appState.matrixClient?.loadOwnServiceAvatar(forRoom: member.room.id)
+                }
+            }
             // The send target moves to the default room 30 minutes after an
             // own last message, without any new activity.
             .task {

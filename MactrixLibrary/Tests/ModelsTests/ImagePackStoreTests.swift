@@ -4,7 +4,7 @@ import Testing
 
 /// MATRIX-155: the one request outside the SDK. A stub transport stands in
 /// for the network.
-struct ImagePackStateReaderTests {
+struct RoomStateReaderTests {
     private static let token = "syt_secret_token"
 
     private func response(_ status: Int) throws -> HTTPURLResponse {
@@ -13,7 +13,7 @@ struct ImagePackStateReaderTests {
     }
 
     @Test func theRequestIsAnAuthenticatedGetOfTheRoomState() throws {
-        let request = try ImagePackStateReader.request(
+        let request = try RoomStateReader.request(
             roomId: "!space/id:example.org",
             homeserverURL: "https://matrix.example.org/",
             accessToken: Self.token
@@ -28,7 +28,7 @@ struct ImagePackStateReaderTests {
     }
 
     @Test func theRequestKeepsAHomeserverPathPrefixAndDropsItsQuery() throws {
-        let request = try ImagePackStateReader.request(
+        let request = try RoomStateReader.request(
             roomId: "!s:example.org",
             homeserverURL: "http://localhost:8008/base/?x=1#y",
             accessToken: Self.token
@@ -38,15 +38,15 @@ struct ImagePackStateReaderTests {
 
     @Test func aHomeserverURLThatIsNotHTTPIsRefused() {
         for bad in ["", "matrix.example.org", "file:///etc/passwd", "ftp://example.org", "https://"] {
-            #expect(throws: ImagePackStateReader.Failure.badHomeserverURL) {
-                try ImagePackStateReader.request(roomId: "!s:example.org", homeserverURL: bad, accessToken: Self.token)
+            #expect(throws: RoomStateReader.Failure.badHomeserverURL) {
+                try RoomStateReader.request(roomId: "!s:example.org", homeserverURL: bad, accessToken: Self.token)
             }
         }
     }
 
     @Test func aGoodAnswerGivesTheBody() async throws {
         let ok = try response(200)
-        let reader = ImagePackStateReader { request in
+        let reader = RoomStateReader { request in
             #expect(request.url?.host() == "matrix.example.org")
             return (Data("[]".utf8), ok)
         }
@@ -56,13 +56,13 @@ struct ImagePackStateReaderTests {
 
     @Test func anErrorStatusThrowsWithoutTheBodyOrTheToken() async throws {
         let forbidden = try response(403)
-        let reader = ImagePackStateReader { _ in (Data("{\"errcode\":\"M_FORBIDDEN\"}".utf8), forbidden) }
+        let reader = RoomStateReader { _ in (Data("{\"errcode\":\"M_FORBIDDEN\"}".utf8), forbidden) }
 
         do {
             _ = try await reader.state(of: "!s:example.org", homeserverURL: "https://matrix.example.org", accessToken: Self.token)
             Issue.record("the read did not throw")
         } catch {
-            #expect(error as? ImagePackStateReader.Failure == .status(403))
+            #expect(error as? RoomStateReader.Failure == .status(403))
             let text = String(describing: error)
             #expect(!text.contains(Self.token))
             #expect(!text.contains("M_FORBIDDEN"))
@@ -72,9 +72,9 @@ struct ImagePackStateReaderTests {
     @Test func anAnswerThatIsNotHTTPThrows() async throws {
         let url = try #require(URL(string: "https://matrix.example.org/"))
         let plain = URLResponse(url: url, mimeType: nil, expectedContentLength: 0, textEncodingName: nil)
-        let reader = ImagePackStateReader { _ in (Data(), plain) }
+        let reader = RoomStateReader { _ in (Data(), plain) }
 
-        await #expect(throws: ImagePackStateReader.Failure.notHTTP) {
+        await #expect(throws: RoomStateReader.Failure.notHTTP) {
             try await reader.state(of: "!s:example.org", homeserverURL: "https://matrix.example.org", accessToken: Self.token)
         }
     }
@@ -225,7 +225,7 @@ struct ImagePackStoreTests {
         let store = ImagePackStore()
         await store.load(roomId: Self.room, from: backend.source)
 
-        backend.states[Self.space.id] = .failure(ImagePackStateReader.Failure.status(502))
+        backend.states[Self.space.id] = .failure(RoomStateReader.Failure.status(502))
         await store.load(roomId: Self.room, refresh: true, from: backend.source)
 
         #expect(store.packs(forRoom: Self.room).first?.emoji.map(\.shortcode) == ["parrot", "shipit"])

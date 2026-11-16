@@ -6,7 +6,8 @@ import Testing
 @testable import UI
 
 /// MATRIX-163: the own avatar in a message profile row, and the profile image
-/// control of the Account settings. The loader holds one solid-color image
+/// control of the Account settings. MATRIX-165: the own image of the chat's
+/// service in a message profile row. The loader holds one solid-color image
 /// per URL in its cache, so the avatars draw without a network. Local gate
 /// only, as the other snapshots (contract R-8).
 @MainActor
@@ -32,7 +33,8 @@ struct OwnAvatarSnapshotTests {
 
     private static let accountUrl = "mxc://a/account"
     private static let memberUrl = "mxc://a/member"
-    private static let loader = ColorLoader(colors: [accountUrl: .systemTeal, memberUrl: .systemOrange])
+    private static let serviceUrl = "mxc://a/service"
+    private static let loader = ColorLoader(colors: [accountUrl: .systemTeal, memberUrl: .systemOrange, serviceUrl: .systemPurple])
 
     private struct ProfileEvent: EventTimelineItem {
         let isOwn: Bool
@@ -56,11 +58,16 @@ struct OwnAvatarSnapshotTests {
         var avatarUrl: String? { memberAvatarUrl }
     }
 
-    private func profileRow(_ event: ProfileEvent, accountAvatarUrl: String?) -> NSHostingController<AnyView> {
+    private func profileRow(
+        _ event: ProfileEvent,
+        accountAvatarUrl: String?,
+        serviceAvatarUrl: String? = nil
+    ) -> NSHostingController<AnyView> {
         let controller = NSHostingController(
             rootView: AnyView(
                 MessageEventProfileView(event: event, actions: MockMessageEventActions(), imageLoader: Self.loader)
                     .environment(\.ownAccountAvatarUrl, accountAvatarUrl)
+                    .environment(\.ownServiceAvatarUrl, serviceAvatarUrl)
                     .frame(width: 320)
                     .background(Color(NSColor.textBackgroundColor))
             )
@@ -97,6 +104,29 @@ struct OwnAvatarSnapshotTests {
         let withImage = profileRow(ProfileEvent(isOwn: true), accountAvatarUrl: Self.accountUrl).view.fittingSize.height
         let withInitials = profileRow(ProfileEvent(isOwn: true), accountAvatarUrl: nil).view.fittingSize.height
         #expect(withImage == withInitials)
+    }
+
+    /// MATRIX-165: an own message draws the image of the chat's service
+    /// (purple), before the member avatar (orange) and the account's image
+    /// (teal).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func ownMessageDrawsServiceImage() {
+        let event = ProfileEvent(isOwn: true, memberAvatarUrl: Self.memberUrl)
+        assertSnapshot(
+            of: profileRow(event, accountAvatarUrl: Self.accountUrl, serviceAvatarUrl: Self.serviceUrl),
+            as: .scaledImage
+        )
+    }
+
+    /// MATRIX-165: the service image changes no row height, and another
+    /// user's row does not read it.
+    @Test
+    func serviceImageKeepsRowHeight() {
+        let withService = profileRow(ProfileEvent(isOwn: true), accountAvatarUrl: nil, serviceAvatarUrl: Self.serviceUrl)
+        let withInitials = profileRow(ProfileEvent(isOwn: true), accountAvatarUrl: nil)
+        let otherUser = profileRow(ProfileEvent(isOwn: false), accountAvatarUrl: nil, serviceAvatarUrl: Self.serviceUrl)
+        #expect(withService.view.fittingSize.height == withInitials.view.fittingSize.height)
+        #expect(otherUser.view.fittingSize.height == withInitials.view.fittingSize.height)
     }
 
     // MARK: - Settings control

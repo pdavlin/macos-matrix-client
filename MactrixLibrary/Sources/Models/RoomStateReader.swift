@@ -1,17 +1,22 @@
 import Foundation
 
-/// Reads the state of one room from the user's homeserver, for the image
-/// packs of a workspace space (MATRIX-155).
+/// Reads the state of one room from the user's homeserver: for the image
+/// packs of a workspace space (MATRIX-155), and for the bridge info of one
+/// direct chat of a workspace (MATRIX-165).
 ///
 /// **This is the only Matrix HTTP call that the app makes outside
 /// matrix-rust-sdk.** It is the bounded exception to hard rule 1 that
 /// `docs/PROJECT_CONTRACT.md` §11 grants in the row of 2026-11-13 (MATRIX-151,
 /// decision b): the pinned SDK (26.04.01) has no read of room state, so the
 /// app makes one authenticated, read-only
-/// `GET /_matrix/client/v3/rooms/{roomId}/state`. The call reads display data
-/// only. It never writes, and it does no sync, crypto, or timeline work.
-/// Remove this type when an SDK bump gives a state read. Do not add a second
-/// request here.
+/// `GET /_matrix/client/v3/rooms/{roomId}/state`. The row of 2026-11-16
+/// (MATRIX-164, 165, decision b) widens the exception by one case: the same
+/// request may also read one direct chat per workspace, to take the
+/// receiver from its bridge info (`BridgeInfo`, `OwnServiceAvatarStore`).
+/// The call reads display data only. It never writes, and it does no sync,
+/// crypto, or timeline work. Remove this type when an SDK bump gives a state
+/// read. Do not add a second request here, and do not add a third user
+/// without a contract row.
 ///
 /// The access token goes only into the `Authorization` header of a request to
 /// the homeserver URL of the SDK session. An error of this type holds no
@@ -22,10 +27,10 @@ import Foundation
 ///
 /// Usage:
 /// ```swift
-/// let reader = ImagePackStateReader { try await session.data(for: $0) }
-/// let state = try await reader.state(of: spaceId, homeserverURL: url, accessToken: token)
+/// let reader = RoomStateReader { try await session.data(for: $0) }
+/// let state = try await reader.state(of: roomId, homeserverURL: url, accessToken: token)
 /// ```
-public struct ImagePackStateReader: Sendable {
+public struct RoomStateReader: Sendable {
     /// Sends one request and returns the body and the response.
     public typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
@@ -83,6 +88,17 @@ public struct ImagePackStateReader: Sendable {
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         return request
+    }
+
+    /// A short name for an error, safe for the log: the case of a `Failure`,
+    /// else the error's domain and code. Never the description, which can
+    /// hold a URL.
+    public static func logName(of error: Error) -> String {
+        if let failure = error as? Failure {
+            return String(describing: failure)
+        }
+        let nsError = error as NSError
+        return "\(nsError.domain) \(nsError.code)"
     }
 
     private static let unreservedCharacters = CharacterSet(
