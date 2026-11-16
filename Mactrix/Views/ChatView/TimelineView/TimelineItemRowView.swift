@@ -47,6 +47,17 @@ struct TimelineItemRowView: View {
         timeline?.room.roomInfo?.isDirect == true
     }
 
+    /// The account's global profile avatar (MATRIX-163). The client holds one
+    /// observable value, so a change redraws the rows without an SDK call.
+    /// The spike's stand-in client has no profile.
+    private var ownAccountAvatarUrl: String? {
+        #if canImport(Core)
+            appState.matrixClient?.ownAvatarUrl
+        #else
+            nil
+        #endif
+    }
+
     @ViewBuilder
     var contentView: some View {
         switch row {
@@ -105,5 +116,6 @@ struct TimelineItemRowView: View {
         .environment(\.timelineTypography, TimelineTypography(base: CGFloat(fontSize)))
         .environment(\.timelineShowsReadReceipts, showsReadReceipts)
         .environment(\.timelineRowIsHovered, isHovered)
+        .environment(\.ownAccountAvatarUrl, ownAccountAvatarUrl)
     }
 }

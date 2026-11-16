@@ -37,6 +37,11 @@ public class MatrixClient {
     /// `MatrixClient+ImagePacks.swift`.
     public let imagePacks = ImagePackStore()
 
+    /// MATRIX-163: the account's global profile avatar, an `mxc://` URL. The
+    /// one value every own avatar draws from. See
+    /// `MatrixClient+OwnProfile.swift`.
+    public internal(set) var ownAvatarUrl: String?
+
     public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase

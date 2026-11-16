@@ -28,6 +28,9 @@ struct TimelineRowContext {
     /// Actions for rows whose event is not an SDK event: the DEBUG fixture.
     /// SDK rows act through the live timeline instead.
     var fallbackActions: (any TimelineFallbackRowActions)?
+    /// The account's global profile avatar (MATRIX-163). An own message
+    /// without a room member avatar draws it.
+    var ownAvatarUrl: String?
 }
 
 /// Reply and send-failure actions for non-SDK rows, keyed by row id.
@@ -52,6 +55,7 @@ struct TimelineRowContent: View {
             .font(.system(size: context.typography.base))
             .environment(\.timelineTypography, context.typography)
             .environment(\.timelineShowsReadReceipts, context.showsReadReceipts)
+            .environment(\.ownAccountAvatarUrl, context.ownAvatarUrl)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
