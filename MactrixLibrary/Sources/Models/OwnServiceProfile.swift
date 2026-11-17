@@ -140,3 +140,79 @@ public enum OwnServiceGhost {
         first.lowercased() == second.lowercased()
     }
 }
+
+/// When `OwnServiceAvatarStore` reads the receiver of a workspace again
+/// (MATRIX-171).
+///
+/// The store keeps the own ghost of a workspace in a cache file. A new login
+/// to the workspace gives the bridge a new receiver, so the kept ghost is
+/// the ghost of the old login.
+public enum OwnServiceReceiverCheck {
+    /// The least time between two checks of one workspace: one week.
+    public static let interval: TimeInterval = 7 * 24 * 60 * 60
+
+    /// Whether a check is due.
+    ///
+    /// - Parameters:
+    ///   - lastCheck: the time of the last read that gave the receiver, or
+    ///     nil when the cache file has none.
+    ///   - now: the time now.
+    ///   - profileNotFound: whether the profile read of the kept ghost
+    ///     failed because the server has no such profile. That is evidence
+    ///     that the ghost is gone, so the check does not wait.
+    public static func isDue(lastCheck: Date?, now: Date, profileNotFound: Bool) -> Bool {
+        if profileNotFound { return true }
+        // A time after now is not a time of a check.
+        guard let lastCheck, lastCheck <= now else { return true }
+        return now.timeIntervalSince(lastCheck) >= interval
+    }
+
+    /// Whether the kept ghost is replaced: only when the receiver changed.
+    /// The case of the letters is not a change: the ghost's user ID is in
+    /// lower case.
+    public static func replacesGhost(cachedReceiver: String, liveReceiver: String) -> Bool {
+        cachedReceiver.lowercased() != liveReceiver.lowercased()
+    }
+}
+
+/// The rooms that the candidate search of `OwnServiceAvatarStore` looks at
+/// (MATRIX-171).
+///
+/// The sidebar's room list holds the rooms of the window's filter and label
+/// only, so a direct chat of a workspace can be absent from it. The Dock
+/// badge tracker holds the unfiltered list of the account.
+public enum OwnServiceCandidateRooms {
+    /// One room of a list.
+    public struct Room: Equatable, Sendable {
+        public let id: String
+        /// Whether the room is a direct chat, or nil when the list has not
+        /// read the room's info yet.
+        public let isDirect: Bool?
+
+        public init(id: String, isDirect: Bool?) {
+            self.id = id
+            self.isDirect = isDirect
+        }
+    }
+
+    /// The IDs of the rooms to look at, in the order of the list.
+    ///
+    /// - The account's unfiltered list is used when it has rooms. The
+    ///   sidebar's list is used only when it has none (iOS has no Dock badge
+    ///   tracker, and the tracker is empty before its first update).
+    /// - A room in `excluding` and a room that is known to be not direct are
+    ///   left out. A room with no info yet stays: the caller reads its info.
+    ///
+    /// - Parameters:
+    ///   - account: the unfiltered room list, the most recently active
+    ///     first.
+    ///   - sidebar: the sidebar's filtered room list, in the same order.
+    ///   - excluding: the rooms that gave a final answer.
+    public static func roomIds(account: [Room], sidebar: [Room], excluding: Set<String>) -> [String] {
+        var seen = excluding
+        return (account.isEmpty ? sidebar : account).compactMap { room in
+            guard room.isDirect != false, seen.insert(room.id).inserted else { return nil }
+            return room.id
+        }
+    }
+}

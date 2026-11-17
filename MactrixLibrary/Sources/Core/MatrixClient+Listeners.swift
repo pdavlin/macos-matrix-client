@@ -1,5 +1,6 @@
 import Foundation
 import MatrixRustSDK
+import Models
 import OSLog
 
 public extension MatrixClient {
@@ -162,16 +163,18 @@ extension MatrixClient: RoomListServiceStateListener {
             // Logged because this state gates the recovery UI (see
             // `RecoveryPrompt`) and because an empty sidebar is otherwise
             // indistinguishable from a room list that never started.
-            let name = switch state {
-            case .initial: "initial"
-            case .settingUp: "settingUp"
-            case .recovering: "recovering"
-            case .running: "running"
-            case .error: "error"
-            case .terminated: "terminated"
+            let (name, evidence): (String, SessionSyncEvidence.RoomListState) = switch state {
+            case .initial: ("initial", .initial)
+            case .settingUp: ("settingUp", .settingUp)
+            case .recovering: ("recovering", .recovering)
+            case .running: ("running", .running)
+            case .error: ("error", .error)
+            case .terminated: ("terminated", .terminated)
             }
             Logger.matrixClient.info("room list state: \(name, privacy: .public) rooms=\(self.rooms.count, privacy: .public)")
             roomListServiceState = state
+            // MATRIX-171: an empty space graph is real only after a sync.
+            roomAccounts.note(roomListState: evidence)
             // MATRIX-77, MATRIX-140: sync has caught up, so the labels and
             // merged chats in the store are current.
             if case .running = state {

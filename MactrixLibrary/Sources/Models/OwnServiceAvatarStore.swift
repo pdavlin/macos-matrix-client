@@ -28,6 +28,13 @@ import Foundation
 ///   the session.
 /// - The ghost is kept in the cache file, so step 1 runs once per workspace,
 ///   not once per session.
+/// - A kept ghost is checked (MATRIX-171): a new login to the workspace
+///   gives a new receiver, and the old ghost has the old image. The store
+///   reads the receiver again when `OwnServiceReceiverCheck` says so: at
+///   most once per `OwnServiceReceiverCheck.interval`, and one time per
+///   session when the ghost's profile read fails with `ProfileNotFound`. A
+///   receiver that changed replaces the ghost. A check that gives no
+///   receiver keeps the ghost. The check uses the limits of step 1.
 /// - Step 2 runs when the last good profile read is older than
 ///   `profileRefreshInterval`, or was never made. After `maxFailedReads`
 ///   failed reads in a row it waits `retryInterval` (`ReadSchedule`). A read
@@ -35,7 +42,8 @@ import Foundation
 /// - "No parent space" is not kept: the SDK gives that answer until its space
 ///   graph is ready (`RoomAccountNames`), so the next call asks again.
 /// - The cache file holds the receiver, the ghost's user ID, the avatar URL,
-///   and the time of the profile read. It never holds the room state.
+///   the time of the profile read, and the time of the receiver check. It
+///   never holds the room state.
 ///
 /// Presentation only: a wrong or absent value changes one image.
 ///
@@ -81,6 +89,15 @@ public final class OwnServiceAvatarStore {
         public var avatarUrl: String?
         /// The time of the last good profile read, or nil before the first.
         public var profileReadAt: Date?
+        /// The time of the last read that gave `receiver` (MATRIX-171). Nil
+        /// in a file of an earlier version: the receiver is read again.
+        public var receiverCheckedAt: Date?
+    }
+
+    /// The error of `Source.fetchAvatarUrl` when the server has no profile
+    /// for the user.
+    public struct ProfileNotFound: Error, Equatable {
+        public init() {}
     }
 
     /// What the store reads from.
@@ -97,7 +114,8 @@ public final class OwnServiceAvatarStore {
         /// The state of a direct chat, as `BridgeInfo.receiver(roomState:)`
         /// reads it.
         public let fetchState: @MainActor (_ roomId: String) async throws -> Data
-        /// The avatar URL of a user's global profile.
+        /// The avatar URL of a user's global profile. Throws
+        /// `ProfileNotFound` when the server has no profile for the user.
         public let fetchAvatarUrl: @MainActor (_ userId: String) async throws -> String?
         /// Takes one line for the log when a read fails. The line holds a
         /// space ID and an error name, never a token or a response body.
@@ -154,6 +172,17 @@ public final class OwnServiceAvatarStore {
         var emptySearches = 0
         /// The chats that gave a final answer without a ghost.
         var answeredRooms: Set<String> = []
+        /// Whether a `ProfileNotFound` started a receiver check in this
+        /// session.
+        var checkedAfterNotFound = false
+    }
+
+    /// What one search of step 1 gave.
+    private enum Search {
+        /// The limits of the session or the wait did not permit a search.
+        case skipped
+        case found(receiver: String, ghostUserId: String)
+        case noGhost(failed: Bool)
     }
 
     private let now: @MainActor () -> Date
@@ -235,10 +264,22 @@ public final class OwnServiceAvatarStore {
         if cacheReadSpaces.insert(spaceId).inserted {
             await readCache(of: spaceId, from: source)
         }
-        if progress[spaceId]?.record == nil {
+        var checkedReceiver = false
+        if let record = progress[spaceId]?.record {
+            if OwnServiceReceiverCheck.isDue(lastCheck: record.receiverCheckedAt, now: now(), profileNotFound: false) {
+                checkedReceiver = true
+                await checkReceiver(of: spaceId, from: source)
+            }
+        } else {
             await findGhost(of: spaceId, from: source)
         }
-        if progress[spaceId]?.record != nil {
+        guard let record = progress[spaceId]?.record else { return }
+        let profileNotFound = await readProfile(of: spaceId, from: source)
+        guard profileNotFound, !checkedReceiver, progress[spaceId]?.checkedAfterNotFound == false,
+              OwnServiceReceiverCheck.isDue(lastCheck: record.receiverCheckedAt, now: now(), profileNotFound: true)
+        else { return }
+        progress[spaceId]?.checkedAfterNotFound = true
+        if await checkReceiver(of: spaceId, from: source) {
             await readProfile(of: spaceId, from: source)
         }
     }
@@ -247,9 +288,49 @@ public final class OwnServiceAvatarStore {
     private func findGhost(of spaceId: String, from source: Source) async {
         var entry = progress[spaceId] ?? Progress()
         defer { progress[spaceId] = entry }
+        switch await searchGhost(of: spaceId, entry: &entry, from: source) {
+        case .skipped:
+            return
+        case let .found(receiver, ghostUserId):
+            entry.record = Record(receiver: receiver, ghostUserId: ghostUserId, receiverCheckedAt: now())
+        case let .noGhost(failed):
+            // A failed read can still give the ghost later. No usable chat
+            // means no service image.
+            setState(failed ? .failed : .resolved(avatarUrl: nil), of: spaceId)
+        }
+    }
+
+    /// The receiver check of a kept ghost (MATRIX-171): see the rules on the
+    /// type.
+    ///
+    /// - Returns: whether the ghost changed.
+    @discardableResult
+    private func checkReceiver(of spaceId: String, from source: Source) async -> Bool {
+        guard var entry = progress[spaceId], var record = entry.record else { return false }
+        defer { progress[spaceId] = entry }
+        guard case let .found(receiver, ghostUserId) = await searchGhost(of: spaceId, entry: &entry, from: source) else {
+            return false
+        }
+        guard OwnServiceReceiverCheck.replacesGhost(cachedReceiver: record.receiver, liveReceiver: receiver) else {
+            record.receiverCheckedAt = now()
+            entry.record = record
+            writeCache(record, of: spaceId, from: source)
+            return false
+        }
+        // The image of the old ghost is the image of another login. The
+        // profile read that follows writes the cache file.
+        entry.record = Record(receiver: receiver, ghostUserId: ghostUserId, receiverCheckedAt: now())
+        entry.profile = ReadSchedule()
+        setState(.unknown, of: spaceId)
+        return true
+    }
+
+    /// One search for the receiver and the ghost in the direct chats of the
+    /// space, in the limits of step 1.
+    private func searchGhost(of spaceId: String, entry: inout Progress, from source: Source) async -> Search {
         guard entry.stateReads < Self.maxStateReads, entry.emptySearches < Self.maxEmptySearches,
               entry.search.isDue(at: now(), refreshInterval: 0, maxFailedReads: 1, backOff: Self.retryInterval)
-        else { return }
+        else { return .skipped }
 
         let candidates = await source.candidates(spaceId, entry.answeredRooms, Self.maxStateReads - entry.stateReads)
         if candidates.isEmpty {
@@ -266,22 +347,25 @@ public final class OwnServiceAvatarStore {
                     OwnServiceGhost.userId(receiver: receiver, peerUserId: peer, accountUserId: source.accountUserId)
                 }.first
                 guard let ghost else { continue }
-                entry.record = Record(receiver: receiver, ghostUserId: ghost, avatarUrl: nil, profileReadAt: nil)
-                return
+                // This chat gave the ghost: a later receiver check reads it
+                // again.
+                entry.answeredRooms.remove(candidate.roomId)
+                return .found(receiver: receiver, ghostUserId: ghost)
             } catch {
                 failed = true
                 source.report("failed to read the bridge info for \(spaceId): \(Self.name(of: error))")
             }
         }
         entry.search.recordFailure(at: now())
-        // A failed read can still give the ghost later. No usable chat
-        // means no service image.
-        setState(failed ? .failed : .resolved(avatarUrl: nil), of: spaceId)
+        return .noGhost(failed: failed)
     }
 
     /// Step 2: see the rules on the type.
-    private func readProfile(of spaceId: String, from source: Source) async {
-        guard var entry = progress[spaceId], var record = entry.record else { return }
+    ///
+    /// - Returns: whether the read failed with `ProfileNotFound`.
+    @discardableResult
+    private func readProfile(of spaceId: String, from source: Source) async -> Bool {
+        guard var entry = progress[spaceId], var record = entry.record else { return false }
         defer { progress[spaceId] = entry }
         let isDue = entry.profile.isDue(
             at: now(),
@@ -289,7 +373,7 @@ public final class OwnServiceAvatarStore {
             maxFailedReads: Self.maxFailedReads,
             backOff: Self.retryInterval
         )
-        guard isDue else { return }
+        guard isDue else { return false }
         do {
             let url = try await source.fetchAvatarUrl(record.ghostUserId)
             record.avatarUrl = url.flatMap { $0.isEmpty ? nil : $0 }
@@ -298,6 +382,7 @@ public final class OwnServiceAvatarStore {
             entry.profile.recordSuccess(at: now())
             setState(.resolved(avatarUrl: record.avatarUrl), of: spaceId)
             writeCache(record, of: spaceId, from: source)
+            return false
         } catch {
             entry.profile.recordFailure(at: now())
             source.report("failed to read the own service profile for \(spaceId): \(Self.name(of: error))")
@@ -306,6 +391,7 @@ public final class OwnServiceAvatarStore {
                 // The ghost is kept, so the state read does not run again.
                 writeCache(record, of: spaceId, from: source)
             }
+            return error is ProfileNotFound
         }
     }
 

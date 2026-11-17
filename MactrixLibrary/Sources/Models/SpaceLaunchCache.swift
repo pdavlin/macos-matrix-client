@@ -144,13 +144,19 @@ public extension SpaceLaunchCache {
 /// - The graph is ready when there is evidence that the SDK built it:
 ///   1. the SDK's list of top-level joined spaces is not empty, or
 ///   2. one room got a parent list that is not empty in this session, or
-///   3. the caller's retry rounds ended (`finishRetries()`). An account with
-///      no space gives no evidence of the first two kinds, so after the last
-///      round the empty answers are real.
+///   3. the caller's retry rounds ended and the client has synced in this
+///      session (`finishRetries(hasSynced:)`). An account with no space
+///      gives no evidence of the first two kinds, so after the last round
+///      the empty answers are real.
+/// - With no sync in this session the graph does not become ready from the
+///   retry rounds (MATRIX-171). With no network the SDK never builds its
+///   space graph, so its empty answers say nothing: the cached values stay,
+///   and the cache file stays as it is. `SessionSyncEvidence` says what a
+///   sync is.
 /// - After the graph is ready, an empty answer clears the value.
 /// - An empty answer that came before the graph was ready is held. The
-///   caller reads those rooms again (its retry rounds); `finishRetries()`
-///   clears the held rooms that are left.
+///   caller reads those rooms again (its retry rounds);
+///   `finishRetries(hasSynced:)` clears the held rooms that are left.
 ///
 /// A space the account left goes away with these rules: a live list of
 /// spaces that is not empty replaces the cached list, and each room's live
@@ -234,9 +240,16 @@ public struct SpaceGraph: Equatable, Sendable {
         heldEmpty.remove(roomId)
     }
 
-    /// The caller's retry rounds ended. The graph is ready now: an empty
-    /// list of spaces is real, and each held empty answer clears its room.
-    public mutating func finishRetries() {
+    /// The caller's retry rounds ended.
+    ///
+    /// With a sync in this session the graph is ready now: an empty list of
+    /// spaces is real, and each held empty answer clears its room. With no
+    /// sync nothing changes (MATRIX-171): the cached values and the held
+    /// answers stay, and the caller runs its rounds again after the sync.
+    ///
+    /// - Parameter hasSynced: `SessionSyncEvidence.hasSynced`.
+    public mutating func finishRetries(hasSynced: Bool) {
+        guard hasSynced else { return }
         if !isReady {
             isReady = true
             topLevel = []
@@ -261,5 +274,49 @@ public struct SpaceGraph: Equatable, Sendable {
             rooms[roomId] = SpaceLaunchCache.Room(parents: list, unconfirmedLaunches: count)
         }
         return SpaceLaunchCache(topLevel: topLevel, rooms: rooms)
+    }
+}
+
+/// Whether the client has synced in this app session (MATRIX-171).
+///
+/// `SpaceGraph` takes an empty answer of the SDK as real only after a sync:
+/// with no network the SDK never builds its space graph, and its empty
+/// answers must not clear the rail and the launch cache.
+///
+/// The evidence is the state of the room list service. `settingUp` and
+/// `running` come only after a sync response: the service starts in
+/// `initial`, and a start with no network goes to `error`, `terminated` or
+/// `recovering`. The state of the sync service is not evidence: it is
+/// `running` from the start of the sync, before the first response.
+///
+/// The value is a latch: a later loss of the network does not clear it,
+/// because the SDK built its graph from the sync that came before.
+public struct SessionSyncEvidence: Equatable, Sendable {
+    /// The states of the SDK's room list service.
+    public enum RoomListState: Equatable, Sendable, CaseIterable {
+        case initial, settingUp, recovering, running, error, terminated
+
+        /// Whether the state comes only after a sync response.
+        public var showsSync: Bool {
+            switch self {
+            case .settingUp, .running: true
+            case .initial, .recovering, .error, .terminated: false
+            }
+        }
+    }
+
+    /// Whether a sync response came in this session.
+    public private(set) var hasSynced = false
+
+    public init() {}
+
+    /// Takes a state of the room list service.
+    ///
+    /// - Returns: whether this state is the first evidence of a sync.
+    @discardableResult
+    public mutating func note(_ state: RoomListState) -> Bool {
+        guard !hasSynced, state.showsSync else { return false }
+        hasSynced = true
+        return true
     }
 }

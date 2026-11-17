@@ -49,6 +49,15 @@ public final class UnreadChatsTracker {
 
     public init() {}
 
+    /// Every listed room in the SDK's recency order, with the direct flag
+    /// of the rooms whose info was read (MATRIX-171). The candidate search
+    /// of the own service profile reads this list, because the sidebar's
+    /// list holds the rooms of the window's filter only. Empty when the
+    /// tracker does not run. The read is not observable.
+    public var listedRooms: [(room: MatrixRustSDK.Room, isDirect: Bool?)] {
+        sdkRooms.map { room in (room, latest[room.id()]?.isDirect) }
+    }
+
     /// Opens the unfiltered room list. Does nothing if the tracker already
     /// runs. A failure is logged and leaves the badge empty: the rest of the
     /// session does not depend on it.

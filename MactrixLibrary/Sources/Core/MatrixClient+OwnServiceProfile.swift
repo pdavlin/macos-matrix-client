@@ -59,7 +59,13 @@ public extension MatrixClient {
                 try await RoomStateTransport.state(of: roomId, client: sdkClient)
             },
             fetchAvatarUrl: { userId in
-                try await sdkClient.getProfile(userId: userId).avatarUrl
+                do {
+                    return try await sdkClient.getProfile(userId: userId).avatarUrl
+                } catch ClientError.MatrixApi(kind: .notFound, code: _, msg: _, details: _) {
+                    // MATRIX-171: the ghost is gone, so the store reads the
+                    // receiver of the workspace again.
+                    throw OwnServiceAvatarStore.ProfileNotFound()
+                }
             },
             report: { line in
                 Logger.matrixClient.error("own service profile: \(line, privacy: .public)")
@@ -68,12 +74,16 @@ public extension MatrixClient {
     }
 
     /// The direct chats of a space that can tell the own ghost: a direct
-    /// room of the chat list with a peer that is not a bot, whose parent
-    /// space is `spaceId`. `rooms` is in the SDK's recency order, so the most
-    /// recently active chat comes first.
+    /// room with a peer that is not a bot, whose parent space is `spaceId`.
     ///
-    /// Cost: one SDK call (`joinedParentsOfChild`) per direct room it looks
-    /// at, and no request. The store limits how often it asks.
+    /// MATRIX-171: the rooms come from the unfiltered room list of the Dock
+    /// badge tracker, not from the sidebar's `rooms`, which holds the rooms
+    /// of the window's filter only. `OwnServiceCandidateRooms` holds the
+    /// rule, with the sidebar's list as the fallback. Both lists are in the
+    /// SDK's recency order, so the most recently active chat comes first.
+    ///
+    /// Cost: two SDK calls (`roomInfo`, `joinedParentsOfChild`) per direct
+    /// room it looks at, and no request. The store limits how often it asks.
     private func ownServiceCandidates(
         inSpace spaceId: String,
         excluding: Set<String>,
@@ -81,20 +91,32 @@ public extension MatrixClient {
         service: SpaceService,
         accountUserId: String
     ) async -> [OwnServiceAvatarStore.Candidate] {
+        let account = dockBadge.unreadChats.listedRooms
+        let sidebar = rooms.map { (room: $0.room, isDirect: $0.roomInfo?.isDirect) }
+        var sdkRooms: [String: MatrixRustSDK.Room] = [:]
+        let entries = [account, sidebar].map { list in
+            list.map { entry in
+                let id = entry.room.id()
+                sdkRooms[id] = entry.room
+                return OwnServiceCandidateRooms.Room(id: id, isDirect: entry.isDirect)
+            }
+        }
+        let roomIds = OwnServiceCandidateRooms.roomIds(account: entries[0], sidebar: entries[1], excluding: excluding)
+
         var found: [OwnServiceAvatarStore.Candidate] = []
-        for room in rooms {
+        for roomId in roomIds {
             guard found.count < limit else { break }
-            guard !excluding.contains(room.id), let info = room.roomInfo, info.isDirect else { continue }
+            guard let room = sdkRooms[roomId], let info = try? await room.roomInfo(), info.isDirect else { continue }
             let peers = OwnServiceGhost.peers(
                 among: info.heroes.map(\.userId),
                 serviceMembers: info.serviceMembers,
                 accountUserId: accountUserId
             )
             guard !peers.isEmpty,
-                  let parents = try? await service.joinedParentsOfChild(childId: room.id),
+                  let parents = try? await service.joinedParentsOfChild(childId: roomId),
                   parents.contains(where: { $0.roomId == spaceId })
             else { continue }
-            found.append(OwnServiceAvatarStore.Candidate(roomId: room.id, peerUserIds: peers))
+            found.append(OwnServiceAvatarStore.Candidate(roomId: roomId, peerUserIds: peers))
         }
         return found
     }

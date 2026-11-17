@@ -78,6 +78,9 @@ public final class RoomAccountNames {
     @ObservationIgnored private var cacheWrite: Task<Void, Never>?
     @ObservationIgnored private var cacheIsDirty = false
     @ObservationIgnored private var isStopped = false
+    @ObservationIgnored private var syncEvidence = SessionSyncEvidence()
+    /// Weak: `MatrixClient` owns the space service.
+    @ObservationIgnored private weak var liveSpaces: LiveSpaceService?
 
     public init() {}
 
@@ -97,8 +100,20 @@ public final class RoomAccountNames {
     /// the live list replaces the cached list also before the first
     /// `request`.
     public func attach(spaces: LiveSpaceService) {
+        liveSpaces = spaces
         observeSpaces(spaces)
         applyTopLevel(of: spaces)
+    }
+
+    /// Takes a state of the room list service (MATRIX-171). The first state
+    /// that shows a sync (`SessionSyncEvidence`) starts the retry rounds
+    /// again: the SDK builds its space graph after the sync, and only then
+    /// is an empty answer real.
+    public func note(roomListState: SessionSyncEvidence.RoomListState) {
+        guard syncEvidence.note(roomListState), let liveSpaces else { return }
+        retryRound = 0
+        pending.append(contentsOf: unplaced.subtracting(pending))
+        startWorker(spaceService: liveSpaces.spaceService)
     }
 
     /// Stops the reads and the cache writes, and waits for a write that is
@@ -130,8 +145,10 @@ public final class RoomAccountNames {
     /// fails is logged and runs again on the next request.
     ///
     /// MATRIX-170: when the retry rounds end, an empty answer is real
-    /// (`SpaceGraph.finishRetries()`), so an account with no space ends with
-    /// no cached space.
+    /// (`SpaceGraph.finishRetries(hasSynced:)`), so an account with no space
+    /// ends with no cached space. MATRIX-171: that needs a sync in this
+    /// session. With no sync the rounds end with no change, and
+    /// `note(roomListState:)` starts them again when the sync comes.
     ///
     /// Cost: one SDK call per read.
     ///
@@ -139,6 +156,7 @@ public final class RoomAccountNames {
     ///   - roomIds: the rooms.
     ///   - spaces: the client's space service.
     public func request(_ roomIds: [String], spaces: LiveSpaceService) {
+        liveSpaces = spaces
         observeSpaces(spaces)
         var isNewInterest = false
         for roomId in roomIds {
@@ -163,7 +181,7 @@ public final class RoomAccountNames {
                 guard !unplaced.isEmpty || graph.holdsCachedData else { break }
                 guard retryRound < Self.retryDelays.count else {
                     var settled = graph
-                    settled.finishRetries()
+                    settled.finishRetries(hasSynced: syncEvidence.hasSynced)
                     apply(settled)
                     break
                 }
