@@ -25,8 +25,10 @@ enum ScaledImageSnapshotting {
     /// diff opened by hand looks like what the eye expects.
     static let referenceScale = 2
 
-    static func image(scale: Int = referenceScale) -> Snapshotting<NSView, NSImage> {
-        SimplySnapshotting.image(precision: 1, perceptualPrecision: 1).pullback { view in
+    /// `precision` is the fraction of the bitmap bytes that must match. Keep
+    /// the default of 1 unless a test documents a measured difference.
+    static func image(scale: Int = referenceScale, precision: Float = 1) -> Snapshotting<NSView, NSImage> {
+        SimplySnapshotting.image(precision: precision, perceptualPrecision: 1).pullback { view in
             // AppKit rendering is main-actor work, and the snapshot strategy's
             // closure is not isolated. Callers are `@MainActor` test methods
             // and `assertSnapshot` runs the pullback synchronously, so the
@@ -82,5 +84,11 @@ extension Snapshotting where Value == NSViewController, Format == NSImage {
     /// `.image` is scale-dependent — see ``ScaledImageSnapshotting``.
     static var scaledImage: Snapshotting {
         ScaledImageSnapshotting.image().pullback { $0.view }
+    }
+
+    /// `scaledImage` with a tolerance: `precision` is the fraction of the
+    /// bitmap bytes that must match the reference.
+    static func scaledImage(precision: Float) -> Snapshotting {
+        ScaledImageSnapshotting.image(precision: precision).pullback { $0.view }
     }
 }

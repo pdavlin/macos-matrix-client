@@ -91,6 +91,15 @@ struct LabelSnapshotTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func pickerContent() {
         let picker = LabelIconColorPickerContent(name: "Work", colorIndex: .constant(6), icon: .constant("briefcase"))
-        assertTextFieldSnapshot(of: snapshot(of: picker.fixedSize(), width: 300), as: .scaledImage)
+        // MATRIX-176: the picker shows 24 SF Symbols, and the OS owns their
+        // shapes. macOS 27.3 (26C5035r) draws "music.note" differently from
+        // the OS that recorded the reference: 102 of 340800 pixels differ
+        // (0.03 %), all in the 18 x 30 px box of that one glyph. 0.9995 lets
+        // 0.05 % of the bitmap bytes differ, so one changed glyph passes and
+        // a layout or color change does not.
+        assertTextFieldSnapshot(
+            of: snapshot(of: picker.fixedSize(), width: 300),
+            as: .scaledImage(precision: 0.9995)
+        )
     }
 }
