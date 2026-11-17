@@ -36,10 +36,6 @@ to 151, 153 to 157, 159, 161, 162, 166, 168 to 170, 172, 175, 178.
 
 ## 3. Questions
 
-- [ ] **Sign-in method (MATRIX-97).** Does the Mac account sign in with OIDC
-  (a browser page) or with a password typed in the app? With a password the
-  story goes to Done. With OIDC: sign in on the dev account, keep the app
-  open for some time, quit, open. The session is still there.
 - [ ] **Plane API key.** Rotate it, because it showed in a session
   transcript on 2026-11-17. Put the new value in
   `.claude/settings.local.json`.
