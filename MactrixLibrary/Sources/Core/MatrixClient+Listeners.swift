@@ -173,7 +173,8 @@ extension MatrixClient: RoomListServiceStateListener {
             }
             Logger.matrixClient.info("room list state: \(name, privacy: .public) rooms=\(self.rooms.count, privacy: .public)")
             roomListServiceState = state
-            // MATRIX-171: an empty space graph is real only after a sync.
+            // MATRIX-171, MATRIX-186: an empty space graph counts only
+            // after a sync (`running`).
             roomAccounts.note(roomListState: evidence)
             // MATRIX-77, MATRIX-140: sync has caught up, so the labels and
             // merged chats in the store are current.

@@ -173,22 +173,8 @@ struct SpaceLaunchCacheTests {
 
     // MARK: - The retry rounds end
 
-    @Test func retriesExhaustedMakesTheEmptyAnswersReal() {
-        var graph = SpaceGraph(cache: Self.cache)
-        graph.setTopLevel([])
-        for roomId in ["!d1", "!p1", "!deep", "!sub"] {
-            graph.setParents([], of: roomId)
-        }
-        #expect(graph.topLevel == [Self.dev, Self.pizza])
-
-        graph.finishRetries(hasSynced: true)
-        #expect(graph.isReady)
-        #expect(graph.topLevel.isEmpty)
-        let placedRooms = graph.parents.filter { !$0.value.isEmpty }
-        #expect(placedRooms.isEmpty)
-        #expect(railIds(of: graph, liveChatIds: ["!d1", "!p1", "!deep"]).isEmpty)
-        #expect(graph.cache.isEmpty)
-    }
+    // MATRIX-186: the end of the rounds with no evidence is in
+    // `SpaceLaunchCacheEmptySessionTests`.
 
     @Test func retriesExhaustedAfterEvidenceKeepsTheLiveData() {
         var graph = SpaceGraph(cache: Self.cache)
@@ -225,37 +211,23 @@ struct SpaceLaunchCacheTests {
         #expect(graph.cache == Self.cache)
     }
 
-    @Test func theSyncAfterAnOfflineStartMakesTheNextRoundsReal() {
-        var graph = SpaceGraph(cache: Self.cache)
-        graph.setParents([], of: "!p1")
-        graph.finishRetries(hasSynced: false)
-        #expect(graph.parents["!p1"] == [Self.pizza])
-
-        // The network came back: the held empty answer is real after the
-        // rounds that follow the sync.
-        graph.finishRetries(hasSynced: true)
-        #expect(graph.isReady)
-        #expect(graph.parents["!p1"] == [])
-        #expect(graph.topLevel.isEmpty)
-    }
-
     @Test func onlyAStateAfterASyncResponseIsEvidence() {
         let withSync = SessionSyncEvidence.RoomListState.allCases.filter(\.showsSync)
-        #expect(withSync == [.settingUp, .running])
+        #expect(withSync == [.running])
     }
 
     @Test func theSyncEvidenceIsALatch() {
         var evidence = SessionSyncEvidence()
         #expect(!evidence.hasSynced)
-        // A start with no network.
-        for state: SessionSyncEvidence.RoomListState in [.initial, .error, .recovering, .terminated] {
+        // A start with no network, and the first request (MATRIX-186).
+        for state: SessionSyncEvidence.RoomListState in [.initial, .settingUp, .error, .recovering, .terminated] {
             let isFirst = evidence.note(state)
             #expect(!isFirst)
         }
         #expect(!evidence.hasSynced)
 
         // The first evidence is reported one time.
-        let first = evidence.note(.settingUp)
+        let first = evidence.note(.running)
         let second = evidence.note(.running)
         #expect(first)
         #expect(!second)

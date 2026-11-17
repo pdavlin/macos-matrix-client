@@ -34,6 +34,7 @@ public struct KnownSpace: Codable, Hashable, Sendable {
 /// ```json
 /// {
 ///   "version": 1,
+///   "emptyLaunches": 0,
 ///   "topLevel": [{"id": "!dev:a", "name": "DevObsessed", "avatarUrl": "mxc://a/dev"}],
 ///   "rooms": {
 ///     "!chat:a": {"parents": [{"id": "!sub:a", "name": "Team"}], "unconfirmedLaunches": 0},
@@ -48,13 +49,18 @@ public struct KnownSpace: Codable, Hashable, Sendable {
 /// - `unconfirmedLaunches`: how many sessions with a ready graph ended with
 ///   no live answer for the room. An entry at `maxUnconfirmedLaunches` is not
 ///   loaded: a room the account left does not stay in the file.
+/// - `emptyLaunches` (MATRIX-186): how many sessions in a row synced, ended
+///   their retry rounds, and got no space from the SDK. A file at
+///   `maxUnconfirmedLaunches` is not loaded: an account that left all its
+///   spaces does not keep them. A file with no key has a count of zero.
 ///
 /// A file that does not decode, or has a different version, loads as an
 /// empty cache.
 public struct SpaceLaunchCache: Codable, Equatable, Sendable {
     public static let currentVersion = 1
 
-    /// The entry of a room is dropped at this count: see the type.
+    /// The entry of a room, or the whole file for `emptyLaunches`, is
+    /// dropped at this count: see the type.
     public static let maxUnconfirmedLaunches = 3
 
     /// The cache record of one child room.
@@ -71,11 +77,28 @@ public struct SpaceLaunchCache: Codable, Equatable, Sendable {
     public var version: Int
     public var topLevel: [KnownSpace]
     public var rooms: [String: Room]
+    /// See the type (MATRIX-186).
+    public var emptyLaunches: Int
 
-    public init(topLevel: [KnownSpace] = [], rooms: [String: Room] = [:]) {
+    public init(topLevel: [KnownSpace] = [], rooms: [String: Room] = [:], emptyLaunches: Int = 0) {
         version = Self.currentVersion
         self.topLevel = topLevel
         self.rooms = rooms
+        self.emptyLaunches = emptyLaunches
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version, topLevel, rooms, emptyLaunches
+    }
+
+    /// A file of MATRIX-170 has no `emptyLaunches`: it decodes with a count
+    /// of zero, so the update keeps the cache.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        topLevel = try container.decode([KnownSpace].self, forKey: .topLevel)
+        rooms = try container.decode([String: Room].self, forKey: .rooms)
+        emptyLaunches = try container.decodeIfPresent(Int.self, forKey: .emptyLaunches) ?? 0
     }
 
     /// Whether the cache holds no space and no room.
@@ -143,20 +166,23 @@ public extension SpaceLaunchCache {
 ///   list of spaces, so an empty answer keeps the cached value.
 /// - The graph is ready when there is evidence that the SDK built it:
 ///   1. the SDK's list of top-level joined spaces is not empty, or
-///   2. one room got a parent list that is not empty in this session, or
-///   3. the caller's retry rounds ended and the client has synced in this
-///      session (`finishRetries(hasSynced:)`). An account with no space
-///      gives no evidence of the first two kinds, so after the last round
-///      the empty answers are real.
-/// - With no sync in this session the graph does not become ready from the
-///   retry rounds (MATRIX-171). With no network the SDK never builds its
-///   space graph, so its empty answers say nothing: the cached values stay,
-///   and the cache file stays as it is. `SessionSyncEvidence` says what a
-///   sync is.
+///   2. one room got a parent list that is not empty in this session.
+/// - Time is not evidence (MATRIX-186). The SDK can build its graph a minute
+///   or more after the launch, after the caller's retry rounds ended. When
+///   the rounds end after a sync with no evidence, the session is an
+///   **empty session**: the cached values stay in this session and in the
+///   file, and the file counts the session (`emptyLaunches`). After
+///   `maxUnconfirmedLaunches` empty sessions in a row the file is not
+///   loaded: that account has no space. A session with evidence sets the
+///   count to zero.
+/// - With no sync in this session the session is not counted (MATRIX-171).
+///   With no network the SDK never builds its space graph, so its empty
+///   answers say nothing: the cache file stays as it is.
+///   `SessionSyncEvidence` says what a sync is.
 /// - After the graph is ready, an empty answer clears the value.
 /// - An empty answer that came before the graph was ready is held. The
-///   caller reads those rooms again (its retry rounds);
-///   `finishRetries(hasSynced:)` clears the held rooms that are left.
+///   caller reads those rooms again (its retry rounds). When the graph is
+///   ready, `finishRetries(hasSynced:)` clears the held rooms that are left.
 ///
 /// A space the account left goes away with these rules: a live list of
 /// spaces that is not empty replaces the cached list, and each room's live
@@ -184,9 +210,20 @@ public struct SpaceGraph: Equatable, Sendable {
     /// graph was ready.
     private var heldEmpty: Set<String> = []
 
+    /// The file's `emptyLaunches`.
+    private var emptyLaunches = 0
+
+    /// Whether this session is an empty session: see the type.
+    private var isEmptySession = false
+
     /// - Parameter cache: the launch cache, or an empty cache.
     public init(cache: SpaceLaunchCache = SpaceLaunchCache()) {
+        guard cache.emptyLaunches < SpaceLaunchCache.maxUnconfirmedLaunches else {
+            topLevel = []
+            return
+        }
         topLevel = cache.topLevel
+        emptyLaunches = max(0, cache.emptyLaunches)
         for (roomId, room) in cache.rooms {
             guard !room.parents.isEmpty, room.unconfirmedLaunches < SpaceLaunchCache.maxUnconfirmedLaunches else { continue }
             parents[roomId] = room.parents
@@ -242,17 +279,23 @@ public struct SpaceGraph: Equatable, Sendable {
 
     /// The caller's retry rounds ended.
     ///
-    /// With a sync in this session the graph is ready now: an empty list of
-    /// spaces is real, and each held empty answer clears its room. With no
-    /// sync nothing changes (MATRIX-171): the cached values and the held
-    /// answers stay, and the caller runs its rounds again after the sync.
+    /// - With no sync nothing changes (MATRIX-171): the cached values and
+    ///   the held answers stay, and the caller runs its rounds again after
+    ///   the sync.
+    /// - With a sync and a ready graph, each held empty answer clears its
+    ///   room.
+    /// - With a sync and no evidence, the session is an empty session
+    ///   (MATRIX-186): the cached values stay, and `cache` counts the
+    ///   session. The SDK can still build its graph later in the session.
     ///
     /// - Parameter hasSynced: `SessionSyncEvidence.hasSynced`.
     public mutating func finishRetries(hasSynced: Bool) {
         guard hasSynced else { return }
-        if !isReady {
-            isReady = true
-            topLevel = []
+        guard isReady else {
+            if holdsCachedData {
+                isEmptySession = true
+            }
+            return
         }
         for roomId in heldEmpty {
             parents[roomId] = []
@@ -267,13 +310,17 @@ public struct SpaceGraph: Equatable, Sendable {
     /// live answer keeps its count, plus one when the graph is ready: a
     /// session that ended before the graph was ready says nothing about the
     /// room.
+    ///
+    /// `emptyLaunches` is zero when the graph is ready, and the file's count
+    /// plus one after an empty session.
     public var cache: SpaceLaunchCache {
         var rooms: [String: SpaceLaunchCache.Room] = [:]
         for (roomId, list) in parents where !list.isEmpty {
             let count = unconfirmed[roomId].map { $0 + (isReady ? 1 : 0) } ?? 0
             rooms[roomId] = SpaceLaunchCache.Room(parents: list, unconfirmedLaunches: count)
         }
-        return SpaceLaunchCache(topLevel: topLevel, rooms: rooms)
+        let empty = isReady ? 0 : emptyLaunches + (isEmptySession ? 1 : 0)
+        return SpaceLaunchCache(topLevel: topLevel, rooms: rooms, emptyLaunches: empty)
     }
 }
 
@@ -283,11 +330,14 @@ public struct SpaceGraph: Equatable, Sendable {
 /// with no network the SDK never builds its space graph, and its empty
 /// answers must not clear the rail and the launch cache.
 ///
-/// The evidence is the state of the room list service. `settingUp` and
-/// `running` come only after a sync response: the service starts in
-/// `initial`, and a start with no network goes to `error`, `terminated` or
-/// `recovering`. The state of the sync service is not evidence: it is
-/// `running` from the start of the sync, before the first response.
+/// The evidence is the room list service in `running` (MATRIX-186). The
+/// service starts in `initial` and goes to `settingUp` for its first
+/// request. The bindings do not say that `settingUp` comes after a server
+/// answer, so it is not evidence: `running` comes only after the answer to
+/// the `settingUp` request. A start with no network goes to `error`,
+/// `terminated` or `recovering`. The state of the sync service is not
+/// evidence: it is `running` from the start of the sync, before the first
+/// response.
 ///
 /// The value is a latch: a later loss of the network does not clear it,
 /// because the SDK built its graph from the sync that came before.
@@ -299,8 +349,8 @@ public struct SessionSyncEvidence: Equatable, Sendable {
         /// Whether the state comes only after a sync response.
         public var showsSync: Bool {
             switch self {
-            case .settingUp, .running: true
-            case .initial, .recovering, .error, .terminated: false
+            case .running: true
+            case .initial, .settingUp, .recovering, .error, .terminated: false
             }
         }
     }

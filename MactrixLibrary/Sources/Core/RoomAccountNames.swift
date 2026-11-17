@@ -106,9 +106,8 @@ public final class RoomAccountNames {
     }
 
     /// Takes a state of the room list service (MATRIX-171). The first state
-    /// that shows a sync (`SessionSyncEvidence`) starts the retry rounds
-    /// again: the SDK builds its space graph after the sync, and only then
-    /// is an empty answer real.
+    /// that shows a sync (`SessionSyncEvidence`: `running`) starts the
+    /// retry rounds again: the SDK builds its space graph after the sync.
     public func note(roomListState: SessionSyncEvidence.RoomListState) {
         guard syncEvidence.note(roomListState), let liveSpaces else { return }
         retryRound = 0
@@ -144,10 +143,11 @@ public final class RoomAccountNames {
     /// what the SDK answers before its space graph is ready. A read that
     /// fails is logged and runs again on the next request.
     ///
-    /// MATRIX-170: when the retry rounds end, an empty answer is real
-    /// (`SpaceGraph.finishRetries(hasSynced:)`), so an account with no space
-    /// ends with no cached space. MATRIX-171: that needs a sync in this
-    /// session. With no sync the rounds end with no change, and
+    /// MATRIX-186: when the retry rounds end after a sync and the SDK gave
+    /// no space, the cached values stay and the cache file counts an empty
+    /// session (`SpaceGraph.finishRetries(hasSynced:)`). Some empty sessions
+    /// in a row clear the cache of an account with no space. MATRIX-171:
+    /// with no sync the rounds end with no change, and
     /// `note(roomListState:)` starts them again when the sync comes.
     ///
     /// Cost: one SDK call per read.
