@@ -141,6 +141,70 @@ struct MusicLinkBarTests {
         #expect(barView.hitTest(NSPoint(x: 5, y: 5)) == nil)
     }
 
+    // MARK: Click areas
+
+    /// A rect in the hosted body's text field, in the host view, with y from the top.
+    private func hostRect(_ rect: CGRect, from field: NSTextField, in host: NSView) -> CGRect {
+        let converted = host.convert(rect, from: field)
+        guard !host.isFlipped else { return converted }
+        return CGRect(x: converted.minX, y: host.bounds.height - converted.maxY, width: converted.width, height: converted.height)
+    }
+
+    /// The view that takes a click at `point` of the host view, with y from the top.
+    private func hit(_ point: CGPoint, in host: NSView) -> NSView? {
+        let local = host.isFlipped ? point : NSPoint(x: point.x, y: host.bounds.height - point.y)
+        return host.hitTest(host.superview.map { host.convert(local, to: $0) } ?? local)
+    }
+
+    private func isInside(_ view: NSView?, _ field: NSTextField) -> Bool {
+        guard let view else { return false }
+        return view === field || view.isDescendant(of: field)
+    }
+
+    /// The glyph and the text of the link open song.link: each line of the
+    /// link has a click area over the glyph and the text, with the song.link
+    /// URL. A click there does not reach the text field. A click on the
+    /// other text does, so the body stays selectable.
+    @Test(arguments: Body.allCases)
+    func theClickAreasOpenSongLink(body: Body) throws {
+        let controller = self.body(body)
+        let host = controller.view
+        // SwiftUI hit tests a hosting view only in a window.
+        let window = NSWindow(contentViewController: controller)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        host.layoutSubtreeIfNeeded()
+        let field = try #require(Self.first(NSTextField.self, in: host))
+        let string = field.attributedStringValue
+        let targets = MusicLinkBar.targets(for: string, in: field.bounds)
+        let bars = MusicLinkBar.rects(for: string, in: field.bounds)
+        #expect(targets.count == body.lines)
+        #expect(bars.count == body.lines)
+        let songLink = "https://song.link/https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT"
+        #expect(targets.allSatisfy { $0.url.absoluteString == songLink })
+        #expect(targets.map(\.text).joined(separator: " ").hasPrefix("this song"))
+
+        for (target, bar) in zip(targets, bars) {
+            // The area covers the bar's text, and the glyph on the first line.
+            #expect(target.rect.minX <= bar.minX)
+            #expect(target.rect.maxX >= bar.maxX - 0.5)
+            #expect(target.rect.minY < bar.minY)
+            #expect(target.rect.maxY >= bar.maxY)
+        }
+        let firstTarget = try #require(targets.first)
+        let firstBar = try #require(bars.first)
+        #expect(firstTarget.rect.minX < firstBar.minX - 5)
+        for target in targets {
+            let rect = hostRect(target.rect, from: field, in: host)
+            let hit = self.hit(CGPoint(x: rect.midX, y: rect.midY), in: host)
+            #expect(hit != nil)
+            #expect(!isInside(hit, field))
+        }
+        // "listen" at the start of the body goes to the text field.
+        let start = hostRect(CGRect(x: 6, y: 4, width: 1, height: 1), from: field, in: host)
+        #expect(isInside(hit(CGPoint(x: start.midX, y: start.midY), in: host), field))
+    }
+
     // MARK: Pixels
 
     private struct Bitmap {
@@ -209,5 +273,53 @@ struct MusicLinkBarTests {
             #expect(bitmap.hasInk(in: band(from: rect.maxX - 3, to: rect.maxX)))
             #expect(!bitmap.hasInk(in: band(from: rect.maxX + 0.5, to: rect.maxX + 2.5)))
         }
+    }
+
+    /// The link text draws in the body text color, not in the link blue:
+    /// each solid pixel of the link text is a gray, light or dark as the
+    /// text of the body around it.
+    @Test(arguments: Body.allCases, [NSAppearance.Name.aqua, .darkAqua])
+    func theLinkTextHasTheBodyColor(body: Body, appearance: NSAppearance.Name) throws {
+        let controller = self.body(body, appearance: appearance)
+        let bitmap = try render(controller.view)
+        let rects = try barRects(in: controller.view)
+        #expect(rects.count == body.lines)
+        var solid = 0
+        for rect in rects {
+            // The band above the bar, where the link text's glyphs are.
+            let minX = Int(rect.minX * bitmap.scale)
+            let maxX = Int(rect.maxX * bitmap.scale)
+            let minY = Int((rect.minY - 9) * bitmap.scale)
+            let maxY = Int((rect.minY - 1) * bitmap.scale)
+            for x in minX ..< maxX {
+                for y in minY ..< maxY {
+                    guard let color = bitmap.rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+                          color.alphaComponent > 0.6
+                    else { continue }
+                    solid += 1
+                    let channels = [color.redComponent, color.greenComponent, color.blueComponent]
+                    let spread = (channels.max() ?? 0) - (channels.min() ?? 0)
+                    #expect(spread < 0.1, "a colored pixel at \(x), \(y): \(color)")
+                    if appearance == .aqua {
+                        #expect(color.redComponent < 0.4)
+                    } else {
+                        #expect(color.redComponent > 0.6)
+                    }
+                }
+            }
+        }
+        #expect(solid > 20)
+    }
+
+    /// The glyph's light violet has a contrast of at least 3:1 on white.
+    @Test func theGlyphColorHasContrastOnWhite() {
+        func luminance(_ rgb: UInt32) -> Double {
+            let channels = [(rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF].map { Double($0) / 255 }
+            let linear = channels.map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+            return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+        }
+        let contrast = 1.05 / (luminance(MusicLinkToken.glyphLightRGB) + 0.05)
+        #expect(contrast >= 3)
+        #expect(MusicLinkToken.glyphDarkRGB == 0xA78BFA)
     }
 }

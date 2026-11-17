@@ -21,7 +21,8 @@ import UI
 /// With `marksMusicLinks`, a music link draws with its marker and opens on
 /// song.link (MATRIX-178). The timeline's height measure builds this same
 /// view with the same switch, so the measured and the drawn string agree.
-/// Its gradient bar (MATRIX-187) draws behind the text and adds no height.
+/// Its gradient bar (MATRIX-187) draws behind the text, and its click areas
+/// lie over the text. Neither adds height.
 public struct FormattedBodyText: View {
     let html: String
     let baseFontSize: CGFloat

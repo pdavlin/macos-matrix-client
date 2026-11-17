@@ -22,12 +22,36 @@ public enum MusicLinkToken {
     /// (the iOS body view). On macOS the bar takes its place.
     public static let underlineStyle = NSUnderlineStyle.single
 
-    /// The color of the glyph and the link text.
+    /// The color of the link text on iOS, where the underline is the cue. On
+    /// macOS the link text has the body text color, and the gradient bar and
+    /// the glyph are the cue (MATRIX-187).
     public static var tint: PlatformColor {
         #if canImport(AppKit)
             .linkColor
         #else
             .link
+        #endif
+    }
+
+    /// The glyph's color in light mode: a darker violet than the bar's first
+    /// stop, with a contrast of 4.2:1 on white.
+    public static let glyphLightRGB: UInt32 = 0x8B5CF6
+
+    /// The glyph's color in dark mode: the bar's first stop.
+    public static let glyphDarkRGB: UInt32 = 0xA78BFA
+
+    /// The color of the glyph: the violet of the bar's first stop, darker in
+    /// light mode. It resolves when the glyph draws.
+    public static var glyphColor: PlatformColor {
+        #if canImport(AppKit)
+            NSColor(name: nil) { appearance in
+                let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                return NSColor(rgb: isDark ? glyphDarkRGB : glyphLightRGB)
+            }
+        #else
+            UIColor { traits in
+                UIColor(rgb: traits.userInterfaceStyle == .dark ? glyphDarkRGB : glyphLightRGB)
+            }
         #endif
     }
 

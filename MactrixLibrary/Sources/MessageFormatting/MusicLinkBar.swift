@@ -8,12 +8,18 @@ extension NSAttributedString.Key {
     /// The text of a music link that draws the gradient bar (MATRIX-187).
     /// `MusicLinkMarker` sets it on macOS, `MusicLinkBar` reads it.
     static let musicLinkMarker = NSAttributedString.Key(rawValue: "MactrixMusicLinkMarker")
+
+    /// The song.link URL of a music link's glyph and text on macOS
+    /// (MATRIX-187). It takes the place of `.link`, which AppKit draws in the
+    /// link color. `MusicLinkBar.targets` reads it for the click areas.
+    static let musicLinkTarget = NSAttributedString.Key(rawValue: "MactrixMusicLinkTarget")
 }
 
 @MainActor
 extension View {
     /// Draws the music link bar (MATRIX-187) behind this view, for the
-    /// marked text of `string`. The view must be the `AttributedTextView`
+    /// marked text of `string`, and puts a click area over each music link
+    /// that opens its target. The view must be the `AttributedTextView`
     /// that shows `string`. Adds nothing for a string with no marked text,
     /// and nothing on iOS.
     @ViewBuilder
@@ -21,6 +27,7 @@ extension View {
         #if canImport(AppKit)
             if MusicLinkBar.hasMarker(string) {
                 background(MusicLinkBarBackground(string: string).allowsHitTesting(false))
+                    .overlay(MusicLinkTargets(string: string))
             } else {
                 self
             }
@@ -69,24 +76,95 @@ extension View {
         /// lays it out in `bounds` of a flipped view, one rect for each line
         /// of each marked range. Whitespace at the ends of a line gets no bar.
         static func rects(for string: NSAttributedString, in bounds: CGRect) -> [CGRect] {
-            var marked: [NSRange] = []
-            string.enumerateAttribute(.musicLinkMarker, in: NSRange(location: 0, length: string.length)) { value, range, _ in
-                if value != nil {
-                    marked.append(range)
+            linePieces(of: .musicLinkMarker, in: string, width: bounds.width).map { piece in
+                let font = string.attribute(.font, at: piece.chars.location, effectiveRange: nil) as? NSFont
+                    ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+                let bottom = min(
+                    piece.usedRect.maxY,
+                    piece.baseline - font.descender + font.pointSize * MusicLinkToken.barDropScale
+                )
+                return CGRect(
+                    x: bounds.minX + piece.box.minX,
+                    y: bounds.minY + bottom - MusicLinkToken.barThickness,
+                    width: piece.box.width,
+                    height: MusicLinkToken.barThickness
+                )
+            }
+        }
+
+        /// One click area of a music link.
+        struct Target {
+            let rect: CGRect
+            let url: URL
+            /// The link text on the area's line, without the glyph.
+            let text: String
+        }
+
+        /// The click areas of the music links of `string`, laid out as for
+        /// `rects(for:in:)`: one rect for each line of each link, glyph and
+        /// text, as tall as the line. Each opens the link's song.link URL.
+        static func targets(for string: NSAttributedString, in bounds: CGRect) -> [Target] {
+            let all = string.string as NSString
+            return linePieces(of: .musicLinkTarget, in: string, width: bounds.width).compactMap { piece in
+                guard let url = piece.value as? URL else { return nil }
+                let text = all.substring(with: piece.chars)
+                    .replacingOccurrences(of: "\u{FFFC}", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                return Target(rect: piece.box.offsetBy(dx: bounds.minX, dy: bounds.minY), url: url, text: text)
+            }
+        }
+
+        /// The bounds of the `NSTextField` label in a view with the field's
+        /// layout frame, `size`. SwiftUI gives the field and that view the
+        /// same layout frame, and the field's frame is the layout frame grown
+        /// by its alignment insets.
+        static func fieldBounds(for size: CGSize) -> CGRect {
+            let insets = labelInsets
+            return CGRect(
+                x: -insets.left,
+                y: -insets.top,
+                width: size.width + insets.left + insets.right,
+                height: size.height + insets.top + insets.bottom
+            )
+        }
+
+        /// The alignment insets of an `NSTextField` label.
+        private static let labelInsets = NSTextField(labelWithString: "").alignmentRectInsets
+
+        /// One line's part of a range that has an attribute, in the
+        /// coordinates of the text container, which starts at the field's
+        /// top left.
+        private struct LinePiece {
+            let value: Any
+            let chars: NSRange
+            let box: CGRect
+            let usedRect: CGRect
+            let baseline: CGFloat
+        }
+
+        /// Lays out `string` as the label cell lays it out at `width`, and
+        /// returns each line's part of each range that has `key`. Whitespace
+        /// at the ends of a line is not part of a piece.
+        private static func linePieces(of key: NSAttributedString.Key, in string: NSAttributedString, width: CGFloat) -> [LinePiece] {
+            var ranges: [(range: NSRange, value: Any)] = []
+            let all = NSRange(location: 0, length: string.length)
+            string.enumerateAttribute(key, in: all) { value, range, _ in
+                if let value {
+                    ranges.append((range, value))
                 }
             }
-            guard !marked.isEmpty, bounds.width > 0 else { return [] }
+            guard !ranges.isEmpty, width > 0 else { return [] }
 
             let storage = NSTextStorage(attributedString: string)
             let layoutManager = NSLayoutManager()
-            let container = NSTextContainer(size: CGSize(width: bounds.width, height: .greatestFiniteMagnitude))
+            let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
             container.lineFragmentPadding = labelLineFragmentPadding
             layoutManager.addTextContainer(container)
             storage.addLayoutManager(layoutManager)
 
             let text = string.string as NSString
-            var rects: [CGRect] = []
-            for range in marked {
+            var pieces: [LinePiece] = []
+            for (range, value) in ranges {
                 let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
                 layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { lineRect, usedRect, _, lineGlyphs, _ in
                     let lineChars = layoutManager.characterRange(
@@ -96,23 +174,16 @@ extension View {
                     let chars = trimmingWhitespace(lineChars, in: text)
                     guard chars.length > 0 else { return }
                     let partGlyphs = layoutManager.glyphRange(forCharacterRange: chars, actualCharacterRange: nil)
-                    let box = layoutManager.boundingRect(forGlyphRange: partGlyphs, in: container)
-                    let font = string.attribute(.font, at: chars.location, effectiveRange: nil) as? NSFont
-                        ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
-                    let baseline = lineRect.minY + layoutManager.location(forGlyphAt: partGlyphs.location).y
-                    let bottom = min(
-                        usedRect.maxY,
-                        baseline - font.descender + font.pointSize * MusicLinkToken.barDropScale
-                    )
-                    rects.append(CGRect(
-                        x: bounds.minX + box.minX,
-                        y: bounds.minY + bottom - MusicLinkToken.barThickness,
-                        width: box.width,
-                        height: MusicLinkToken.barThickness
+                    pieces.append(LinePiece(
+                        value: value,
+                        chars: chars,
+                        box: layoutManager.boundingRect(forGlyphRange: partGlyphs, in: container),
+                        usedRect: usedRect,
+                        baseline: lineRect.minY + layoutManager.location(forGlyphAt: partGlyphs.location).y
                     ))
                 }
             }
-            return rects
+            return pieces
         }
 
         /// Fills each rect with the full gradient, left to right.
@@ -158,19 +229,8 @@ extension View {
             needsDisplay = true
         }
 
-        /// The alignment insets of an `NSTextField` label. SwiftUI gives the
-        /// field and this view the same layout frame, and the field's frame
-        /// is the layout frame grown by these insets.
-        private static let labelInsets = NSTextField(labelWithString: "").alignmentRectInsets
-
         override func draw(_: NSRect) {
-            let insets = Self.labelInsets
-            let fieldBounds = NSRect(
-                x: bounds.minX - insets.left,
-                y: bounds.minY - insets.top,
-                width: bounds.width + insets.left + insets.right,
-                height: bounds.height + insets.top + insets.bottom
-            )
+            let fieldBounds = MusicLinkBar.fieldBounds(for: bounds.size).offsetBy(dx: bounds.minX, dy: bounds.minY)
             MusicLinkBar.draw(MusicLinkBar.rects(for: string, in: fieldBounds))
         }
 
@@ -190,6 +250,34 @@ extension View {
 
         func updateNSView(_ view: MusicLinkBarView, context _: Context) {
             view.string = string
+        }
+    }
+
+    /// The click areas over the music links (MATRIX-187). The link text
+    /// has no `.link`, so the text field does not open it. A click in an
+    /// area opens the link's song.link URL. Outside the areas, the clicks go
+    /// to the text field, so its text stays selectable. A right click goes
+    /// to the row, which shows the message menu.
+    struct MusicLinkTargets: View {
+        let string: NSAttributedString
+        @Environment(\.openURL) private var openURL
+
+        var body: some View {
+            GeometryReader { proxy in
+                let targets = MusicLinkBar.targets(for: string, in: MusicLinkBar.fieldBounds(for: proxy.size))
+                ForEach(targets.indices, id: \.self) { index in
+                    let target = targets[index]
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .frame(width: target.rect.width, height: target.rect.height)
+                        .position(x: target.rect.midX, y: target.rect.midY)
+                        .onTapGesture { openURL(target.url) }
+                        .pointerStyle(.link)
+                        .accessibilityElement()
+                        .accessibilityAddTraits(.isLink)
+                        .accessibilityLabel(target.text)
+                }
+            }
         }
     }
 #endif

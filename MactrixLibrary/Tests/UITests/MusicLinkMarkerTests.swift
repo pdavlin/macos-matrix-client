@@ -75,10 +75,25 @@ struct MusicLinkMarkerTests {
 
     // MARK: Marker
 
+    /// The music link targets in `string`, as strings, in order.
+    private func targets(in string: NSAttributedString) -> [String] {
+        var found: [String] = []
+        let all = NSRange(location: 0, length: string.length)
+        string.enumerateAttribute(.musicLinkTarget, in: all) { value, _, _ in
+            if let url = value as? URL {
+                found.append(url.absoluteString)
+            }
+        }
+        return found
+    }
+
     @Test func aSongLinkKeepsItsTextAndOpensOnSongLink() throws {
         let marked = parseFormattedBody(Self.html, baseFontSize: 13, marksMusicLinks: true)
         #expect(marked.string.trimmingCharacters(in: .whitespacesAndNewlines) == "listen to \u{FFFC}this song now")
-        #expect(links(in: marked) == [Self.target])
+        // No `.link`: AppKit draws it in the link color (MATRIX-187). The
+        // glyph and the text carry the target for the click areas.
+        #expect(links(in: marked).isEmpty)
+        #expect(targets(in: marked) == [Self.target])
 
         let glyph = try #require(attachments(in: marked).first as? MusicLinkGlyph)
         let font = NSFont.systemFont(ofSize: 13)
@@ -99,9 +114,13 @@ struct MusicLinkMarkerTests {
         #expect(marker as? Bool == true)
         #expect(markerRange == linkText)
         #expect(marked.attribute(.underlineStyle, at: linkText.location, effectiveRange: nil) == nil)
+        // The link text has the color of the body text around it.
+        let bodyColor = marked.attribute(.foregroundColor, at: text.range(of: "listen").location, effectiveRange: nil) as? NSColor
+        #expect(marked.attribute(.foregroundColor, at: linkText.location, effectiveRange: nil) as? NSColor == bodyColor)
         // The glyph carries the target too, and no underline or bar.
         let glyphIndex = text.range(of: "\u{FFFC}").location
-        #expect(marked.attribute(.link, at: glyphIndex, effectiveRange: nil) as? URL == URL(string: Self.target))
+        #expect(marked.attribute(.link, at: glyphIndex, effectiveRange: nil) == nil)
+        #expect(marked.attribute(.musicLinkTarget, at: glyphIndex, effectiveRange: nil) as? URL == URL(string: Self.target))
         #expect(marked.attribute(.underlineStyle, at: glyphIndex, effectiveRange: nil) == nil)
         #expect(marked.attribute(.musicLinkMarker, at: glyphIndex, effectiveRange: nil) == nil)
     }
@@ -116,6 +135,11 @@ struct MusicLinkMarkerTests {
         #expect(marked.string == plain.string)
         #expect(attachments(in: marked).isEmpty)
         #expect(links(in: marked) == links(in: plain))
+        #expect(targets(in: marked).isEmpty)
+        // Other links keep the link color and the underline.
+        let site = (marked.string as NSString).range(of: "site").location
+        #expect(marked.attribute(.underlineStyle, at: site, effectiveRange: nil) != nil)
+        #expect(marked.attribute(.foregroundColor, at: site, effectiveRange: nil) != nil)
 
         let off = parseFormattedBody(Self.html, baseFontSize: 13, marksMusicLinks: false)
         #expect(attachments(in: off).isEmpty)
@@ -132,7 +156,7 @@ struct MusicLinkMarkerTests {
         let first = parseFormattedBody(Self.html, baseFontSize: 13, marksMusicLinks: true)
         let second = parseFormattedBody(Self.html, baseFontSize: 13, marksMusicLinks: true)
         #expect(first.string == second.string)
-        #expect(links(in: second) == [Self.target])
+        #expect(targets(in: second) == [Self.target])
     }
 
     /// The glyph sits inside the line: a one-line body is no taller.
@@ -154,6 +178,7 @@ struct MusicLinkMarkerTests {
             .attributedString
         #expect(field.attributedStringValue.string == expected.string)
         #expect(links(in: field.attributedStringValue) == links(in: expected))
+        #expect(targets(in: field.attributedStringValue) == [Self.target])
         #expect(attachments(in: field.attributedStringValue).count == 1)
         #expect(controller.view.fittingSize.height == height(of: expected, width: 300))
     }

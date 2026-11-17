@@ -9,11 +9,13 @@ import Tokens
 /// Marks the music links of a rendered body (MATRIX-178).
 ///
 /// A link that `MusicLink.classify` accepts keeps its text. Its target
-/// becomes `MusicLink.songLinkURL`, it gets the link tint, and a small glyph
-/// goes before it. On macOS the link text gets `.musicLinkMarker` in place of
-/// the underline, and `MusicLinkBar` draws the gradient bar under it
-/// (MATRIX-187). On iOS it keeps an underline. The glyph is a fixed-size attachment,
-/// set from the font alone, so the body has one layout from its first draw.
+/// becomes `MusicLink.songLinkURL`, and a small glyph goes before it. On
+/// macOS the link text has the body text color and `.musicLinkMarker` in
+/// place of the underline, and `MusicLinkBar` draws the gradient bar under
+/// it (MATRIX-187). The glyph and the text carry the target as
+/// `.musicLinkTarget`, not `.link`. On iOS the link keeps `.link`, the link
+/// tint, and an underline. The glyph is a fixed-size attachment, set from
+/// the font alone, so the body has one layout from its first draw.
 ///
 /// The glyph adds width, so a long link can wrap one line later. The row
 /// height stays right because the height measure and the drawn row parse
@@ -45,18 +47,29 @@ enum MusicLinkMarker {
         for (range, link) in found.reversed() {
             let attributes = output.attributes(at: range.location, effectiveRange: nil)
             let font = attributes[.font] as? PlatformFont ?? PlatformFont.systemFont(ofSize: baseFontSize)
-            output.addAttributes([.link: link.songLinkURL, .foregroundColor: MusicLinkToken.tint], range: range)
             #if canImport(AppKit)
-                // The gradient bar takes the place of the underline (MATRIX-187).
+                // AppKit draws `.link` text in the link color whatever its
+                // `.foregroundColor`. The link text has no `.link` and no color
+                // of its own, so it draws as the body text around it. The
+                // gradient bar takes the place of the underline (MATRIX-187),
+                // and `musicLinkTargets` opens the target on a click.
+                output.removeAttribute(.link, range: range)
+                output.removeAttribute(.foregroundColor, range: range)
                 output.removeAttribute(.underlineStyle, range: range)
-                output.addAttribute(.musicLinkMarker, value: true, range: range)
+                output.addAttributes([.musicLinkMarker: true, .musicLinkTarget: link.songLinkURL], range: range)
             #else
+                output.addAttributes([.link: link.songLinkURL, .foregroundColor: MusicLinkToken.tint], range: range)
                 output.addAttribute(.underlineStyle, value: MusicLinkToken.underlineStyle.rawValue, range: range)
             #endif
 
             let glyph = NSMutableAttributedString(attachment: MusicLinkGlyph(font: font))
             var glyphAttributes = attributes
-            glyphAttributes[.link] = link.songLinkURL
+            #if canImport(AppKit)
+                glyphAttributes[.link] = nil
+                glyphAttributes[.musicLinkTarget] = link.songLinkURL
+            #else
+                glyphAttributes[.link] = link.songLinkURL
+            #endif
             glyphAttributes[.underlineStyle] = nil
             glyphAttributes[.kern] = font.pointSize * MusicLinkToken.glyphTrailingSpaceScale
             glyph.addAttributes(glyphAttributes, range: NSRange(location: 0, length: glyph.length))
@@ -66,8 +79,8 @@ enum MusicLinkMarker {
     }
 }
 
-/// The glyph before a music link: `MusicLinkToken.glyphSymbolName` in the
-/// link tint, on the baseline, at the font's cap height.
+/// The glyph before a music link: `MusicLinkToken.glyphSymbolName` in
+/// `MusicLinkToken.glyphColor`, on the baseline, at the font's cap height.
 final class MusicLinkGlyph: NSTextAttachment {
     init(font: PlatformFont) {
         super.init(data: nil, ofType: nil)
@@ -100,19 +113,19 @@ final class MusicLinkGlyph: NSTextAttachment {
         #endif
     }
 
-    /// The symbol drawn in the tint. The tint resolves when the glyph draws,
-    /// so it follows light and dark mode.
+    /// The symbol drawn in the glyph color. The color resolves when the
+    /// glyph draws, so it follows light and dark mode.
     private static func tinted(_ symbol: PlatformImage, size: CGSize) -> PlatformImage {
         #if canImport(AppKit)
             NSImage(size: size, flipped: false) { rect in
                 symbol.draw(in: rect)
-                MusicLinkToken.tint.set()
+                MusicLinkToken.glyphColor.set()
                 rect.fill(using: .sourceAtop)
                 return true
             }
         #elseif canImport(UIKit)
             UIGraphicsImageRenderer(size: size).image { _ in
-                symbol.withTintColor(MusicLinkToken.tint, renderingMode: .alwaysOriginal)
+                symbol.withTintColor(MusicLinkToken.glyphColor, renderingMode: .alwaysOriginal)
                     .draw(in: CGRect(origin: .zero, size: size))
             }
         #endif
