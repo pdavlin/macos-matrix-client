@@ -88,12 +88,22 @@ struct MusicLinkMarkerTests {
 
         let text = marked.string as NSString
         let linkText = text.range(of: "this song")
-        let underline = marked.attribute(.underlineStyle, at: linkText.location, effectiveRange: nil) as? Int
-        #expect(underline == NSUnderlineStyle.single.rawValue)
-        // The glyph carries the target too, and no underline.
+        // The link text has the bar (MATRIX-187) in place of an underline.
+        var markerRange = NSRange()
+        let marker = marked.attribute(
+            .musicLinkMarker,
+            at: linkText.location,
+            longestEffectiveRange: &markerRange,
+            in: NSRange(location: 0, length: marked.length)
+        )
+        #expect(marker as? Bool == true)
+        #expect(markerRange == linkText)
+        #expect(marked.attribute(.underlineStyle, at: linkText.location, effectiveRange: nil) == nil)
+        // The glyph carries the target too, and no underline or bar.
         let glyphIndex = text.range(of: "\u{FFFC}").location
         #expect(marked.attribute(.link, at: glyphIndex, effectiveRange: nil) as? URL == URL(string: Self.target))
         #expect(marked.attribute(.underlineStyle, at: glyphIndex, effectiveRange: nil) == nil)
+        #expect(marked.attribute(.musicLinkMarker, at: glyphIndex, effectiveRange: nil) == nil)
     }
 
     @Test func otherLinksAndTheSwitchOffStayAsTheyAre() {

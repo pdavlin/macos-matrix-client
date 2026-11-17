@@ -9,8 +9,10 @@ import Tokens
 /// Marks the music links of a rendered body (MATRIX-178).
 ///
 /// A link that `MusicLink.classify` accepts keeps its text. Its target
-/// becomes `MusicLink.songLinkURL`, it gets an underline and the link tint,
-/// and a small glyph goes before it. The glyph is a fixed-size attachment,
+/// becomes `MusicLink.songLinkURL`, it gets the link tint, and a small glyph
+/// goes before it. On macOS the link text gets `.musicLinkMarker` in place of
+/// the underline, and `MusicLinkBar` draws the gradient bar under it
+/// (MATRIX-187). On iOS it keeps an underline. The glyph is a fixed-size attachment,
 /// set from the font alone, so the body has one layout from its first draw.
 ///
 /// The glyph adds width, so a long link can wrap one line later. The row
@@ -43,14 +45,14 @@ enum MusicLinkMarker {
         for (range, link) in found.reversed() {
             let attributes = output.attributes(at: range.location, effectiveRange: nil)
             let font = attributes[.font] as? PlatformFont ?? PlatformFont.systemFont(ofSize: baseFontSize)
-            output.addAttributes(
-                [
-                    .link: link.songLinkURL,
-                    .underlineStyle: MusicLinkToken.underlineStyle.rawValue,
-                    .foregroundColor: MusicLinkToken.tint,
-                ],
-                range: range
-            )
+            output.addAttributes([.link: link.songLinkURL, .foregroundColor: MusicLinkToken.tint], range: range)
+            #if canImport(AppKit)
+                // The gradient bar takes the place of the underline (MATRIX-187).
+                output.removeAttribute(.underlineStyle, range: range)
+                output.addAttribute(.musicLinkMarker, value: true, range: range)
+            #else
+                output.addAttribute(.underlineStyle, value: MusicLinkToken.underlineStyle.rawValue, range: range)
+            #endif
 
             let glyph = NSMutableAttributedString(attachment: MusicLinkGlyph(font: font))
             var glyphAttributes = attributes

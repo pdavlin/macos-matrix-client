@@ -95,4 +95,48 @@ struct MusicLinkSnapshotTests {
     func rowWithTheSwitchOff() {
         assertSnapshot(of: row(marksMusicLinks: false), as: .scaledImage(precision: 0.9995))
     }
+
+    // MARK: Gradient bar (MATRIX-187)
+
+    /// A body alone, at the width of `MusicLinkBarTests`, which proves that
+    /// `MusicLinkBarTests.wrapped` wraps its link onto two lines there.
+    private func body(_ html: String, appearance: NSAppearance.Name) -> NSHostingController<AnyView> {
+        let controller = NSHostingController(
+            rootView: AnyView(
+                FormattedBodyText(
+                    html: html,
+                    baseFontSize: CGFloat(TypographyToken.defaultBaseFontSize),
+                    imageLoader: nil,
+                    marksMusicLinks: true
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: MusicLinkBarTests.width, alignment: .leading)
+                .padding(8)
+                .background(Color(NSColor.controlBackgroundColor))
+            )
+        )
+        controller.view.appearance = NSAppearance(named: appearance)
+        controller.view.frame.size = controller.view.fittingSize
+        return controller
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func oneLineBarLight() {
+        assertSnapshot(of: body(MusicLinkBarTests.oneLine, appearance: .aqua), as: .scaledImage(precision: 0.9995))
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func oneLineBarDark() {
+        assertSnapshot(of: body(MusicLinkBarTests.oneLine, appearance: .darkAqua), as: .scaledImage(precision: 0.9995))
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func wrappedBarLight() {
+        assertSnapshot(of: body(MusicLinkBarTests.wrapped, appearance: .aqua), as: .scaledImage(precision: 0.9995))
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func wrappedBarDark() {
+        assertSnapshot(of: body(MusicLinkBarTests.wrapped, appearance: .darkAqua), as: .scaledImage(precision: 0.9995))
+    }
 }
