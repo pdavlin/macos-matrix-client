@@ -14,25 +14,6 @@ struct ReactionImageChipSnapshotTests {
     private nonisolated static let parrotKey = "mxc://example.org/parrot"
     private nonisolated static let shipKey = "mxc://example.org/ship"
 
-    /// Serves a solid-color disc for each known URL, from the cache.
-    private struct CachedLoader: ImageLoader {
-        let colors: [String: NSColor]
-
-        func cachedImage(matrixUrl: String) -> Image? {
-            guard let color = colors[matrixUrl] else { return nil }
-            let image = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
-                color.setFill()
-                NSBezierPath(ovalIn: rect).fill()
-                return true
-            }
-            return Image(nsImage: image)
-        }
-
-        func loadImage(matrixUrl: String, size _: CGSize?) async throws -> Image? {
-            cachedImage(matrixUrl: matrixUrl)
-        }
-    }
-
     /// Has no cache, and its load does not end: the chip stays in the
     /// loading state.
     private struct PendingLoader: ImageLoader {
@@ -46,7 +27,7 @@ struct ReactionImageChipSnapshotTests {
         }
     }
 
-    private static let cached = CachedLoader(colors: [parrotKey: .systemGreen, shipKey: .systemPurple])
+    private static let cached = StubImageLoader(colors: [parrotKey: .stubGreen, shipKey: .stubPurple], side: 64, shape: .disc)
 
     private struct Sender: ReactionSenderData {
         let senderId: String

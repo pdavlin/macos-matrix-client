@@ -11,26 +11,7 @@ import Testing
 /// snapshots (contract R-8).
 @MainActor
 struct AccountBadgeSnapshotTests {
-    /// Serves a solid-color square for each known URL, from the cache.
-    private struct IconLoader: ImageLoader {
-        let colors: [String: NSColor]
-
-        func cachedImage(matrixUrl: String) -> Image? {
-            guard let color = colors[matrixUrl] else { return nil }
-            let image = NSImage(size: NSSize(width: 32, height: 32), flipped: false) { rect in
-                color.setFill()
-                rect.fill()
-                return true
-            }
-            return Image(nsImage: image)
-        }
-
-        func loadImage(matrixUrl: String, size _: CGSize?) async throws -> Image? {
-            cachedImage(matrixUrl: matrixUrl)
-        }
-    }
-
-    private static let loader = IconLoader(colors: ["mxc://a/dev": .systemTeal, "mxc://a/pizza": .systemOrange])
+    private static let loader = StubImageLoader(colors: ["mxc://a/dev": .stubTeal, "mxc://a/pizza": .stubOrange])
 
     private func row(_ model: ChatListRowModel) -> NSHostingController<AnyView> {
         let controller = NSHostingController(

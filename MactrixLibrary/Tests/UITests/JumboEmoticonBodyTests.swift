@@ -69,7 +69,7 @@ struct JumboEmoticonBodyTests {
         let loaded = parseFormattedBody(
             Self.parrot,
             baseFontSize: TypographyToken.jumboEmojiSize,
-            imageLoader: EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+            imageLoader: EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
         )
         let pendingAttachment = try #require(attachments(in: pending).first as? EmoticonAttachment)
         let loadedAttachment = try #require(attachments(in: loaded).first as? EmoticonAttachment)
@@ -89,7 +89,7 @@ struct JumboEmoticonBodyTests {
     /// on the font's descender, which the text line rounds.
     @Test func jumboHeightIsTheSameBeforeAndAfterTheImagesLoad() {
         let size = TypographyToken.jumboEmojiSize
-        let images = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+        let images = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
         let oneEmoticon = height(of: parseFormattedBody(Self.parrot, baseFontSize: size, imageLoader: images))
         #expect(abs(oneEmoticon - height(of: parseFormattedBody("xx", baseFontSize: size))) <= 1)
         #expect(abs(oneEmoticon - height(of: parseFormattedBody("\u{1F44D}", baseFontSize: size))) <= 1)
@@ -123,7 +123,7 @@ struct JumboEmoticonBodyTests {
             )
             return controller.view.fittingSize
         }
-        let images = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+        let images = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
         let pending = size(isJumbo: true, loader: EmoticonStubLoader())
         #expect(pending == size(isJumbo: true, loader: images))
         #expect(pending.height > size(isJumbo: false, loader: images).height)

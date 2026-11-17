@@ -21,12 +21,7 @@ final class EmoticonStubLoader: ImageLoader {
     func cachedImage(matrixUrl: String) -> Image? {
         cacheRequests.append(matrixUrl)
         guard let color = colors[matrixUrl] else { return nil }
-        let image = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
-            color.setFill()
-            rect.fill()
-            return true
-        }
-        return Image(nsImage: image)
+        return Image(nsImage: StubImage.make(color, side: 64))
     }
 
     /// What a load puts in the cache, for a URL the cache does not hold yet.
@@ -193,7 +188,7 @@ struct BodyEmoticonTests {
     }
 
     @Test func emoticonWithCachedImageDrawsTheImage() throws {
-        let loader = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+        let loader = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
         let rendered = parseFormattedBody("<p>ship it \(Self.parrot)</p>", imageLoader: loader)
         let attachment = try #require(attachments(in: rendered).first as? EmoticonAttachment)
         #expect(attachment.isLoaded)
@@ -217,7 +212,7 @@ struct BodyEmoticonTests {
         let loaded = parseFormattedBody(
             html,
             baseFontSize: fontSize,
-            imageLoader: EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+            imageLoader: EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
         )
         let pendingBounds = try #require(attachments(in: pending).first).bounds
         let loadedBounds = try #require(attachments(in: loaded).first).bounds
@@ -240,7 +235,7 @@ struct BodyEmoticonTests {
             let loaded = parseFormattedBody(
                 html,
                 baseFontSize: fontSize,
-                imageLoader: EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+                imageLoader: EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
             )
             let textOnly = parseFormattedBody("<p>\(prefix)ship it xx now</p>", baseFontSize: fontSize)
             #expect(height(of: pending) == height(of: loaded))
@@ -276,7 +271,7 @@ struct BodyEmoticonTests {
 
         // This loader gets the image when the view asks for the load.
         let loader = EmoticonStubLoader()
-        loader.arrivingColors = ["mxc://example.org/parrot": .systemGreen]
+        loader.arrivingColors = ["mxc://example.org/parrot": .stubGreen]
         let (arriving, arrivingWindow) = host(loader)
         defer { arrivingWindow.close() }
         let field = try #require(Self.textField(in: arriving.view))

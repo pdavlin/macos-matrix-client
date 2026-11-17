@@ -38,17 +38,12 @@ struct ReactionPickerSnapshotTests {
 struct ReactionPickerImagePackSnapshotTests {
     /// Serves a solid-color square for each pack image, from the cache.
     private struct SquareLoader: ImageLoader {
-        static let colors: [NSColor] = [.systemTeal, .systemOrange, .systemPurple, .systemGreen, .systemPink, .systemBlue]
+        static let colors: [NSColor] = [.stubTeal, .stubOrange, .stubPurple, .stubGreen, .stubPink, .stubBlue]
 
         func cachedImage(matrixUrl: String) -> Image? {
             guard let number = matrixUrl.split(separator: "/").last.flatMap({ Int($0) }) else { return nil }
             let color = Self.colors[number % Self.colors.count]
-            let image = NSImage(size: NSSize(width: 32, height: 32), flipped: false) { rect in
-                color.setFill()
-                rect.fill()
-                return true
-            }
-            return Image(nsImage: image)
+            return Image(nsImage: StubImage.make(color, side: 32))
         }
 
         func loadImage(matrixUrl: String, size _: CGSize?) async throws -> Image? {

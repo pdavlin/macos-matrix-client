@@ -10,29 +10,10 @@ import Testing
 /// without a network. Local gate only, as the other snapshots (contract R-8).
 @MainActor
 struct EmojiSuggestionSnapshotTests {
-    /// Serves a solid-color square for each known URL, from the cache.
-    private struct SwatchLoader: ImageLoader {
-        let colors: [String: NSColor]
-
-        func cachedImage(matrixUrl: String) -> Image? {
-            guard let color = colors[matrixUrl] else { return nil }
-            let image = NSImage(size: NSSize(width: 32, height: 32), flipped: false) { rect in
-                color.setFill()
-                rect.fill()
-                return true
-            }
-            return Image(nsImage: image)
-        }
-
-        func loadImage(matrixUrl: String, size _: CGSize?) async throws -> Image? {
-            cachedImage(matrixUrl: matrixUrl)
-        }
-    }
-
-    private static let loader = SwatchLoader(colors: [
-        "mxc://a/parrot": .systemGreen,
-        "mxc://a/party": .systemPurple,
-        "mxc://a/paris": .systemOrange,
+    private static let loader = StubImageLoader(colors: [
+        "mxc://a/parrot": .stubGreen,
+        "mxc://a/party": .stubPurple,
+        "mxc://a/paris": .stubOrange,
     ])
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))

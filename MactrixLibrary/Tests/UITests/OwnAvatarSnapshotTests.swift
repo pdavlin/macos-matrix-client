@@ -12,29 +12,10 @@ import Testing
 /// only, as the other snapshots (contract R-8).
 @MainActor
 struct OwnAvatarSnapshotTests {
-    /// Serves a solid-color square for each known URL, from the cache.
-    private struct ColorLoader: ImageLoader {
-        let colors: [String: NSColor]
-
-        func cachedImage(matrixUrl: String) -> Image? {
-            guard let color = colors[matrixUrl] else { return nil }
-            let image = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
-                color.setFill()
-                rect.fill()
-                return true
-            }
-            return Image(nsImage: image)
-        }
-
-        func loadImage(matrixUrl: String, size _: CGSize?) async throws -> Image? {
-            cachedImage(matrixUrl: matrixUrl)
-        }
-    }
-
     private static let accountUrl = "mxc://a/account"
     private static let memberUrl = "mxc://a/member"
     private static let serviceUrl = "mxc://a/service"
-    private static let loader = ColorLoader(colors: [accountUrl: .systemTeal, memberUrl: .systemOrange, serviceUrl: .systemPurple])
+    private static let loader = StubImageLoader(colors: [accountUrl: .stubTeal, memberUrl: .stubOrange, serviceUrl: .stubPurple], side: 64)
 
     private struct ProfileEvent: EventTimelineItem {
         let isOwn: Bool

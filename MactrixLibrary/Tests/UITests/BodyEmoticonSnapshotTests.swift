@@ -55,7 +55,7 @@ struct BodyEmoticonSnapshotTests {
         + "\(emoticon(shipIt, "ok")), so <strong>merge it</strong> before the freeze starts on Friday."
 
     private static let loaded = EmoticonStubLoader(
-        colors: [parrot: .systemGreen, shipIt: .systemOrange, blob: .systemPurple]
+        colors: [parrot: .stubGreen, shipIt: .stubOrange, blob: .stubPurple]
     )
 
     private func row(_ html: String, loader: EmoticonStubLoader) -> NSHostingController<AnyView> {
