@@ -86,6 +86,10 @@ public enum DensityToken {
     /// Padding above the send-failure row, separating it from the message body.
     public static let sendFailureTopPadding: CGFloat = 4
 
+    /// Corner radius of the "Reply to thread not sent" notice above the
+    /// composer (MATRIX-173).
+    public static let threadReplyNoticeCornerRadius: CGFloat = 8
+
     /// Diameter of the upload progress ring on a media local echo (MATRIX-107).
     public static let uploadRingDiameter: CGFloat = 14
 

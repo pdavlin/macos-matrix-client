@@ -19,7 +19,6 @@ public final class LiveTimeline {
     public var errorMessage: String?
 
     public private(set) var focusedTimelineEventId: MatrixRustSDK.EventOrTransactionId?
-    // public private(set) var focusedTimelineGroupId: String?
 
     public var sendReplyTo: MatrixRustSDK.EventTimelineItem?
 
@@ -62,6 +61,10 @@ public final class LiveTimeline {
     /// the sheets. See `requestForward(of:)` and `MatrixClient.forward`.
     public let forwarding = LiveMessageForwardFlow()
 
+    /// The threads this timeline's composer sent to, and their echoes that
+    /// are not sent: the main column shows a notice for them (MATRIX-173).
+    public let threadReplies: ThreadReplyWatch
+
     /// Requests to show the reaction picker on a message (MATRIX-138). Rows
     /// send them through `requestReactionPicker(for:hoverButtonsAfterPicker:)`;
     /// the Mac timeline controller observes the channel and shows the picker
@@ -88,7 +91,6 @@ public final class LiveTimeline {
     @ObservationIgnored private var pendingDisplayChanges: [TimelineDisplayUpdate] = []
 
     public private(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
-    // public private(set) var timelineGroups: TimelineGroups = .init()
 
     public private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false
@@ -123,6 +125,7 @@ public final class LiveTimeline {
     public init(room: LiveRoom, mergedChatActionTarget: MessageActionTargetSlot? = nil) {
         self.focusedThreadId = nil
         self.room = room
+        self.threadReplies = ThreadReplyWatch(room: room)
         self.messageActionTarget = mergedChatActionTarget ?? MessageActionTargetSlot()
         self.isMergedChatMember = mergedChatActionTarget != nil
         Task {
@@ -138,6 +141,7 @@ public final class LiveTimeline {
     public init(room: LiveRoom, focusThread threadId: String) {
         self.focusedThreadId = threadId
         self.room = room
+        self.threadReplies = ThreadReplyWatch(room: room)
         self.messageActionTarget = MessageActionTargetSlot()
         self.isMergedChatMember = false
         Task {
@@ -348,6 +352,8 @@ extension LiveTimeline {
             resyncDisplayItems()
         }
 
+        // A failure here can stop the room's send queue (MATRIX-173).
+        threadReplies.refresh()
         loadPendingReplyDetails()
     }
 

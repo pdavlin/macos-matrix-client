@@ -63,7 +63,11 @@ struct ChatJoinedRoom: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 8) {
-                ChatInputView(room: room.room, timeline: timeline, replyTo: $timeline.sendReplyTo)
+                VStack(spacing: 8) {
+                    // MATRIX-173: a reply to a thread that was not sent.
+                    ThreadReplyNoticeBar(timeline: timeline)
+                    ChatInputView(room: room.room, timeline: timeline, replyTo: $timeline.sendReplyTo)
+                }
             }
             // Delete confirmation and forward sheets (MATRIX-110, MATRIX-112).
             .timelineActionSheets(timeline: timeline)

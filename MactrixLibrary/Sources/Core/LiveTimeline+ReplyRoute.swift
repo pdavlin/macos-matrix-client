@@ -59,23 +59,21 @@ public extension LiveTimeline {
     /// - Parameter route: the reply route, or nil for a message that is not
     ///   a reply.
     /// - Returns: this timeline's SDK timeline if its focus is the route's
-    ///   destination, or a timeline with the focus on the route's thread. The
-    ///   send queue of the room owns a message after the send call, so the
-    ///   caller can release a thread timeline it got here. Nil if this
-    ///   timeline is not loaded yet.
+    ///   destination, or a timeline with the focus on the route's thread.
+    ///   `threadReplies` keeps that thread timeline and listens to it, so
+    ///   the main column can show a send that failed (MATRIX-173). Nil if
+    ///   this timeline is not loaded yet.
     func sdkTimeline(for route: ReplyRoute?) async throws -> Timeline? {
         guard let threadRoot = route?.threadRoot, threadRoot != focusedThreadId else {
             return timeline
         }
-        return try await room.room.timelineWithConfiguration(
-            configuration: Self.configuration(focus: .thread(rootEventId: threadRoot))
-        )
+        return try await threadReplies.timeline(forThread: threadRoot)
     }
 }
 
 extension LiveTimeline {
     /// The configuration of every timeline this class builds: the one it
-    /// shows, and a thread timeline that only sends (`sdkTimeline(for:)`).
+    /// shows, and the thread timelines of `ThreadReplyWatch`.
     static func configuration(focus: TimelineFocus) -> TimelineConfiguration {
         TimelineConfiguration(
             focus: focus,

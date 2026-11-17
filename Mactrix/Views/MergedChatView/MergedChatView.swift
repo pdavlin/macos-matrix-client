@@ -121,7 +121,14 @@ private struct MergedChatScreen: View {
             }
             .safeAreaInset(edge: .bottom, spacing: 8) {
                 if let target = session.composerTimeline {
-                    ChatInputView(room: target.room.room, timeline: target, replyTo: session.reply, merged: session)
+                    VStack(spacing: 8) {
+                        // MATRIX-173: a reply to a thread that was not sent.
+                        // A merged chat has no thread panel.
+                        ForEach(session.members, id: \.room.id) { member in
+                            ThreadReplyNoticeBar(timeline: member, canOpenThread: false)
+                        }
+                        ChatInputView(room: target.room.room, timeline: target, replyTo: session.reply, merged: session)
+                    }
                 }
             }
             // Each row acts on its own member timeline, so each member gets
