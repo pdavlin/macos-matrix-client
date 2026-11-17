@@ -12,6 +12,16 @@ struct MainView: View {
     @SceneStorage("MainView.windowState")
     private var windowState: WindowState = .init()
 
+    /// MATRIX-175: the last state of a main window, in the app's defaults.
+    /// It does not depend on macOS window restoration, which discards the
+    /// `SceneStorage` value at quit with the default system setting.
+    private static let stateStore = WindowStateStore()
+    /// MATRIX-175: one value for the app session. It says which main window
+    /// starts from the saved state.
+    private static var launchRestore = LaunchWindowRestore()
+    /// Whether this window took its first state (MATRIX-175).
+    @State private var didTakeFirstState = false
+
     @State private var showWelcomeSheet: Bool = false
     /// The ⌘K quick switcher (MATRIX-114), toggled from the Go menu.
     @State private var showQuickSwitcher: Bool = false
@@ -80,6 +90,15 @@ struct MainView: View {
             InspectorScreen()
                 .environment(windowState)
         })
+        // Before the session task and the selection task: they read the
+        // restored selection.
+        .onAppear(perform: takeFirstState)
+        // MATRIX-175: each change of the kept state goes to the store, so a
+        // crash does not lose it. The snapshot is `Equatable`: a change of
+        // other window state writes nothing.
+        .onChange(of: windowState.snapshot) { _, snapshot in
+            Self.stateStore.save(snapshot)
+        }
         .task { await attemptLoadUserSession() }
         .sheet(isPresented: $showWelcomeSheet, onDismiss: onLoginModalDismiss) {
             WelcomeSheetView()
@@ -183,6 +202,21 @@ struct MainView: View {
         .modifier(GoNavigationPublisher(windowState: windowState))
         // File > "Broadcast to <filter>…" (MATRIX-168).
         .modifier(BroadcastCommandPublisher(windowState: windowState))
+    }
+
+    /// MATRIX-175: the first main window of a launch that macOS did not
+    /// restore starts from the saved state (`LaunchWindowRestore`).
+    func takeFirstState() {
+        guard !didTakeFirstState else { return }
+        didTakeFirstState = true
+
+        let source = Self.launchRestore.source(hasSceneStorageValue: windowState.recoveredFromSceneStorage)
+        guard source == .savedState, let saved = Self.stateStore.load() else {
+            Logger.viewCycle.info("Main window first state: \(String(describing: source), privacy: .public), no saved state applied")
+            return
+        }
+        windowState.restore(saved)
+        Logger.viewCycle.info("Main window state restored from the app store")
     }
 
     func attemptLoadUserSession() async {

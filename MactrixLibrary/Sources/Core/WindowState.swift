@@ -124,6 +124,10 @@ public final class WindowState {
     /// menu commands that change the selection skip it.
     public let singleRoomId: String?
 
+    /// Whether the state came from the window's `SceneStorage` value: macOS
+    /// restored the window (MATRIX-175).
+    @ObservationIgnored public private(set) var recoveredFromSceneStorage = false
+
     /// Whether this is a single-room window (MATRIX-116).
     public var isSingleRoomWindow: Bool {
         singleRoomId != nil
@@ -223,65 +227,42 @@ public final class WindowState {
 }
 
 extension WindowState: @MainActor RawRepresentable {
-    public struct SceneStorageRepresentation: Codable {
-        public let selectedRoomId: String?
-        /// MATRIX-141. Optional, so older windows restore their room.
-        public let selectedMergedChatId: String?
-        public let inspectorVisible: Bool
-        public let sidebarSections: SidebarSectionCollapsibility
-        /// Optional so a window saved before MATRIX-67, which has no filter,
-        /// still decodes; it restores as the inbox.
-        public let chatListFilter: ChatListFilter?
-        /// MATRIX-77. Optional, so older windows restore with the Inbox.
-        public let selectedLabelId: String?
-        /// MATRIX-167. Optional, so older windows restore their label or
-        /// the Inbox.
-        public let selectedSpaceId: String?
+    /// The state that is kept between launches (MATRIX-175). The window's
+    /// `SceneStorage` value and `WindowStateStore` both hold it.
+    public var snapshot: WindowStateSnapshot {
+        WindowStateSnapshot(
+            chatSelection: chatSelection,
+            inspectorVisible: inspectorVisible,
+            sidebarSections: sidebarSections,
+            chatListFilter: chatListFilter,
+            railFilter: railFilter
+        )
+    }
 
-        @MainActor public init(windowState: WindowState) {
-            self.selectedRoomId = windowState.selectedRoomId
-            self.selectedMergedChatId = windowState.selectedMergedChatId
-            self.inspectorVisible = windowState.inspectorVisible
-            self.sidebarSections = windowState.sidebarSections
-            self.chatListFilter = windowState.chatListFilter
-            self.selectedLabelId = windowState.railFilter.labelId
-            self.selectedSpaceId = windowState.railFilter.spaceId
-        }
-
-        @MainActor public func restore(windowState: WindowState) {
-            windowState.chatSelection = selectedMergedChatId.map(ChatSelection.merged) ?? selectedRoomId.map(ChatSelection.room)
-            windowState.inspectorVisible = inspectorVisible
-            windowState.sidebarSections = sidebarSections
-            windowState.chatListFilter = chatListFilter ?? .inbox
-            windowState.railFilter = selectedSpaceId.map(ChatListRailFilter.space)
-                ?? selectedLabelId.map(ChatListRailFilter.label)
-                ?? .inbox
-        }
+    /// Puts a saved state in the window. The IDs are not checked here: see
+    /// `WindowStateSnapshot`.
+    public func restore(_ snapshot: WindowStateSnapshot) {
+        chatSelection = snapshot.chatSelection
+        inspectorVisible = snapshot.inspectorVisible
+        sidebarSections = snapshot.sidebarSections
+        chatListFilter = snapshot.restoredChatListFilter
+        railFilter = snapshot.railFilter
     }
 
     public convenience init?(rawValue: String) {
-        guard
-            let data = rawValue.data(using: .utf8),
-            let decoded = try? JSONDecoder().decode(SceneStorageRepresentation.self, from: data)
-        else {
+        guard let decoded = WindowStateSnapshot(json: rawValue) else {
             Logger.windowState.warning("Failed to recover WindowState from storage: \(rawValue)")
             return nil
         }
 
         self.init()
-        decoded.restore(windowState: self)
+        restore(decoded)
+        recoveredFromSceneStorage = true
         Logger.windowState.info("WindowState recovered from storage: \(rawValue)")
     }
 
     public var rawValue: String {
-        guard
-            let data = try? JSONEncoder().encode(SceneStorageRepresentation(windowState: self)),
-            let result = String(data: data, encoding: .utf8)
-        else {
-            return ""
-        }
-
-        return result
+        snapshot.json ?? ""
     }
 
     public typealias RawValue = String
