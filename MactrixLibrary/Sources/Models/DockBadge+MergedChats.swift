@@ -13,7 +13,8 @@ public extension DockBadge {
     /// member therefore adds nothing, and its unmuted siblings still can: the
     /// same "follow the member's own mute" rule as the notifications (see
     /// `MergedNotificationRemap`). A merged chat whose members are all muted
-    /// never counts.
+    /// never counts. A low priority member is treated the same as a muted
+    /// member (MATRIX-184): it adds nothing, and its siblings still can.
     ///
     /// With an empty document the result equals
     /// `unreadChatCount(_:labelMutedRoomIds:)`.

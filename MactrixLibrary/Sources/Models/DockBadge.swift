@@ -21,8 +21,8 @@ public struct UnreadChatState: Equatable, Sendable {
     public var isMuted: Bool
     /// `RoomInfo.isLowPriority`: the room has the Matrix low priority tag
     /// (MATRIX-180). The rail badges leave such a room out
-    /// (`ChatLabelBadge.badge(forRooms:isMuted:lowPriorityRoomIds:unread:)`).
-    /// The Dock badge does not read it.
+    /// (`ChatLabelBadge.badge(forRooms:isMuted:lowPriorityRoomIds:unread:)`),
+    /// and so does the Dock badge (MATRIX-184, `DockBadge.counts`).
     public var isLowPriority: Bool
 
     public init(
@@ -57,14 +57,13 @@ public enum DockBadge {
     /// 1. A room whose own notification mode is mute never counts.
     /// 2. A room muted by its labels (MATRIX-77: every label that holds it is
     ///    muted) never counts.
-    /// 3. Otherwise the room counts if ANY of these is true:
+    /// 3. A room with the low priority tag (`UnreadChatState.isLowPriority`)
+    ///    never counts, the same as a muted room (MATRIX-184). The system
+    ///    notifications of such a room do not change.
+    /// 4. Otherwise the room counts if ANY of these is true:
     ///    - it has unread notifications (`numUnreadNotifications > 0`),
     ///    - it is a DM and has unread messages (`numUnreadMessages > 0`),
     ///    - the user marked it unread.
-    ///
-    /// The low priority tag (`UnreadChatState.isLowPriority`) is not an input:
-    /// a low priority chat counts in the Dock like any other chat. Only the
-    /// rail badges leave it out (MATRIX-180).
     ///
     /// Spaces never reach this function: the room list that feeds it uses the
     /// SDK's non-space filter.
@@ -74,7 +73,7 @@ public enum DockBadge {
     ///   - isMutedByLabel: the room is in `ChatLabelDocument.labelMutedRoomIds`.
     /// - Returns: true if the chat adds one to the badge.
     public static func counts(_ chat: UnreadChatState, isMutedByLabel: Bool) -> Bool {
-        if chat.isMuted || isMutedByLabel {
+        if chat.isMuted || isMutedByLabel || chat.isLowPriority {
             return false
         }
         if chat.numUnreadNotifications > 0 {

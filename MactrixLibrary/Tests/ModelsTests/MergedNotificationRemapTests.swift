@@ -190,6 +190,33 @@ struct MergedDockBadgeTests {
         #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: [], mergedChats: MergedChatDocument(merges: [seth])) == 0)
     }
 
+    /// MATRIX-184: a low priority member is treated like a muted member. It
+    /// adds nothing, and an unread sibling without the tag still counts the
+    /// merged chat.
+    @Test func lowPriorityMemberDoesNotCountButSiblingDoes() {
+        var chats = [
+            UnreadChatState(roomId: "!slack1", numUnreadMessages: 4, isDirect: true, isLowPriority: true),
+            UnreadChatState(roomId: "!slack2", numUnreadMessages: 1, isDirect: true),
+        ]
+        #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: [], mergedChats: MergedChatDocument(merges: [seth])) == 1)
+
+        chats[1].isLowPriority = true
+        #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: [], mergedChats: MergedChatDocument(merges: [seth])) == 0)
+
+        chats[0].isLowPriority = false
+        #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: [], mergedChats: MergedChatDocument(merges: [seth])) == 1)
+    }
+
+    /// MATRIX-184: one member low priority and the other muted leaves no
+    /// member that counts.
+    @Test func lowPriorityAndMutedMembersNeverCount() {
+        let chats = [
+            UnreadChatState(roomId: "!slack1", numUnreadNotifications: 2, isDirect: true, isLowPriority: true),
+            UnreadChatState(roomId: "!slack2", numUnreadNotifications: 2, isDirect: true, isMuted: true),
+        ]
+        #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: [], mergedChats: MergedChatDocument(merges: [seth])) == 0)
+    }
+
     @Test func twoMergedChatsCountSeparately() {
         let ana = MergedChat(id: "m-ana", name: "Ana", rooms: ["!ana1", "!ana2"])
         let chats = [
