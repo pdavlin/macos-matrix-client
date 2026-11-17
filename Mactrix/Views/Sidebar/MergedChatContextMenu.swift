@@ -23,10 +23,11 @@ struct ChatListItemContextMenu: View {
 
 /// The context menu of a merged row (MATRIX-141).
 ///
-/// Edit and Unmerge write the merged-chats document. Mark as Read and
-/// Mute/Unmute are the normal per-room calls, made for every member room
-/// (contract §11, 2026-11-10: presentation only; mute decision 2026-11-10:
-/// muting the merged chat mutes every member).
+/// Edit and Unmerge write the merged-chats document. Mark as Read,
+/// Favorite/Unfavorite and Mute/Unmute are the normal per-room calls, made
+/// for every member room (contract §11, 2026-11-10: presentation only; mute
+/// decision 2026-11-10: muting the merged chat mutes every member;
+/// MATRIX-189: favourite follows the same rule).
 struct MergedChatContextMenu: View {
     @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
@@ -69,6 +70,15 @@ struct MergedChatContextMenu: View {
             Text("Mark as Read")
         }
         .disabled(!merged.row.unread.isUnread)
+
+        // MATRIX-189: pinned when any member is a favourite; the toggle
+        // changes every member.
+        let favourite = MergedChatFavouriteToggle(merged: merged)
+        Button {
+            Task { await appState.matrixClient?.setFavourite(favourite.isFavourite, roomIds: favourite.roomIds) }
+        } label: {
+            Label(favourite.title, systemImage: favourite.systemImage)
+        }
 
         Button {
             Task { await appState.matrixClient?.setMuted(!isMuted, roomIds: memberRoomIds) }

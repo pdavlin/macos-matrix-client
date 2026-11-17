@@ -163,6 +163,28 @@ public extension MatrixClient {
         }
     }
 
+    /// Sets or clears the favourite tag on rooms (MATRIX-189, a merged row's
+    /// Favorite and Unfavorite, `MergedChatFavouriteToggle`). Rooms the
+    /// client does not know are skipped. A failure is logged and the other
+    /// rooms still change.
+    ///
+    /// - Parameters:
+    ///   - favourite: true to set the tag.
+    ///   - roomIds: the rooms.
+    func setFavourite(_ favourite: Bool, roomIds: [String]) async {
+        for roomId in roomIds {
+            do {
+                guard let room = try client.getRoom(roomId: roomId) else { continue }
+                try await room.setIsFavourite(isFavourite: favourite, tagOrder: nil)
+            } catch {
+                let reason = String(describing: error)
+                Logger.mergedChats.error(
+                    "failed to set favourite=\(favourite, privacy: .public) on \(roomId, privacy: .public): \(reason, privacy: .public)"
+                )
+            }
+        }
+    }
+
     /// Marks rooms as read (MATRIX-141, a merged row's "Mark as Read"): a
     /// read receipt on each room's latest event, then the marked-unread flag
     /// cleared where it is set. Rooms the client does not know are skipped. A
