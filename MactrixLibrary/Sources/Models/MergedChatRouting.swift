@@ -68,7 +68,8 @@ public enum MergedChatRouting {
     /// Every per-message action acts in the room that holds the event: a
     /// reply, a reaction, an edit, a redaction, a pin, the source of a
     /// forward, and the event's permalink all name that room. Only
-    /// `copyMessages`, which acts on the selection, needs no room.
+    /// `copyMessages`, which acts on the selection, and the two original
+    /// music link actions (MATRIX-178), which act on a URL, need no room.
     ///
     /// - Parameters:
     ///   - action: The action from `MessageActionModel`.
@@ -78,7 +79,8 @@ public enum MergedChatRouting {
     /// - Returns: The route.
     public static func route(for action: MessageAction, eventRoomId: String, rooms: [String]) -> ActionRoute {
         switch action {
-        case .copyMessages:
+        case .copyMessages, .openOriginalLink, .copyOriginalLink:
+            // The selection, or a URL in the body: no room call.
             return .noRoom
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .forward,
              .copyText, .copyLink, .pin, .unpin, .quickLook, .playInline, .saveToDownloads, .redact:

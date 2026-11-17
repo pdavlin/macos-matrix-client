@@ -27,13 +27,27 @@ struct ChatMessageActions {
 
     /// The input of the shared action model for this message.
     var messageActionSubject: MessageActionSubject {
-        MessageActionSubject(
+        var subject = MessageActionSubject(
             event: event,
             msg: msg,
             pinnedEventIds: timeline?.room.roomInfo?.pinnedEventIds ?? [],
             redactPermission: timeline?.room.redactPermission ?? .none,
             isInMergedChat: timeline?.isMergedChatMember ?? false
         )
+        subject.originalMusicLink = originalMusicLink
+        return subject
+    }
+
+    /// The original target of the first link the body marks as a music link
+    /// (MATRIX-178), or nil. Only an HTML text body has links, and only
+    /// while the Settings switch is on.
+    private var originalMusicLink: String? {
+        guard MusicLinkPreferences.isOn(in: .standard),
+              case let .message(content: content) = msg.kind,
+              case let .text(content: text) = content.msgType,
+              let formatted = text.formatted, formatted.format == .html
+        else { return nil }
+        return MusicLink.originalLinks(inHTML: formatted.body).first
     }
 
     /// The hover bar's and the menus' quick reactions: the top three recent
@@ -83,6 +97,10 @@ struct ChatMessageActions {
             copyText()
         case .copyLink:
             copyLink()
+        case .openOriginalLink:
+            openOriginalLink()
+        case .copyOriginalLink:
+            copyOriginalLink()
         case .pin:
             pin()
         case .unpin:
@@ -203,6 +221,21 @@ struct ChatMessageActions {
                 Logger.viewCycle.error("unable to copy message link: \(error)")
             }
         }
+    }
+
+    /// Opens the body's first music link at its original target, not on
+    /// song.link (MATRIX-178).
+    func openOriginalLink() {
+        guard let link = originalMusicLink, let url = URL(string: link) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Puts the original target of the body's first music link on the
+    /// pasteboard (MATRIX-178).
+    func copyOriginalLink() {
+        guard let link = originalMusicLink else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(link, forType: .string)
     }
 
     /// Makes this message the Edit menu's target.

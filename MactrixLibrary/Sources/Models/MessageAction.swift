@@ -44,6 +44,11 @@ public enum MessageAction: Hashable, Sendable {
     case copyText
     /// Copy the message's matrix.to permalink.
     case copyLink
+    /// Open the original target of the message's first music link, which
+    /// the body sends to song.link (MATRIX-178).
+    case openOriginalLink
+    /// Copy that original target.
+    case copyOriginalLink
     /// Pin the message in the room.
     case pin
     /// Unpin the message.
@@ -79,7 +84,7 @@ public enum MessageAction: Hashable, Sendable {
         case .replyInThread, .pin, .unpin:
             return true
         case .reply, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .quickLook, .playInline,
-             .saveToDownloads, .redact, .copyMessages:
+             .saveToDownloads, .redact, .copyMessages, .openOriginalLink, .copyOriginalLink:
             return false
         }
     }
@@ -94,7 +99,7 @@ public enum MessageAction: Hashable, Sendable {
         case .quickLook, .playInline, .saveToDownloads:
             return true
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .pin, .unpin, .redact,
-             .copyMessages:
+             .copyMessages, .openOriginalLink, .copyOriginalLink:
             return false
         }
     }
@@ -199,6 +204,10 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// Whether the message shows in a merged chat (MATRIX-149), which has no
     /// thread view and no pin list. False is a room's own timeline.
     public var isInMergedChat: Bool
+    /// The original target of the body's first music link, when the music
+    /// link marker is on (MATRIX-178), as the sender wrote it. Nil when the
+    /// body has no marked link.
+    public var originalMusicLink: String?
 
     /// - Parameters:
     ///   - redactPermission: The room's redact permission. It defaults to
@@ -218,7 +227,8 @@ public struct MessageActionSubject: Equatable, Sendable {
         redactPermission: MessageRedactPermission = .none,
         isEditable: Bool = false,
         isForwardable: Bool = false,
-        isInMergedChat: Bool = false
+        isInMergedChat: Bool = false,
+        originalMusicLink: String? = nil
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -230,6 +240,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.isEditable = isEditable
         self.isForwardable = isForwardable
         self.isInMergedChat = isInMergedChat
+        self.originalMusicLink = originalMusicLink
     }
 
     /// The same subject with other content. A video view uses it to report
@@ -346,6 +357,11 @@ public enum MessageActionModel {
     /// thread view or pin list does not apply in a merged chat.
     static func availability(of action: MessageAction, for subject: MessageActionSubject) -> Availability {
         if subject.isInMergedChat, action.needsRoomView { return .notApplicable }
+        if action == .openOriginalLink || action == .copyOriginalLink {
+            // Only a text body with a marked music link has one; a redacted
+            // message has no body.
+            return subject.originalMusicLink == nil ? .notApplicable : .available
+        }
         return messageAvailability(of: action, for: subject)
     }
 
@@ -395,9 +411,11 @@ public enum MessageActionModel {
             // eligible. A message the power levels protect gets no item.
             if isRedacted { return .notApplicable }
             return subject.redactPermission.allows(isOwn: subject.isOwn) ? .available : .notApplicable
-        case .copyMessages:
-            // Decided in `items(for:on:quickReactionKeys:hasMessageSelection:)`
-            // from the selection. No message fact makes it apply.
+        case .copyMessages, .openOriginalLink, .copyOriginalLink:
+            // Copy Messages: decided in
+            // `items(for:on:quickReactionKeys:hasMessageSelection:)` from the
+            // selection. No message fact makes it apply. The music link
+            // actions: decided in `availability(of:for:)`.
             return .notApplicable
         }
     }
@@ -423,7 +441,7 @@ public enum MessageActionModel {
             return [.reply] + reactions + [.openReactionPicker]
                 + [.edit, .forward]
                 + [.quickLook, .playInline, .saveToDownloads]
-                + [.copyMessages, .copyText, .copyLink]
+                + [.copyMessages, .copyText, .copyLink, .openOriginalLink, .copyOriginalLink]
                 + [.pin, .unpin]
                 + [.redact]
         case .hoverRow:
@@ -444,56 +462,12 @@ public enum MessageActionModel {
             return .modify
         case .quickLook, .playInline, .saveToDownloads:
             return .media
-        case .copyText, .copyLink, .copyMessages:
+        case .copyText, .copyLink, .copyMessages, .openOriginalLink, .copyOriginalLink:
             return .copy
         case .pin, .unpin:
             return .organize
         case .redact:
             return .destructive
         }
-    }
-}
-
-/// One line of a menu built from action items.
-public enum MessageActionMenuEntry: Hashable, Sendable {
-    /// A single menu item.
-    case action(MessageActionItem)
-    /// The quick reactions, drawn as one React submenu.
-    case reactions([MessageActionItem])
-    /// A separator between two sections.
-    case separator
-}
-
-/// Turns ordered action items into menu lines: quick reactions fold into one
-/// submenu, and a separator goes between two sections.
-public enum MessageActionMenuLayout {
-    /// - Parameter items: Items in display order, from `MessageActionModel`.
-    /// - Returns: The menu lines, with no leading, trailing, or double separator.
-    public static func entries(for items: [MessageActionItem]) -> [MessageActionMenuEntry] {
-        var entries: [MessageActionMenuEntry] = []
-        var previousSection: MessageActionSection?
-        var pendingReactions: [MessageActionItem] = []
-
-        func flushReactions() {
-            guard !pendingReactions.isEmpty else { return }
-            entries.append(.reactions(pendingReactions))
-            pendingReactions = []
-        }
-
-        for item in items {
-            if let previousSection, previousSection != item.section {
-                flushReactions()
-                entries.append(.separator)
-            }
-            previousSection = item.section
-            if item.action.isQuickReaction {
-                pendingReactions.append(item)
-            } else {
-                flushReactions()
-                entries.append(.action(item))
-            }
-        }
-        flushReactions()
-        return entries
     }
 }

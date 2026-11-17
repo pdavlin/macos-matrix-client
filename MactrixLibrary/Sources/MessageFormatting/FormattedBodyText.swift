@@ -17,12 +17,17 @@ import UI
 /// The same task reports the body's emoticons through `onEmoticons`
 /// (MATRIX-161), from the one parse that finds the images to load. The app
 /// records them as the learned emoji of the chat's workspace.
+///
+/// With `marksMusicLinks`, a music link draws with its marker and opens on
+/// song.link (MATRIX-178). The timeline's height measure builds this same
+/// view with the same switch, so the measured and the drawn string agree.
 public struct FormattedBodyText: View {
     let html: String
     let baseFontSize: CGFloat
     let isJumbo: Bool
     let imageLoader: (any ImageLoader)?
     let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
+    let marksMusicLinks: Bool
 
     /// Counts the emoticon images that arrived. `body` reads it, so each
     /// arrival parses the body again against the cache.
@@ -36,18 +41,23 @@ public struct FormattedBodyText: View {
     ///   - imageLoader: Loads the emoticon images. Nil draws the alt texts.
     ///   - onEmoticons: Takes the body's emoticons when the body shows, and
     ///     again when the body changes. Not called for a body with none.
+    ///   - marksMusicLinks: The Settings switch of the music link marker
+    ///     (`Models.MusicLinkPreferences`). Off by default, so a caller that
+    ///     does not read the setting draws links as before.
     public init(
         html: String,
         baseFontSize: CGFloat,
         isJumbo: Bool = false,
         imageLoader: (any ImageLoader)?,
-        onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil
+        onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil,
+        marksMusicLinks: Bool = false
     ) {
         self.html = html
         self.baseFontSize = baseFontSize
         self.isJumbo = isJumbo
         self.imageLoader = imageLoader
         self.onEmoticons = onEmoticons
+        self.marksMusicLinks = marksMusicLinks
     }
 
     /// Takes the arrival count so that `body` depends on it. The cache, not
@@ -56,7 +66,8 @@ public struct FormattedBodyText: View {
         parseFormattedBody(
             html,
             baseFontSize: isJumbo ? TypographyToken.jumboEmojiSize : baseFontSize,
-            imageLoader: imageLoader
+            imageLoader: imageLoader,
+            marksMusicLinks: marksMusicLinks
         )
     }
 

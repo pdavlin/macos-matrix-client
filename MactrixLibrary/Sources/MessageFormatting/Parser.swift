@@ -16,20 +16,27 @@ import ZMarkupParser
 /// attachment that draws from `imageLoader`'s cache, or its alt text when the
 /// cache has no image. Every other `<img>` becomes its alt text. This
 /// function starts no load; `FormattedBodyText` does that.
+///
+/// With `marksMusicLinks`, a link to a song or an album on a music service
+/// that is not Apple Music gets the music link marker and the song.link
+/// target (MATRIX-178, `MusicLinkMarker`). The step runs after the cached
+/// render, so the cache key does not hold the switch.
 @MainActor
 public func parseFormattedBody(
     _ body: String,
     baseFontSize: CGFloat? = nil,
-    imageLoader: (any ImageLoader)? = nil
+    imageLoader: (any ImageLoader)? = nil,
+    marksMusicLinks: Bool = false
 ) -> NSAttributedString {
     let baseFontSize = baseFontSize ?? CGFloat(TypographyToken.defaultBaseFontSize)
     let rewritten = ImageTagRewriter.rewrite(body)
-    return EmoticonResolver.resolve(
+    let resolved = EmoticonResolver.resolve(
         renderHTML(rewritten.html, baseFontSize: baseFontSize),
         sources: rewritten.emoticonSources,
         baseFontSize: baseFontSize,
         imageLoader: imageLoader
     )
+    return marksMusicLinks ? MusicLinkMarker.mark(resolved, baseFontSize: baseFontSize) : resolved
 }
 
 /// One custom emoticon of a message body (MATRIX-161).

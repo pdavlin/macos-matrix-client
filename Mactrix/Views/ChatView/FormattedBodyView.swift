@@ -8,6 +8,9 @@ import UI
 
 struct FormattedBodyView: View {
     @Environment(\.timelineTypography) private var typography
+    /// The music link marker switch (MATRIX-178). The height measure builds
+    /// this view too, so it reads the same value as the drawn row.
+    @AppStorage(MusicLinkPreferences.storageKey) private var marksMusicLinks = MusicLinkPreferences.defaultValue
 
     let rawBody: String
     let htmlBody: String?
@@ -57,7 +60,8 @@ struct FormattedBodyView: View {
                 baseFontSize: typography.base,
                 isJumbo: jumboEmoji == .formatted,
                 imageLoader: imageLoader,
-                onEmoticons: onEmoticons
+                onEmoticons: onEmoticons,
+                marksMusicLinks: marksMusicLinks
             )
             .fixedSize(horizontal: false, vertical: true)
         } else {

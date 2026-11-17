@@ -95,6 +95,9 @@ class TimelineViewController: NSViewController {
     var unpacedRowUpdateDrainScheduled = false
     /// The token set heights are currently measured against.
     private(set) var activeTypography: TimelineTypography
+    /// The music link marker switch the heights are measured against
+    /// (MATRIX-178).
+    private var activeMarksMusicLinks = MusicLinkPreferences.isOn(in: .standard)
 
     /// Decides "the same day" for sender grouping (MATRIX-68): the user's
     /// calendar and time zone, the day a reader sees in the date dividers.
@@ -323,9 +326,16 @@ class TimelineViewController: NSViewController {
 
     @objc func handleUserDefaultsChange(_: Notification) {
         let typography = Self.storedTypography()
-        guard typography != activeTypography else { return }
+        let marksMusicLinks = MusicLinkPreferences.isOn(in: .standard)
+        guard typography != activeTypography || marksMusicLinks != activeMarksMusicLinks else { return }
+        if marksMusicLinks != activeMarksMusicLinks {
+            // The music link glyph adds width, so the switch can move a wrap
+            // (MATRIX-178). The cache does not key on it: drop every height.
+            activeMarksMusicLinks = marksMusicLinks
+            heightCache.invalidateAll()
+        }
         activeTypography = typography
-        Logger.timelineTableView.info("typography tokens changed: re-measuring all rows")
+        Logger.timelineTableView.info("typography tokens or music link marker changed: re-measuring all rows")
         noteAllRowHeightsChanged()
     }
 
