@@ -293,13 +293,18 @@ public struct BroadcastRequest: Identifiable, Equatable {
     public let id: UUID
     /// The label's or the space's name.
     public let filterName: String
-    /// The chats the filter shows, in sidebar order. Never empty.
+    /// Every chat of the filter that the account has (MATRIX-172): the
+    /// sidebar's chats in sidebar order, then the others. Never empty.
     public let targets: [BroadcastTarget]
+    /// What is known to be missing from `targets`, or nil for a complete
+    /// list (MATRIX-172).
+    public let gap: BroadcastTargetGap?
 
-    public init(id: UUID = UUID(), filterName: String, targets: [BroadcastTarget]) {
+    public init(id: UUID = UUID(), filterName: String, targets: [BroadcastTarget], gap: BroadcastTargetGap? = nil) {
         self.id = id
         self.filterName = filterName
         self.targets = targets
+        self.gap = gap
     }
 }
 

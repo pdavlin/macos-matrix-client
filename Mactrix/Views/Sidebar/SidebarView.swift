@@ -51,22 +51,30 @@ struct SidebarView: View {
     static func visibleChatList(client: MatrixClient?, windowState: WindowState, now: Date = .now) -> SidebarChatList {
         let chatRooms = (client?.rooms ?? []).filter { !$0.room.isSpace() }
         let labels = client?.labels?.document ?? ChatLabelDocument()
-        let mutedByLabel = labels.labelMutedRoomIds
-        // MATRIX-148: each row's account (its Slack workspace), for the badge.
         let accounts = client?.roomAccounts
-        let entries = chatRooms.map { room in
-            var entry = room.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains(room.id))
-            entry.row.account = accounts?.account(of: room.id, network: entry.row.network)
-            return entry
-        }
         let visible = ChatListMerging.visible(
-            entries: entries,
+            entries: chatListEntries(client: client, rooms: chatRooms, now: now),
             filter: SidebarRail.filter(client: client, windowState: windowState),
             labels: labels,
             spaces: accounts?.spaceMap ?? RoomSpaceMap(),
             document: client?.mergedChats?.document ?? MergedChatDocument()
         )
         return SidebarChatList(visible: visible, rooms: chatRooms)
+    }
+
+    /// The chat-list entries of the sidebar's chat rooms, in SDK order. The
+    /// broadcast reads them too (MATRIX-172).
+    ///
+    /// - Parameter rooms: the client's rooms without the spaces.
+    static func chatListEntries(client: MatrixClient?, rooms: [SidebarRoom], now: Date = .now) -> [ChatListEntry] {
+        let mutedByLabel = client?.labels?.document.labelMutedRoomIds ?? []
+        // MATRIX-148: each row's account (its Slack workspace), for the badge.
+        let accounts = client?.roomAccounts
+        return rooms.map { room in
+            var entry = room.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains(room.id))
+            entry.row.account = accounts?.account(of: room.id, network: entry.row.network)
+            return entry
+        }
     }
 
     private var labels: LabelsModel? {
@@ -183,12 +191,9 @@ struct SidebarView: View {
         let favorites = chats.visible.favorites
         let inbox = chats.visible.list
         let selectedItemId = windowState.chatSelection?.itemId
-        // MATRIX-168: nil for the Inbox and for a filter that shows no chat.
-        let broadcast = SidebarBroadcast.request(
-            filterName: SidebarRail.filterName(client: appState.matrixClient, windowState: windowState),
-            items: chats.visible.ordered,
-            filter: SidebarRail.filter(client: appState.matrixClient, windowState: windowState)
-        )
+        // MATRIX-168: nil for the Inbox and for a filter with no chat.
+        // MATRIX-172: it does not depend on the chats the list shows.
+        let broadcastName = SidebarBroadcast.filterName(client: appState.matrixClient, windowState: windowState)
 
         return List(selection: listSelection) {
             SidebarSyncStateView()
@@ -237,14 +242,16 @@ struct SidebarView: View {
                     Text(listTitle)
                     Spacer(minLength: 0)
                     // MATRIX-168: shows for a label or a space with chats.
-                    if let broadcast {
+                    if let broadcastName {
                         Button {
-                            windowState.broadcast = broadcast
+                            windowState.broadcast = SidebarBroadcast.request(
+                                client: appState.matrixClient, windowState: windowState
+                            )
                         } label: {
                             Label("Broadcast…", systemImage: "megaphone")
                         }
                         .buttonStyle(.borderless)
-                        .help("Send one message to the chats of \(broadcast.filterName)")
+                        .help("Send one message to the chats of \(broadcastName)")
                     }
                 }
             }

@@ -29,8 +29,9 @@ public final class UnreadChatsTracker {
     public private(set) var chats: [String: UnreadChatState] = [:]
 
     /// Large enough for every room of one account. Same value as
-    /// `QuickSwitcherRoomDirectory.pageSize`.
-    private static let pageSize: UInt32 = 1000
+    /// `QuickSwitcherRoomDirectory.pageSize`. Public for the broadcast
+    /// (MATRIX-172): a list of this size can lack rooms.
+    public static let pageSize: UInt32 = 1000
 
     /// How long changes collect before `chats` updates. Same value as the
     /// room-info debounce in `SidebarRoom`.

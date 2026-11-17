@@ -46,7 +46,11 @@ Chat list (sidebar)
 - Broadcast to the chats of the rail filter (MATRIX-168). With a label or a
   space selected, "Broadcast…" shows in the chat list's header, and File >
   "Broadcast to <name>…" is enabled. The sheet takes one text message and
-  lists the chats the sidebar shows, each with a checkbox. "Review…" opens
+  lists every chat of the filter that the account has, each with a checkbox
+  (MATRIX-172: from the account's unfiltered room list, so the sidebar's
+  page of 100 and the Unread or People filter do not narrow them). One line
+  states the source ("All 132 chats of DevObsessed"). If chats are missing,
+  the compose and the review steps say how many and why. "Review…" opens
   an explicit second step: "Send to N Chats", and above 20 chats the count
   must be typed. The sends go one chat at a time with a 400 ms pause, through
   the composer's text path (Markdown, and custom emoji per target room). Each
@@ -190,6 +194,7 @@ Tooling
 | MATRIX-170 | Quit and relaunch two times: the rail shows the spaces at once and they do not go away, the chat rows show their workspace icons at once, and a selected space is still selected with its chats. Then leave a space (dev account): it goes off the rail and is not there after the next relaunch |
 | MATRIX-169 | Smoke threads in a Slack chat: open the panel of a root with replies and see the root and each reply; open a second thread and see its rows, not those of the first; reply to a root from the main composer and see the count under the root go up, the reply in the panel, no quoted reply in the main timeline, and a thread reply in Slack; reply from the panel composer; reply to a message with no thread and see a plain quoted reply |
 | MATRIX-173 | Smoke the thread reply notice in a scratch chat: turn the network off, reply to a thread root from the main composer with the thread panel closed, and see "Reply to thread not sent" above the composer; Open Thread shows the thread and the line goes away; close the panel, turn the network on, click Retry, and see the line go away and the reply in the thread; do it again and click Discard, and see no reply in the thread |
+| MATRIX-172 | Smoke the broadcast target list on the dev account (send nothing): select a space with more chats than the sidebar shows, set the list filter to Unread, open "Broadcast…", and see "All N chats of <name>" with every chat of the space in the list. Cancel the sheet. |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |

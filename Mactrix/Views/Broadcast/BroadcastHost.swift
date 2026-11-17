@@ -1,4 +1,5 @@
 import Core
+import MatrixRustSDK
 import Models
 import SwiftUI
 import UI
@@ -11,30 +12,49 @@ import UI
 /// What a window can broadcast to now.
 @MainActor
 enum SidebarBroadcast {
-    /// The request for the window's rail filter, or nil when a broadcast is
-    /// not available: the Inbox, a single-room window, no account, or a
-    /// filter that shows no chat.
+    /// The name of the window's rail filter, or nil when a broadcast is not
+    /// available: the Inbox, a single-room window, no account, or a filter
+    /// with no chat.
     ///
-    /// The targets are the chats the sidebar shows now: the rail filter,
-    /// narrowed by the chat-list filter (Unread, People). They are read
-    /// once, here, so the list does not change while the sheet is open.
-    static func request(client: MatrixClient?, windowState: WindowState) -> BroadcastRequest? {
+    /// Cheap: the sidebar and the File menu read it on each update. It does
+    /// not depend on the chat-list filter (Unread, People).
+    static func filterName(client: MatrixClient?, windowState: WindowState) -> String? {
         guard let client, !windowState.isSingleRoomWindow,
-              let name = SidebarRail.filterName(client: client, windowState: windowState)
+              let name = SidebarRail.filterName(client: client, windowState: windowState),
+              SidebarRail.narrowingRoomIds(client: client, windowState: windowState)?.isEmpty == false
         else { return nil }
-        let chats = SidebarView.visibleChatList(client: client, windowState: windowState)
-        return request(
-            filterName: name,
-            items: chats.visible.ordered,
-            filter: SidebarRail.filter(client: client, windowState: windowState)
-        )
+        return name
     }
 
-    /// The request for rows the caller has already.
-    static func request(filterName: String?, items: [ChatListItem], filter: ChatListRailFilter) -> BroadcastRequest? {
-        guard let filterName else { return nil }
-        let targets = BroadcastTarget.targets(items: items, filter: filter)
-        return targets.isEmpty ? nil : BroadcastRequest(filterName: filterName, targets: targets)
+    /// The request for the window's rail filter, or nil when a broadcast is
+    /// not available or the account holds no chat of the filter.
+    ///
+    /// MATRIX-172: the targets are every chat of the rail filter that the
+    /// account has. They come from the account's unfiltered room list (the
+    /// Dock badge tracker's), so the sidebar's page and the chat-list filter
+    /// (Unread, People) do not narrow them. `BroadcastTargetList.make` has
+    /// the rule. They are read once, here, so the list does not change
+    /// while the sheet is open.
+    static func request(client: MatrixClient?, windowState: WindowState) -> BroadcastRequest? {
+        guard let client, let name = filterName(client: client, windowState: windowState) else { return nil }
+        let chatRooms = client.rooms.filter { !$0.room.isSpace() }
+        // `listedRooms` (MATRIX-171) holds each room when the SDK lists it;
+        // `chats` gets a room after its room info is read.
+        let tracker = client.dockBadge.unreadChats
+        let source = BroadcastChatSource(
+            sidebarEntries: SidebarView.chatListEntries(client: client, rooms: chatRooms),
+            accountChatIds: Set(tracker.chats.keys).union(tracker.listedRooms.map { $0.room.id() }),
+            accountListLimit: Int(UnreadChatsTracker.pageSize),
+            row: { client.chatListRow(forRoomId: $0) }
+        )
+        let list = BroadcastTargetList.make(
+            source: source,
+            filter: SidebarRail.filter(client: client, windowState: windowState),
+            labels: client.labels?.document ?? ChatLabelDocument(),
+            spaces: client.roomAccounts.spaceMap,
+            document: client.mergedChats?.document ?? MergedChatDocument()
+        )
+        return list.targets.isEmpty ? nil : BroadcastRequest(filterName: name, targets: list.targets, gap: list.gap)
     }
 }
 
@@ -72,8 +92,8 @@ struct BroadcastCommandPublisher: ViewModifier {
 
     private var command: BroadcastCommand? {
         let client = appState.matrixClient
-        guard let request = SidebarBroadcast.request(client: client, windowState: windowState) else { return nil }
-        return BroadcastCommand(filterName: request.filterName) { [windowState] in
+        guard let name = SidebarBroadcast.filterName(client: client, windowState: windowState) else { return nil }
+        return BroadcastCommand(filterName: name) { [windowState] in
             windowState.broadcast = SidebarBroadcast.request(client: client, windowState: windowState)
         }
     }
@@ -103,6 +123,7 @@ struct BroadcastHost: View {
         BroadcastSheet(
             filterName: request.filterName,
             targets: request.targets,
+            gap: request.gap,
             draft: $draft,
             typedCount: $typedCount,
             step: step,

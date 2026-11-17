@@ -47,7 +47,10 @@ public struct BroadcastSheetActions {
 /// The broadcast sheet (MATRIX-168; contract §11, 2026-11-16): one text
 /// message to each chat the rail filter shows.
 ///
-/// Three steps in one sheet. Compose: the text and the target checklist.
+/// Three steps in one sheet. Compose: the source line ("All 132 chats of
+/// DevObsessed", MATRIX-172), the text, and the target checklist. If chats
+/// are missing from the targets, the compose and the review steps say how
+/// many and why.
 /// Review: the message, "This sends one message to N chats. It cannot be
 /// recalled.", and the send button; above
 /// `BroadcastConfirmation.typedCountThreshold` targets the user types the
@@ -60,13 +63,14 @@ public struct BroadcastSheetActions {
 ///
 /// Usage:
 /// ```swift
-/// BroadcastSheet(filterName: "Work", targets: targets, draft: $draft, typedCount: $typedCount,
+/// BroadcastSheet(filterName: "Work", targets: targets, gap: gap, draft: $draft, typedCount: $typedCount,
 ///                step: step, states: run?.states ?? [:], phase: run?.phase ?? .idle,
 ///                imageLoader: client, actions: actions)
 /// ```
 public struct BroadcastSheet: View {
     let filterName: String
     let targets: [BroadcastTarget]
+    let gap: BroadcastTargetGap?
     @Binding var draft: BroadcastDraft
     @Binding var typedCount: String
     let step: BroadcastSheetStep
@@ -86,6 +90,8 @@ public struct BroadcastSheet: View {
     /// - Parameters:
     ///   - filterName: The label's or the space's name.
     ///   - targets: Every target of the filter, in sidebar order.
+    ///   - gap: What is known to be missing from `targets` (MATRIX-172).
+    ///     Nil for a complete list.
     ///   - draft: The text and the checked targets.
     ///   - typedCount: The content of the review step's count field.
     ///   - step: The step to show.
@@ -96,6 +102,7 @@ public struct BroadcastSheet: View {
     public init(
         filterName: String,
         targets: [BroadcastTarget],
+        gap: BroadcastTargetGap? = nil,
         draft: Binding<BroadcastDraft>,
         typedCount: Binding<String>,
         step: BroadcastSheetStep,
@@ -106,6 +113,7 @@ public struct BroadcastSheet: View {
     ) {
         self.filterName = filterName
         self.targets = targets
+        self.gap = gap
         self._draft = draft
         self._typedCount = typedCount
         self.step = step
@@ -157,9 +165,40 @@ public struct BroadcastSheet: View {
         return summary
     }
 
+    // MARK: - Source
+
+    /// Where the targets come from (MATRIX-172): "All 132 chats of
+    /// DevObsessed", and under it the gap, if the list has one.
+    private var sourceLines: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(BroadcastTargetList(targets: targets, gap: gap).sourceLine(filterName: filterName))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            gapLine
+        }
+    }
+
+    /// How many chats are missing and why. The compose step and the review
+    /// step show it.
+    @ViewBuilder private var gapLine: some View {
+        if let gap {
+            Label {
+                Text(gap.line)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            .font(.callout)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
     // MARK: - Compose
 
     @ViewBuilder private var compose: some View {
+        sourceLines
+
         TextField("Message", text: $draft.text, axis: .vertical)
             .textFieldStyle(.roundedBorder)
             .lineLimit(3 ... 8)
@@ -218,6 +257,8 @@ public struct BroadcastSheet: View {
             ? "This sends one message to 1 chat. It cannot be recalled."
             : "This sends one message to \(count) chats. It cannot be recalled.")
             .fixedSize(horizontal: false, vertical: true)
+
+        gapLine
 
         targetList(selectedTargets, rows: .plain)
 

@@ -7,7 +7,9 @@ import Testing
 
 /// Snapshots of the broadcast sheet (MATRIX-168): the compose step, the
 /// review step at 3 and at 21 targets (the typed count), a run in progress,
-/// and a finished run with one failure.
+/// and a finished run with one failure. MATRIX-172: the compose step shows
+/// the source line ("All 5 chats of Work"), and a list with missing chats
+/// shows how many and why in the compose and the review steps.
 ///
 /// The sheet has text fields, so every test uses `assertTextFieldSnapshot`.
 /// The spinner uses the static stand-in. The loader has no image, so each
@@ -56,6 +58,7 @@ struct BroadcastSheetSnapshotTests {
 
     private func sheet(
         targets: [BroadcastTarget],
+        gap: BroadcastTargetGap? = nil,
         draft: BroadcastDraft,
         typedCount: String = "",
         step: BroadcastSheetStep,
@@ -65,6 +68,7 @@ struct BroadcastSheetSnapshotTests {
         BroadcastSheet(
             filterName: "Work",
             targets: targets,
+            gap: gap,
             draft: .constant(draft),
             typedCount: .constant(typedCount),
             step: step,
@@ -97,6 +101,28 @@ struct BroadcastSheetSnapshotTests {
         let targets = makeTargets(3)
         assertTextFieldSnapshot(
             of: host(sheet(targets: targets, draft: BroadcastDraft(targets: targets), step: .compose)),
+            as: .scaledImage
+        )
+    }
+
+    /// MATRIX-172: the label names 2 chats the account's list does not hold.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func composeWithMissingChats() {
+        let targets = makeTargets(5)
+        let gap = BroadcastTargetGap(reason: .notInAccountList, count: 2)
+        assertTextFieldSnapshot(
+            of: host(sheet(targets: targets, gap: gap, draft: makeDraft(targets), step: .compose)),
+            as: .scaledImage
+        )
+    }
+
+    /// MATRIX-172: the review step repeats the missing chats.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func reviewWithMissingChats() {
+        let targets = makeTargets(3)
+        let gap = BroadcastTargetGap(reason: .accountListNotLoaded, count: nil)
+        assertTextFieldSnapshot(
+            of: host(sheet(targets: targets, gap: gap, draft: makeDraft(targets), step: .review)),
             as: .scaledImage
         )
     }

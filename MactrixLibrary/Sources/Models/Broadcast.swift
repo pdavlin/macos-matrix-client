@@ -2,7 +2,8 @@ import Foundation
 
 /// One chat a broadcast sends to (MATRIX-168; contract §11, 2026-11-16).
 ///
-/// A broadcast sends one text message to each chat the rail filter shows.
+/// A broadcast sends one text message to each chat of the rail filter
+/// (MATRIX-172: every chat the account has, see `BroadcastTargetList`).
 /// A plain chat is one target. A merged chat is one target too: the message
 /// goes to one member room, not to every member.
 public struct BroadcastTarget: Identifiable, Equatable, Sendable {
