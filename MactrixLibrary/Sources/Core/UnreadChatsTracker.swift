@@ -204,7 +204,8 @@ public final class UnreadChatsTracker {
             numUnreadMessages: roomInfo.numUnreadMessages,
             isDirect: roomInfo.isDirect,
             isMarkedUnread: roomInfo.isMarkedUnread,
-            isMuted: roomInfo.isMuted
+            isMuted: roomInfo.isMuted,
+            isLowPriority: roomInfo.isLowPriority
         )
         guard latest[roomInfo.id] != state else { return }
         latest[roomInfo.id] = state

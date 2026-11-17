@@ -79,6 +79,26 @@ struct DockBadgeTests {
         #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: ["!labelMuted"]) == 3)
     }
 
+    /// MATRIX-180: the low priority tag changes the rail badges only. The
+    /// Dock badge counts a low priority chat like any other chat.
+    @Test(arguments: [true, false])
+    func lowPriorityTagDoesNotChangeTheDockBadge(isLowPriority: Bool) {
+        let chats = [
+            UnreadChatState(roomId: "!dm", numUnreadMessages: 2, isDirect: true, isLowPriority: isLowPriority),
+            UnreadChatState(roomId: "!group", numUnreadNotifications: 4, isLowPriority: isLowPriority),
+            UnreadChatState(roomId: "!marked", isMarkedUnread: true, isLowPriority: isLowPriority),
+            UnreadChatState(roomId: "!read", isLowPriority: isLowPriority),
+            UnreadChatState(roomId: "!muted", numUnreadNotifications: 9, isMuted: true, isLowPriority: isLowPriority),
+            UnreadChatState(roomId: "!labelMuted", numUnreadNotifications: 9, isLowPriority: isLowPriority),
+        ]
+        #expect(DockBadge.unreadChatCount(chats, labelMutedRoomIds: ["!labelMuted"]) == 3)
+        for chat in chats {
+            var other = chat
+            other.isLowPriority.toggle()
+            #expect(DockBadge.counts(chat, isMutedByLabel: false) == DockBadge.counts(other, isMutedByLabel: false))
+        }
+    }
+
     @Test func noChatsCountsZero() {
         #expect(DockBadge.unreadChatCount([UnreadChatState](), labelMutedRoomIds: []) == 0)
     }

@@ -16,25 +16,38 @@ public enum ChatLabelBadge: Equatable, Sendable {
     ///
     /// A room is muted here when its own notification mode is mute OR the
     /// label itself is muted, so a muted label shows at most a dot.
-    public static func badge(for label: ChatLabel, unread: [String: ChatListUnread]) -> ChatLabelBadge {
-        badge(forRooms: label.rooms, isMuted: label.isMuted, unread: unread)
+    ///
+    /// A room in `lowPriorityRoomIds` adds nothing (MATRIX-180).
+    public static func badge(
+        for label: ChatLabel,
+        lowPriorityRoomIds: Set<String> = [],
+        unread: [String: ChatListUnread]
+    ) -> ChatLabelBadge {
+        badge(forRooms: label.rooms, isMuted: label.isMuted, lowPriorityRoomIds: lowPriorityRoomIds, unread: unread)
     }
 
     /// The badge for a set of rooms: a label's rooms, or the chats of a space
     /// (MATRIX-167). Rooms with no entry in `unread` count as read.
     ///
+    /// This is the one rule for every rail badge. A muted room gives a dot at
+    /// most. A room with the Matrix low priority tag gives nothing, no count
+    /// and no dot (MATRIX-180): the Inbox hides it, so the rail does not
+    /// point at it.
+    ///
     /// - Parameters:
     ///   - rooms: the room IDs.
     ///   - isMuted: the whole set is muted, so it shows at most a dot.
+    ///   - lowPriorityRoomIds: the rooms with the low priority tag.
     ///   - unread: the unread state by room ID.
     public static func badge(
         forRooms rooms: some Sequence<String>,
         isMuted: Bool = false,
+        lowPriorityRoomIds: Set<String> = [],
         unread: [String: ChatListUnread]
     ) -> ChatLabelBadge {
         var counted = 0
         var hasActivity = false
-        for roomId in rooms {
+        for roomId in rooms where !lowPriorityRoomIds.contains(roomId) {
             guard let state = unread[roomId], state.isUnread else { continue }
             hasActivity = true
             if state.count > 0, !state.isMuted, !isMuted {

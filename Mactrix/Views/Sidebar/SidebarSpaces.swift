@@ -40,25 +40,16 @@ enum SidebarRail {
     ///
     /// The unread mark follows the label items: a count of the unread chats
     /// that are not muted (by the room's own mode or by its labels), else a
-    /// dot for other unread activity.
+    /// dot for other unread activity. A low priority chat adds nothing
+    /// (MATRIX-180).
     static func spaces(client: MatrixClient?) -> [ChatListRailSpace] {
         guard let client else { return [] }
-        let labelMuted = client.labels?.document.labelMutedRoomIds ?? []
-        let unread = client.dockBadge.unreadChats.chats.mapValues { chat in
-            ChatListUnread(
-                numUnreadMessages: chat.numUnreadMessages,
-                numUnreadNotifications: chat.numUnreadNotifications,
-                numUnreadMentions: 0,
-                isMarkedUnread: chat.isMarkedUnread,
-                isMuted: chat.isMuted,
-                isMutedByLabel: labelMuted.contains(chat.roomId)
-            )
-        }
         return ChatListRailSpace.items(
             joined: joinedSpaces(client: client),
             spaces: client.roomAccounts.spaceMap,
             chatIds: chatIds(client: client),
-            unread: unread
+            chats: client.dockBadge.unreadChats.chats,
+            labelMutedRoomIds: client.labels?.document.labelMutedRoomIds ?? []
         )
     }
 

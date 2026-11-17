@@ -19,6 +19,11 @@ public struct UnreadChatState: Equatable, Sendable {
     /// The room's own notification mode is mute, the same flag that grays a
     /// chat-list row's capsule.
     public var isMuted: Bool
+    /// `RoomInfo.isLowPriority`: the room has the Matrix low priority tag
+    /// (MATRIX-180). The rail badges leave such a room out
+    /// (`ChatLabelBadge.badge(forRooms:isMuted:lowPriorityRoomIds:unread:)`).
+    /// The Dock badge does not read it.
+    public var isLowPriority: Bool
 
     public init(
         roomId: String,
@@ -26,7 +31,8 @@ public struct UnreadChatState: Equatable, Sendable {
         numUnreadMessages: UInt64 = 0,
         isDirect: Bool = false,
         isMarkedUnread: Bool = false,
-        isMuted: Bool = false
+        isMuted: Bool = false,
+        isLowPriority: Bool = false
     ) {
         self.roomId = roomId
         self.numUnreadNotifications = numUnreadNotifications
@@ -34,6 +40,7 @@ public struct UnreadChatState: Equatable, Sendable {
         self.isDirect = isDirect
         self.isMarkedUnread = isMarkedUnread
         self.isMuted = isMuted
+        self.isLowPriority = isLowPriority
     }
 }
 
@@ -54,6 +61,10 @@ public enum DockBadge {
     ///    - it has unread notifications (`numUnreadNotifications > 0`),
     ///    - it is a DM and has unread messages (`numUnreadMessages > 0`),
     ///    - the user marked it unread.
+    ///
+    /// The low priority tag (`UnreadChatState.isLowPriority`) is not an input:
+    /// a low priority chat counts in the Dock like any other chat. Only the
+    /// rail badges leave it out (MATRIX-180).
     ///
     /// Spaces never reach this function: the room list that feeds it uses the
     /// SDK's non-space filter.

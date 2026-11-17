@@ -172,20 +172,60 @@ public struct ChatListRailSpace: Identifiable, Equatable, Sendable {
     ///   - chatIds: the account's chat rooms.
     ///   - unread: the unread state by room ID. A room with no entry counts
     ///     as read. A room muted by its labels has `isMuted` set.
+    ///   - lowPriorityRoomIds: the rooms with the Matrix low priority tag.
+    ///     They add nothing to a badge (MATRIX-180).
     public static func items(
         joined: [ChatListRailSpace],
         spaces: RoomSpaceMap,
         chatIds: some Sequence<String>,
-        unread: [String: ChatListUnread]
+        unread: [String: ChatListUnread],
+        lowPriorityRoomIds: Set<String> = []
     ) -> [ChatListRailSpace] {
         let roomsBySpace = spaces.roomsBySpace(among: chatIds)
         var seen = Set<String>()
         return joined.compactMap { space in
             guard let rooms = roomsBySpace[space.id], seen.insert(space.id).inserted else { return nil }
             var item = space
-            item.badge = ChatLabelBadge.badge(forRooms: rooms, unread: unread)
+            item.badge = ChatLabelBadge.badge(forRooms: rooms, lowPriorityRoomIds: lowPriorityRoomIds, unread: unread)
             return item
         }
+    }
+
+    /// The rail's space items from the unread tracker's states (MATRIX-180).
+    ///
+    /// Each state becomes the unread state of its room. A room muted by its
+    /// labels is muted. A room with the low priority tag adds nothing.
+    ///
+    /// - Parameters:
+    ///   - joined: the top-level joined spaces, in the SDK's order.
+    ///   - spaces: the room-to-space map.
+    ///   - chatIds: the account's chat rooms.
+    ///   - chats: the tracker's state by room ID.
+    ///   - labelMutedRoomIds: `ChatLabelDocument.labelMutedRoomIds`.
+    public static func items(
+        joined: [ChatListRailSpace],
+        spaces: RoomSpaceMap,
+        chatIds: some Sequence<String>,
+        chats: [String: UnreadChatState],
+        labelMutedRoomIds: Set<String>
+    ) -> [ChatListRailSpace] {
+        let unread = chats.mapValues { chat in
+            ChatListUnread(
+                numUnreadMessages: chat.numUnreadMessages,
+                numUnreadNotifications: chat.numUnreadNotifications,
+                numUnreadMentions: 0,
+                isMarkedUnread: chat.isMarkedUnread,
+                isMuted: chat.isMuted,
+                isMutedByLabel: labelMutedRoomIds.contains(chat.roomId)
+            )
+        }
+        return items(
+            joined: joined,
+            spaces: spaces,
+            chatIds: chatIds,
+            unread: unread,
+            lowPriorityRoomIds: Set(chats.values.lazy.filter(\.isLowPriority).map(\.roomId))
+        )
     }
 }
 

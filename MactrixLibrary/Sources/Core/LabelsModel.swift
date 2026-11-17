@@ -98,10 +98,15 @@ public final class LabelsModel {
     // MARK: Derived state
 
     /// The rail badge of every label, from the tracked rooms' unread counts.
+    /// A room with the low priority tag adds nothing (MATRIX-180).
     public var badges: [String: ChatLabelBadge] {
         var unread: [String: ChatListUnread] = [:]
+        var lowPriority = Set<String>()
         for (roomId, room) in trackedRooms {
             guard let info = room.roomInfo else { continue }
+            if info.isLowPriority {
+                lowPriority.insert(roomId)
+            }
             unread[roomId] = ChatListUnread(
                 numUnreadMessages: info.numUnreadMessages,
                 numUnreadNotifications: info.numUnreadNotifications,
@@ -110,7 +115,9 @@ public final class LabelsModel {
                 isMuted: info.isMuted
             )
         }
-        return Dictionary(uniqueKeysWithValues: document.labels.map { ($0.id, ChatLabelBadge.badge(for: $0, unread: unread)) })
+        return Dictionary(uniqueKeysWithValues: document.labels.map { label in
+            (label.id, ChatLabelBadge.badge(for: label, lowPriorityRoomIds: lowPriority, unread: unread))
+        })
     }
 
     // MARK: Writing

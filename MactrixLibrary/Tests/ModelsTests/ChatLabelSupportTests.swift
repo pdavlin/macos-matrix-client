@@ -78,6 +78,46 @@ struct ChatLabelSupportTests {
         #expect(ChatLabelBadge.badge(for: muted, unread: ["!a": ChatListUnread(count: 3, isUnread: true)]) == .dot)
     }
 
+    // MARK: Low priority (MATRIX-180)
+
+    @Test
+    func unreadLowPriorityChatGivesTheLabelNoCountAndNoDot() {
+        let unread: [String: ChatListUnread] = [
+            "!a": ChatListUnread(count: 4, isUnread: true),
+            "!b": ChatListUnread(isUnread: true),
+            "!c": ChatListUnread(count: 9, isUnread: true, isMuted: true),
+        ]
+        #expect(ChatLabelBadge.badge(for: label, lowPriorityRoomIds: ["!a", "!b", "!c"], unread: unread) == .none)
+    }
+
+    @Test
+    func labelCountsOnlyTheChatsThatAreNotLowPriority() {
+        let unread: [String: ChatListUnread] = [
+            "!a": ChatListUnread(count: 4, isUnread: true),
+            "!b": ChatListUnread(count: 1, isUnread: true),
+            "!c": ChatListUnread(count: 9, isUnread: true),
+        ]
+        #expect(ChatLabelBadge.badge(for: label, lowPriorityRoomIds: ["!b"], unread: unread) == .count(2))
+        // A low priority room in no label changes nothing.
+        #expect(ChatLabelBadge.badge(for: label, lowPriorityRoomIds: ["!elsewhere"], unread: unread) == .count(3))
+    }
+
+    @Test
+    func mutedLabelWithOnlyLowPriorityActivityHasNoDot() {
+        var muted = label
+        muted.isMuted = true
+        let unread = ["!a": ChatListUnread(count: 3, isUnread: true)]
+        #expect(ChatLabelBadge.badge(for: muted, lowPriorityRoomIds: ["!a"], unread: unread) == .none)
+    }
+
+    @Test
+    func labelBadgeFollowsTheTagInBothDirections() {
+        let unread = ["!a": ChatListUnread(count: 3, isUnread: true)]
+        #expect(ChatLabelBadge.badge(for: label, unread: unread) == .count(1))
+        #expect(ChatLabelBadge.badge(for: label, lowPriorityRoomIds: ["!a"], unread: unread) == .none)
+        #expect(ChatLabelBadge.badge(for: label, lowPriorityRoomIds: [], unread: unread) == .count(1))
+    }
+
     @Test
     func badgeDescriptions() {
         #expect(ChatLabelBadge.none.accessibilityDescription == nil)
