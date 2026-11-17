@@ -84,5 +84,13 @@ let package = Package(
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             ]
         ),
+        // MATRIX-97: the session delegate save path.
+        .testTarget(
+            name: "CoreTests",
+            dependencies: [
+                "Core",
+                .product(name: "MatrixRustSDK", package: "matrix-rust-components-swift"),
+            ]
+        ),
     ]
 )

@@ -25,12 +25,6 @@ struct CrossProcessLockChoiceTests {
             != CrossProcessLockChoice.choice(for: .notificationServiceExtension, on: .iOS))
     }
 
-    /// The FFI `Client` refuses a multi-process configuration without a session delegate.
-    @Test func onlyMultiProcessRequiresASessionDelegate() {
-        #expect(CrossProcessLockChoice.sdkDefault.requiresSessionDelegate == false)
-        #expect(CrossProcessLockChoice.multiProcess(holderName: "app").requiresSessionDelegate)
-    }
-
     @Test func currentPlatformMatchesTheBuildPlatform() {
         #if os(iOS)
             #expect(ClientPlatform.current == .iOS)

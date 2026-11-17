@@ -54,3 +54,24 @@ public struct UserSession: Codable {
         return nil
     }
 }
+
+/// The place where the session delegate keeps the user session (MATRIX-97).
+/// The app uses the keychain. A test gives its own store, so no test writes
+/// to the keychain items of the app.
+public struct UserSessionStore: Sendable {
+    public let save: @Sendable (UserSession) throws -> Void
+    public let load: @Sendable () throws -> UserSession?
+
+    public init(
+        save: @escaping @Sendable (UserSession) throws -> Void,
+        load: @escaping @Sendable () throws -> UserSession?
+    ) {
+        self.save = save
+        self.load = load
+    }
+
+    public static let keychain = UserSessionStore(
+        save: { try $0.saveUserToKeychain() },
+        load: { try UserSession.loadUserFromKeychain() }
+    )
+}

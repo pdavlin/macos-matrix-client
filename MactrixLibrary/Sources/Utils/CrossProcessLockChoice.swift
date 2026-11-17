@@ -28,6 +28,9 @@ public enum ClientPlatform: Sendable {
 /// Group store and the same keychain session. Each process takes the store
 /// locks and the OAuth refresh lock with its own holder name. The Mac app has
 /// one process and keeps the FFI default (single process, no lock).
+///
+/// The SDK refuses to build a multi-process client without a session
+/// delegate. Every client of the app has one on every platform (MATRIX-97).
 public enum CrossProcessLockChoice: Equatable, Sendable {
     /// Do not set a lock configuration. The FFI default is single process.
     case sdkDefault
@@ -48,11 +51,5 @@ public enum CrossProcessLockChoice: Equatable, Sendable {
         case (.iOS, .notificationServiceExtension):
             .multiProcess(holderName: notificationServiceExtensionHolderName)
         }
-    }
-
-    /// The SDK refuses to build a multi-process client without a session
-    /// delegate.
-    public var requiresSessionDelegate: Bool {
-        self != .sdkDefault
     }
 }

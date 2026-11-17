@@ -65,15 +65,15 @@ public extension MatrixClient {
         let storeID = UUID().uuidString
         let storePassphrase = try Self.generateStorePassphrase()
 
-        var builder = Self.clientBuilder(homeServer: homeServer, storeId: storeID, storePassphrase: storePassphrase)
-        if CrossProcessLockChoice.choice(for: .app).requiresSessionDelegate {
-            // This client becomes the app's client after sign-in. The delegate
-            // also saves the tokens that this client refreshes.
-            builder = builder.setSessionDelegate(
+        // This client becomes the app's client after sign-in, on the Mac and
+        // on iOS. The delegate saves the tokens that this client refreshes
+        // (MATRIX-97). Without it, the next launch restores stale tokens. On
+        // iOS, the multi-process client also fails to build without it.
+        let client = try await Self.clientBuilder(homeServer: homeServer, storeId: storeID, storePassphrase: storePassphrase)
+            .setSessionDelegate(
                 sessionDelegate: MatrixClientSessionDelegate(storeID: storeID, storePassphrase: storePassphrase)
             )
-        }
-        let client = try await builder.build()
+            .build()
 
         let details = await client.homeserverLoginDetails()
         return HomeserverLogin(storeID: storeID, storePassphrase: storePassphrase, unauthenticatedClient: client, loginDetails: details)
