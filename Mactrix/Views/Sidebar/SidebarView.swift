@@ -170,14 +170,40 @@ struct SidebarView: View {
     /// The List's selection: the selected row's ID, a room ID or a merged
     /// chat's ID (MATRIX-141). A click on a merged row selects the merged
     /// chat.
+    ///
+    /// MATRIX-188: the List does not tell a click from an arrow key, so the
+    /// current input event does. A click moves the focus to the composer;
+    /// an arrow key keeps it in the list.
     private var listSelection: Binding<String?> {
         Binding(
             get: { windowState.chatSelection?.itemId },
             set: { itemId in
                 let document = appState.matrixClient?.mergedChats?.document ?? MergedChatDocument()
-                windowState.chatSelection = itemId.map { MergedChatSelection.selection(forItemId: $0, document: document) }
+                let selection = itemId.map { MergedChatSelection.selection(forItemId: $0, document: document) }
+                // The List can write back the selection it shows. That is no
+                // user change, and it must not drop a focus request that
+                // another path (⌘K, a notification) made.
+                guard selection != windowState.chatSelection else { return }
+                windowState.open(
+                    selection,
+                    from: ChatOpenSource(listSelectionEvent: Self.listSelectionEvent(NSApp.currentEvent))
+                )
             }
         )
+    }
+
+    /// The kind of the input event behind a List selection change
+    /// (MATRIX-188). `NSApp.currentEvent` stays the last event AppKit took
+    /// from the queue, so a key's release also counts as the keyboard.
+    private static func listSelectionEvent(_ event: NSEvent?) -> ListSelectionEvent {
+        switch event?.type {
+        case .leftMouseDown, .leftMouseUp, .leftMouseDragged, .otherMouseDown, .otherMouseUp:
+            .pointer
+        case .keyDown, .keyUp, .flagsChanged:
+            .keyboard
+        default:
+            .other
+        }
     }
 
     private var chatList: some View {
@@ -209,7 +235,7 @@ struct SidebarView: View {
                         isSelected: selectedItemId == item.id,
                         imageLoader: appState.matrixClient
                     ) {
-                        windowState.chatSelection = item.selection
+                        windowState.open(item.selection, from: .click)
                     }
                     // MATRIX-133: a visible row may load members for its
                     // bubble cluster.
@@ -255,6 +281,11 @@ struct SidebarView: View {
                     }
                 }
             }
+        }
+        // MATRIX-188: Return on the selected row moves the focus to the
+        // chat's composer.
+        .onKeyPress(.return) {
+            windowState.requestComposerFocus(from: .returnKey) ? .handled : .ignored
         }
     }
 

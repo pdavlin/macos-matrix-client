@@ -43,7 +43,7 @@ struct MainView: View {
                 windowState.selectedRoomId = newRoom
             })
         case .newChat(let mode):
-            NewChatContainerView(mode: mode, openRoom: openRoom)
+            NewChatContainerView(mode: mode, openRoom: { await openRoom($0, from: .newChat) })
         case .loadMatrixUrl(let matrixUri):
             LoadMatrixUriScreen(matrixUri: matrixUri)
         case .mergedChat(let mergedChatId):
@@ -128,7 +128,7 @@ struct MainView: View {
             }
         })
         .sheet(isPresented: $showQuickSwitcher) {
-            QuickSwitcherContainerView(openRoom: openRoom)
+            QuickSwitcherContainerView(openRoom: { await openRoom($0, from: .quickSwitcher) })
                 .environment(windowState)
         }
         .onChange(of: appState.matrixClient == nil) { _, matrixClientIsNil in
@@ -266,13 +266,15 @@ struct MainView: View {
     /// Setting the selection alone is not enough when it is already selected
     /// (for example a New Chat that resolves to the DM the window last
     /// showed): `.task(id:)` does not fire for an unchanged value.
-    func openRoom(_ roomId: String) async {
+    ///
+    /// MATRIX-188: `source` says if the chat's composer takes the focus.
+    func openRoom(_ roomId: String, from source: ChatOpenSource) async {
         let document = appState.matrixClient?.mergedChats?.document ?? MergedChatDocument()
         let target = MergedChatSelection.selection(showing: roomId, document: document)
-        if windowState.chatSelection == target {
+        let wasSelected = windowState.chatSelection == target
+        windowState.open(target, from: source)
+        if wasSelected {
             await onRoomSelected()
-        } else {
-            windowState.chatSelection = target
         }
     }
 

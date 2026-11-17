@@ -75,11 +75,13 @@ struct MactrixApp: App {
         )
         switch focus {
         case .alreadyShown:
+            // MATRIX-188: the chat is open; its composer takes the focus.
+            windowState.requestComposerFocus(from: .notification)
             client.notifications.selectedRoomId = nil
         case .bringMainWindowForward:
             NSApp.frontmostMainWindow?.makeKeyAndOrderFront(nil)
         case let .select(selection):
-            windowState.chatSelection = selection
+            windowState.open(selection, from: .notification)
             client.notifications.selectedRoomId = nil
         }
     }

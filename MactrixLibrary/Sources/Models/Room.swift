@@ -13,7 +13,7 @@ public protocol Room: Hashable, Identifiable {
     var encryptionState: EncryptionState { get }
 }
 
-public enum Membership {
+public enum Membership: Sendable {
     case invited
     case joined
     case left

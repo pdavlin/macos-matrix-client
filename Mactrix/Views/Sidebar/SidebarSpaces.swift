@@ -112,7 +112,8 @@ struct SpaceBrowserSheet: View {
             set: { itemId in
                 guard let itemId else { return }
                 let document = appState.matrixClient?.mergedChats?.document ?? MergedChatDocument()
-                windowState.chatSelection = MergedChatSelection.selection(forItemId: itemId, document: document)
+                // MATRIX-188: a click, so the composer takes the focus.
+                windowState.open(MergedChatSelection.selection(forItemId: itemId, document: document), from: .click)
                 dismiss()
             }
         )

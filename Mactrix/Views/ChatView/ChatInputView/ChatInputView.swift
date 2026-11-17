@@ -10,6 +10,8 @@ struct ChatInputView: View {
     /// Not private: `ChatInputView+Merged.swift` reads it.
     @Environment(AppState.self) var appState
     @Environment(\.accessibilityReduceTransparency) var reduceTransparency
+    /// Not private: `ChatInputView+Focus.swift` reads it.
+    @Environment(WindowState.self) var windowState
 
     let room: MatrixRustSDK.Room
     let timeline: LiveTimeline
@@ -36,6 +38,10 @@ struct ChatInputView: View {
     /// The message the composer edits, or nil when it writes a new message
     /// (MATRIX-109).
     @State var editSession: ComposerEditSession?
+    /// Counts the focus requests this composer took (MATRIX-188). Each new
+    /// value makes the text view take the keyboard focus when it can. Not
+    /// private: `ChatInputView+Focus.swift` sets it.
+    @State var focusSerial = 0
 
     func sendMessage() async {
         if let editSession {
@@ -128,49 +134,11 @@ struct ChatInputView: View {
         await saveDraft()
     }
 
-    /// Gives the mention controller this room's members and the own user id.
-    /// The provider reads `LiveRoom.members` on each query, so it sees member
-    /// updates without a new SDK call.
-    private func configureMentions() {
-        let liveRoom = timeline.room
-        mentions.candidateProvider = { [weak liveRoom] in
-            guard let liveRoom else { return [] }
-            return liveRoom.members.map {
-                MentionCandidate(userId: $0.userId, displayName: $0.displayName, avatarUrl: $0.avatarUrl)
-            }
-        }
-        if let ownUserId = try? appState.matrixClient?.client.userId() {
-            mentions.excludedUserIds = [ownUserId]
-        }
-        // MATRIX-156: the custom emoji of the room the message goes to. In a
-        // merged chat `timeline` is the target, and this runs again when the
-        // target changes.
-        let client = appState.matrixClient
-        let roomId = timeline.room.id
-        client?.loadImagePacks(forRoom: roomId)
-        mentions.emojiPackProvider = { [weak client] in
-            client?.imagePacks.packs(forRoom: roomId) ?? []
-        }
-        // MATRIX-161: each new ":" query asks again. The store reads the
-        // homeserver only when its last read of the workspace is old.
-        mentions.onEmojiQueryOpen = { [weak client] in
-            client?.loadImagePacks(forRoom: roomId)
-        }
-    }
-
     /// The image packs of a timeline's room, for the send-time emoji
     /// resolution (MATRIX-156). Empty when the room has no pack or the pack
     /// has not loaded; the `:name:` tokens then stay text.
     private func emojiPacks(for timeline: LiveTimeline) -> [ImagePack] {
         appState.matrixClient?.imagePacks.packs(forRoom: timeline.room.id) ?? []
-    }
-
-    /// Inserts the chip that the user profile "Mention" action asked for,
-    /// after the draft has loaded (MATRIX-105).
-    private func insertPendingMention() {
-        guard isDraftLoaded, let target = timeline.pendingComposerMention else { return }
-        timeline.pendingComposerMention = nil
-        mentions.insertMention(target)
     }
 
     /// Whether the composer holds text or attachments.
@@ -246,6 +214,7 @@ struct ChatInputView: View {
                     mentions: mentions,
                     attachments: attachments,
                     attachmentsEnabled: editSession == nil,
+                    focusSerial: focusSerial,
                     onEmptyUpArrow: { editLastOwnMessage() },
                     onEscape: { endEdit() },
                     onSubmit: { Task { await sendMessage() } }
@@ -277,6 +246,11 @@ struct ChatInputView: View {
         }
         .onChange(of: timeline.pendingComposerEdit, initial: true) {
             startPendingEdit()
+        }
+        // MATRIX-188: a click, Return, ⌘K, a notification, or a Go-menu
+        // shortcut opened this chat.
+        .onChange(of: windowState.composerFocusRequest, initial: true) {
+            takeFocusRequest()
         }
         .onChange(of: replyTo?.eventOrTransactionId) {
             leaveEditForReply()
@@ -327,6 +301,48 @@ struct ChatInputView: View {
         } else {
             oldView
         }
+    }
+}
+
+// MARK: - Mentions (MATRIX-105)
+
+extension ChatInputView {
+    /// Gives the mention controller this room's members and the own user id.
+    /// The provider reads `LiveRoom.members` on each query, so it sees member
+    /// updates without a new SDK call.
+    private func configureMentions() {
+        let liveRoom = timeline.room
+        mentions.candidateProvider = { [weak liveRoom] in
+            guard let liveRoom else { return [] }
+            return liveRoom.members.map {
+                MentionCandidate(userId: $0.userId, displayName: $0.displayName, avatarUrl: $0.avatarUrl)
+            }
+        }
+        if let ownUserId = try? appState.matrixClient?.client.userId() {
+            mentions.excludedUserIds = [ownUserId]
+        }
+        // MATRIX-156: the custom emoji of the room the message goes to. In a
+        // merged chat `timeline` is the target, and this runs again when the
+        // target changes.
+        let client = appState.matrixClient
+        let roomId = timeline.room.id
+        client?.loadImagePacks(forRoom: roomId)
+        mentions.emojiPackProvider = { [weak client] in
+            client?.imagePacks.packs(forRoom: roomId) ?? []
+        }
+        // MATRIX-161: each new ":" query asks again. The store reads the
+        // homeserver only when its last read of the workspace is old.
+        mentions.onEmojiQueryOpen = { [weak client] in
+            client?.loadImagePacks(forRoom: roomId)
+        }
+    }
+
+    /// Inserts the chip that the user profile "Mention" action asked for,
+    /// after the draft has loaded (MATRIX-105).
+    private func insertPendingMention() {
+        guard isDraftLoaded, let target = timeline.pendingComposerMention else { return }
+        timeline.pendingComposerMention = nil
+        mentions.insertMention(target)
     }
 }
 

@@ -26,6 +26,9 @@ struct ChatTextView: NSViewRepresentable {
     /// False in edit mode: paste, drop, and Esc then leave the attachments
     /// alone (MATRIX-109).
     var attachmentsEnabled = true
+    /// A new value asks the text view to take the keyboard focus
+    /// (MATRIX-188). The first value asks for nothing.
+    var focusSerial = 0
     /// The Up arrow in an empty composer. Returns true if it started an edit
     /// (MATRIX-109).
     var onEmptyUpArrow: () -> Bool = { false }
@@ -141,6 +144,13 @@ struct ChatTextView: NSViewRepresentable {
                 unsafe textView.window?.makeFirstResponder(nil)
             }
         }
+
+        // MATRIX-188: after the editable state, which the focus needs.
+        if focusSerial != context.coordinator.focusSerial {
+            context.coordinator.focusSerial = focusSerial
+            textView.wantsFocus = true
+        }
+        textView.takeFocusIfWanted()
     }
 
     /// Points the text view's paste, drop, and Esc hooks at the attachment
@@ -178,6 +188,9 @@ struct ChatTextView: NSViewRepresentable {
         /// binding with this, so it rebuilds the text only for an outside
         /// change and never for the view's own edit.
         var lastText = ""
+
+        /// The last `focusSerial` the text view acted on (MATRIX-188).
+        var focusSerial = 0
 
         init(text: Binding<String>, mentions: ComposerMentionController) {
             self.text = text
@@ -236,6 +249,25 @@ class DynamicTextView: NSTextView {
     /// Runs on Esc when the mention popup and the attachments did not use
     /// it. Returns true if it cancelled edit mode (MATRIX-109).
     var escapeHandler: (() -> Bool)?
+
+    /// Whether the text view takes the keyboard focus as soon as it is in a
+    /// window and editable (MATRIX-188). A new chat's composer is neither
+    /// when the focus request comes.
+    var wantsFocus = false
+
+    /// Takes the keyboard focus if `wantsFocus` and the text view can, with
+    /// the cursor at the end of the draft.
+    func takeFocusIfWanted() {
+        guard wantsFocus, isEditable, let window = unsafe window else { return }
+        wantsFocus = false
+        setSelectedRange(NSRange(location: (string as NSString).length, length: 0))
+        window.makeFirstResponder(self)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        takeFocusIfWanted()
+    }
 
     /// The pasteboard type for composer content with chips: the draft text
     /// (`MentionMarkdown.draftText(for:)`). Copy and paste inside the composer

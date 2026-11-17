@@ -65,10 +65,11 @@ struct GoCommands: Commands {
         }
     }
 
-    /// Selects a row's chat in the key window, as a click on the row does.
+    /// Selects a row's chat in the key window, as a click on the row does,
+    /// and moves the focus to its composer (MATRIX-188).
     private func open(_ selection: ChatSelection?) {
         guard let selection else { return }
-        windowState?.chatSelection = selection
+        windowState?.open(selection, from: .shortcut)
     }
 
     /// ⌘1 for index 0, up to ⌘9 for index 8.

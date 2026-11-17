@@ -77,6 +77,15 @@ public final class WindowState {
         }
     }
 
+    /// The open request for a composer to take the keyboard focus
+    /// (MATRIX-188), or nil. `open(_:from:)` sets it; the chat's composer
+    /// takes it with `takeComposerFocusRequest(composerChat:membership:)`.
+    /// Not restored.
+    public private(set) var composerFocusRequest: ComposerFocusRequest?
+
+    /// The serial of the last focus request.
+    @ObservationIgnored private var composerFocusSerial = 0
+
     public var inspectorVisible: Bool = false
 
     public var inspectorContent: InspectorContent = .roomInfo
@@ -138,6 +147,41 @@ public final class WindowState {
     public init(singleRoomId: String? = nil) {
         self.singleRoomId = singleRoomId
         self.chatSelection = singleRoomId.map(ChatSelection.room)
+    }
+
+    /// Selects `selection` as the user asked from `source`, and asks the
+    /// chat's composer for the keyboard focus when the source does
+    /// (MATRIX-188, `ComposerFocusRule`). A source that does not ask drops
+    /// an older request.
+    public func open(_ selection: ChatSelection?, from source: ChatOpenSource) {
+        if chatSelection != selection {
+            chatSelection = selection
+        }
+        composerFocusSerial += 1
+        composerFocusRequest = ComposerFocusRule.request(opening: selection, from: source, serial: composerFocusSerial)
+    }
+
+    /// Asks the selected chat's composer for the keyboard focus, as Return
+    /// on the selected chat-list row does (MATRIX-188).
+    ///
+    /// - Returns: false when no chat is selected.
+    @discardableResult
+    public func requestComposerFocus(from source: ChatOpenSource) -> Bool {
+        guard let chatSelection else { return false }
+        open(chatSelection, from: source)
+        return true
+    }
+
+    /// Takes the focus request if it is for `composerChat` and the chat can
+    /// take a message (MATRIX-188). The request is then gone.
+    ///
+    /// - Returns: true if the composer should take the keyboard focus.
+    public func takeComposerFocusRequest(composerChat: ChatSelection, membership: Models.Membership) -> Bool {
+        guard ComposerFocusRule.composer(of: composerChat, membership: membership, takes: composerFocusRequest) else {
+            return false
+        }
+        composerFocusRequest = nil
+        return true
     }
 
     public var searchFocused: Binding<Bool> {
