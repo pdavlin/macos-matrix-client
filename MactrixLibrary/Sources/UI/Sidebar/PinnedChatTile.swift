@@ -14,7 +14,9 @@ import Tokens
 ///
 /// MATRIX-185: the name is centered under the avatar, also when it
 /// truncates. It is at most the avatar's width (`pinnedTitleMaxWidth`), so
-/// the avatar keeps its MATRIX-150 position.
+/// the avatar keeps its MATRIX-150 position. The selected background hugs
+/// the avatar and name with `pinnedTilePadding` on each side, so the content
+/// sits centered in it; the tile's hit area stays the full grid column.
 ///
 /// MATRIX-123: a direct chat's tile shows the other person's first name
 /// (`ChatListRowModel.pinnedTitle`); the tooltip keeps the full name.
@@ -62,13 +64,13 @@ public struct PinnedChatTile: View {
                     .frame(maxWidth: ChatListToken.pinnedTitleMaxWidth)
             }
             .padding(ChatListToken.pinnedTilePadding)
-            .frame(minWidth: ChatListToken.pinnedTileMinWidth, maxWidth: .infinity, alignment: .leading)
             .background {
                 if isSelected {
                     tileShape.fill(Color.primary.opacity(ChatListToken.pinnedSelectedOpacity))
                 }
             }
-            .contentShape(tileShape)
+            .frame(minWidth: ChatListToken.pinnedTileMinWidth, maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(model.helpText)

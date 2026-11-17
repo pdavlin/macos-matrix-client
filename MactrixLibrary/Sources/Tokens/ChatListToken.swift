@@ -155,8 +155,10 @@ public enum ChatListToken {
     /// Equal to `rowVerticalPadding`, so the grid keeps the list's rhythm:
     /// two tiles side by side or one above the other put `pinnedGridGap`
     /// between their contents, the same distance as between the avatars of
-    /// two list rows. The tile's selected background and hit target cover
-    /// this padding. It also holds the unread mark, which sits
+    /// two list rows. The tile's selected background is the content plus
+    /// this padding on each side, so the content sits centered in it
+    /// (MATRIX-185); the hit target is the whole grid column. The padding
+    /// also holds the unread mark, which sits
     /// `pinnedUnreadOffset` past the avatar.
     ///
     /// It replaces three paddings (top 8, horizontal 10, bottom 6) that
