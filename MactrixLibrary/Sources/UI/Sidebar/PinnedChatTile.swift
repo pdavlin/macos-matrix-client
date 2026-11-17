@@ -8,9 +8,13 @@ import Tokens
 /// that reports the tap and draws its own subtle selected background. The
 /// unread count rides on the avatar's top-right corner.
 ///
-/// MATRIX-150: the avatar and the name start at the tile's leading edge, as
-/// a list row's content does, with one padding on every side. `PinnedChatGrid`
+/// MATRIX-150: the avatar starts at the tile's leading edge, as a list
+/// row's content does, with one padding on every side. `PinnedChatGrid`
 /// puts the first column's avatar on the list rows' avatar edge.
+///
+/// MATRIX-185: the name is centered under the avatar, also when it
+/// truncates. It is at most the avatar's width (`pinnedTitleMaxWidth`), so
+/// the avatar keeps its MATRIX-150 position.
 ///
 /// MATRIX-123: a direct chat's tile shows the other person's first name
 /// (`ChatListRowModel.pinnedTitle`); the tooltip keeps the full name.
@@ -44,7 +48,7 @@ public struct PinnedChatTile: View {
 
     public var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: ChatListToken.pinnedTitleSpacing) {
+            VStack(alignment: .center, spacing: ChatListToken.pinnedTitleSpacing) {
                 ChatListAvatar(model: model, size: ChatListToken.pinnedAvatarSize, imageLoader: imageLoader)
                     .overlay(alignment: .topTrailing) {
                         unreadMark
@@ -55,6 +59,7 @@ public struct PinnedChatTile: View {
                     .font(.system(size: ChatListToken.pinnedTitleFontSize, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .frame(maxWidth: ChatListToken.pinnedTitleMaxWidth)
             }
             .padding(ChatListToken.pinnedTilePadding)
             .frame(minWidth: ChatListToken.pinnedTileMinWidth, maxWidth: .infinity, alignment: .leading)

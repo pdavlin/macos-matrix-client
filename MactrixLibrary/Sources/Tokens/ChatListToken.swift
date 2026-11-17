@@ -194,6 +194,14 @@ public enum ChatListToken {
     /// MATRIX-129: 4 pt (was 6).
     public static let pinnedTitleSpacing: CGFloat = 4
 
+    /// Widest a pinned title gets (MATRIX-185).
+    ///
+    /// The title is centered under the avatar. The avatar starts at the
+    /// tile's leading edge (MATRIX-150), so a wider title cannot stay
+    /// centered without passing that edge. A longer name truncates to the
+    /// avatar's width; the tooltip keeps the full name.
+    public static let pinnedTitleMaxWidth: CGFloat = pinnedAvatarSize
+
     /// Diameter of the unread dot on a pinned avatar with no count.
     public static let pinnedUnreadDotSize: CGFloat = 12
 
