@@ -62,10 +62,34 @@ public func emoticonSources(inFormattedBody body: String) -> [String] {
     emoticons(inFormattedBody: body).map(\.source)
 }
 
+/// The renders of `renderHTML`, by font size and body (MATRIX-174).
+///
+/// A render is a function of these two alone, and it costs 0.3 to 1.5 ms. A
+/// row asks for the same render at least twice (the height measure, then the
+/// row itself), and again each time SwiftUI evaluates the body view. The
+/// cache holds immutable copies; `EmoticonResolver` copies before it edits.
+@MainActor private let renderedBodies: NSCache<NSString, NSAttributedString> = {
+    let cache = NSCache<NSString, NSAttributedString>()
+    cache.countLimit = 512
+    return cache
+}()
+
 /// The ZMarkupParser step. Internal so a test can hand it a raw `<img>` and
 /// prove that the renderer by itself makes no image attachment.
 @MainActor
 func renderHTML(_ body: String, baseFontSize: CGFloat) -> NSAttributedString {
+    let key = "\(baseFontSize)\u{0}\(body)" as NSString
+    if let cached = renderedBodies.object(forKey: key) {
+        return cached
+    }
+    let rendered = NSAttributedString(attributedString: buildHTML(body, baseFontSize: baseFontSize))
+    renderedBodies.setObject(rendered, forKey: key)
+    return rendered
+}
+
+/// Builds the parser and renders `body`. `renderHTML` caches the result.
+@MainActor
+private func buildHTML(_ body: String, baseFontSize: CGFloat) -> NSAttributedString {
     let headingParagraphSpacing = MarkupStyleParagraphStyle(
         // paragraphSpacing: 5,
         paragraphSpacingBefore: baseFontSize * TypographyToken.paragraphSpacingBeforeScale
