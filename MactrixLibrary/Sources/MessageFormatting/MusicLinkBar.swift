@@ -54,12 +54,6 @@ extension View {
     /// gradient, as CSS `box-decoration-break: clone` does.
     @MainActor
     enum MusicLinkBar {
-        /// The line fragment padding of an `NSTextField` label cell. With it,
-        /// a TextKit 1 stack as wide as the field breaks the lines where the
-        /// cell breaks them, and puts each glyph where the cell draws it
-        /// (`MusicLinkBarTests` checks this against the drawn pixels).
-        static let labelLineFragmentPadding: CGFloat = 2
-
         /// True if `string` has text that draws the bar.
         static func hasMarker(_ string: NSAttributedString) -> Bool {
             var found = false
@@ -74,10 +68,11 @@ extension View {
 
         /// The bar rects of `string`, laid out as an `NSTextField` label
         /// lays it out in `bounds` of a flipped view, one rect for each line
-        /// of each marked range. Whitespace at the ends of a line gets no bar.
+        /// of each marked range (`LabelTextLayout`). Whitespace at the ends
+        /// of a line gets no bar.
         static func rects(for string: NSAttributedString, in bounds: CGRect) -> [CGRect] {
-            linePieces(of: .musicLinkMarker, in: string, width: bounds.width).map { piece in
-                let font = string.attribute(.font, at: piece.chars.location, effectiveRange: nil) as? NSFont
+            LabelTextLayout.lineParts(of: [.musicLinkMarker], in: string, width: bounds.width).map { piece in
+                let font = string.attribute(.font, at: piece.characters.location, effectiveRange: nil) as? NSFont
                     ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
                 let bottom = min(
                     piece.usedRect.maxY,
@@ -105,9 +100,9 @@ extension View {
         /// text, as tall as the line. Each opens the link's song.link URL.
         static func targets(for string: NSAttributedString, in bounds: CGRect) -> [Target] {
             let all = string.string as NSString
-            return linePieces(of: .musicLinkTarget, in: string, width: bounds.width).compactMap { piece in
+            return LabelTextLayout.lineParts(of: [.musicLinkTarget], in: string, width: bounds.width).compactMap { piece in
                 guard let url = piece.value as? URL else { return nil }
-                let text = all.substring(with: piece.chars)
+                let text = all.substring(with: piece.characters)
                     .replacingOccurrences(of: "\u{FFFC}", with: "")
                     .trimmingCharacters(in: .whitespaces)
                 return Target(rect: piece.box.offsetBy(dx: bounds.minX, dy: bounds.minY), url: url, text: text)
@@ -131,61 +126,6 @@ extension View {
         /// The alignment insets of an `NSTextField` label.
         private static let labelInsets = NSTextField(labelWithString: "").alignmentRectInsets
 
-        /// One line's part of a range that has an attribute, in the
-        /// coordinates of the text container, which starts at the field's
-        /// top left.
-        private struct LinePiece {
-            let value: Any
-            let chars: NSRange
-            let box: CGRect
-            let usedRect: CGRect
-            let baseline: CGFloat
-        }
-
-        /// Lays out `string` as the label cell lays it out at `width`, and
-        /// returns each line's part of each range that has `key`. Whitespace
-        /// at the ends of a line is not part of a piece.
-        private static func linePieces(of key: NSAttributedString.Key, in string: NSAttributedString, width: CGFloat) -> [LinePiece] {
-            var ranges: [(range: NSRange, value: Any)] = []
-            let all = NSRange(location: 0, length: string.length)
-            string.enumerateAttribute(key, in: all) { value, range, _ in
-                if let value {
-                    ranges.append((range, value))
-                }
-            }
-            guard !ranges.isEmpty, width > 0 else { return [] }
-
-            let storage = NSTextStorage(attributedString: string)
-            let layoutManager = NSLayoutManager()
-            let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
-            container.lineFragmentPadding = labelLineFragmentPadding
-            layoutManager.addTextContainer(container)
-            storage.addLayoutManager(layoutManager)
-
-            let text = string.string as NSString
-            var pieces: [LinePiece] = []
-            for (range, value) in ranges {
-                let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-                layoutManager.enumerateLineFragments(forGlyphRange: glyphs) { lineRect, usedRect, _, lineGlyphs, _ in
-                    let lineChars = layoutManager.characterRange(
-                        forGlyphRange: NSIntersectionRange(lineGlyphs, glyphs),
-                        actualGlyphRange: nil
-                    )
-                    let chars = trimmingWhitespace(lineChars, in: text)
-                    guard chars.length > 0 else { return }
-                    let partGlyphs = layoutManager.glyphRange(forCharacterRange: chars, actualCharacterRange: nil)
-                    pieces.append(LinePiece(
-                        value: value,
-                        chars: chars,
-                        box: layoutManager.boundingRect(forGlyphRange: partGlyphs, in: container),
-                        usedRect: usedRect,
-                        baseline: lineRect.minY + layoutManager.location(forGlyphAt: partGlyphs.location).y
-                    ))
-                }
-            }
-            return pieces
-        }
-
         /// Fills each rect with the full gradient, left to right.
         static func draw(_ rects: [CGRect]) {
             let stops = MusicLinkToken.barStops
@@ -196,19 +136,6 @@ extension View {
             for rect in rects {
                 gradient.draw(in: rect, angle: 0)
             }
-        }
-
-        private static func trimmingWhitespace(_ range: NSRange, in text: NSString) -> NSRange {
-            var start = range.location
-            var end = range.location + range.length
-            let whitespace = CharacterSet.whitespacesAndNewlines
-            while start < end, let scalar = Unicode.Scalar(text.character(at: start)), whitespace.contains(scalar) {
-                start += 1
-            }
-            while end > start, let scalar = Unicode.Scalar(text.character(at: end - 1)), whitespace.contains(scalar) {
-                end -= 1
-            }
-            return NSRange(location: start, length: end - start)
         }
     }
 

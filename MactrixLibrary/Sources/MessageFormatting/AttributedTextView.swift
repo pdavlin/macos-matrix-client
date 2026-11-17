@@ -8,8 +8,8 @@ import SwiftUI
             self.attributedString = attributedString.trimmed
         }
 
-        public func makeNSView(context _: Context) -> NSTextField {
-            let textField = NSTextField(labelWithAttributedString: attributedString)
+        public func makeNSView(context _: Context) -> LinkCursorTextField {
+            let textField = LinkCursorTextField(labelWithAttributedString: attributedString)
 
             textField.isEditable = false
             textField.isSelectable = true
@@ -22,13 +22,13 @@ import SwiftUI
             return textField
         }
 
-        public func updateNSView(_ textField: NSTextField, context _: Context) {
+        public func updateNSView(_ textField: LinkCursorTextField, context _: Context) {
             if textField.attributedStringValue != attributedString {
                 textField.attributedStringValue = attributedString
             }
         }
 
-        public func sizeThatFits(_ proposal: ProposedViewSize, nsView textField: NSTextField, context _: Context) -> CGSize? {
+        public func sizeThatFits(_ proposal: ProposedViewSize, nsView textField: LinkCursorTextField, context _: Context) -> CGSize? {
             guard let width = proposal.width, width > 0, width != .infinity else { return nil }
 
             textField.preferredMaxLayoutWidth = width
