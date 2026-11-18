@@ -13,6 +13,11 @@ extension NSAttributedString.Key {
     /// (MATRIX-187). It takes the place of `.link`, which AppKit draws in the
     /// link color. `MusicLinkBar.targets` reads it for the click areas.
     static let musicLinkTarget = NSAttributedString.Key(rawValue: "MactrixMusicLinkTarget")
+
+    /// The tooltip of a music link that shows its title (MATRIX-191):
+    /// "Replaced automatically" and the link's URL. `MusicLinkMarker` sets
+    /// it on the glyph and the text, `MusicLinkBar.targets` reads it.
+    static let musicLinkHelp = NSAttributedString.Key(rawValue: "MactrixMusicLinkHelp")
 }
 
 @MainActor
@@ -93,6 +98,8 @@ extension View {
             let url: URL
             /// The link text on the area's line, without the glyph.
             let text: String
+            /// The tooltip of a link that shows its title (MATRIX-191).
+            var help: String?
         }
 
         /// The click areas of the music links of `string`, laid out as for
@@ -105,7 +112,8 @@ extension View {
                 let text = all.substring(with: piece.characters)
                     .replacingOccurrences(of: "\u{FFFC}", with: "")
                     .trimmingCharacters(in: .whitespaces)
-                return Target(rect: piece.box.offsetBy(dx: bounds.minX, dy: bounds.minY), url: url, text: text)
+                let help = string.attribute(.musicLinkHelp, at: piece.characters.location, effectiveRange: nil) as? String
+                return Target(rect: piece.box.offsetBy(dx: bounds.minX, dy: bounds.minY), url: url, text: text, help: help)
             }
         }
 
@@ -197,6 +205,7 @@ extension View {
                     Color.clear
                         .contentShape(Rectangle())
                         .frame(width: target.rect.width, height: target.rect.height)
+                        .musicLinkHelp(target.help)
                         .position(x: target.rect.midX, y: target.rect.midY)
                         .onTapGesture { openURL(target.url) }
                         .pointerStyle(.link)
@@ -204,6 +213,19 @@ extension View {
                         .accessibilityAddTraits(.isLink)
                         .accessibilityLabel(target.text)
                 }
+            }
+        }
+    }
+
+    private extension View {
+        /// The tooltip of a click area that shows a title (MATRIX-191), on
+        /// the area's own frame. No tooltip for a link that shows its URL.
+        @ViewBuilder
+        func musicLinkHelp(_ help: String?) -> some View {
+            if let help {
+                self.help(help)
+            } else {
+                self
             }
         }
     }

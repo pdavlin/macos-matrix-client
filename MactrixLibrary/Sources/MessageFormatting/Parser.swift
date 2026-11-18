@@ -4,6 +4,7 @@
     import UIKit
 #endif
 import Foundation
+import Models
 import Tokens
 import UI
 import ZMarkupParser
@@ -20,13 +21,16 @@ import ZMarkupParser
 /// With `marksMusicLinks`, a link to a song or an album on a music service
 /// that is not Apple Music gets the music link marker and the song.link
 /// target (MATRIX-178, `MusicLinkMarker`). The step runs after the cached
-/// render, so the cache key does not hold the switch.
+/// render, so the cache key does not hold the switch. On macOS, a Spotify
+/// link that shows its URL shows its title from `musicLinkTitles` in place of
+/// the URL when the store holds one (MATRIX-191).
 @MainActor
 public func parseFormattedBody(
     _ body: String,
     baseFontSize: CGFloat? = nil,
     imageLoader: (any ImageLoader)? = nil,
-    marksMusicLinks: Bool = false
+    marksMusicLinks: Bool = false,
+    musicLinkTitles: MusicLinkTitleStore? = nil
 ) -> NSAttributedString {
     let baseFontSize = baseFontSize ?? CGFloat(TypographyToken.defaultBaseFontSize)
     let rewritten = ImageTagRewriter.rewrite(body)
@@ -36,7 +40,15 @@ public func parseFormattedBody(
         baseFontSize: baseFontSize,
         imageLoader: imageLoader
     )
-    return marksMusicLinks ? MusicLinkMarker.mark(resolved, baseFontSize: baseFontSize) : resolved
+    guard marksMusicLinks else { return resolved }
+    return MusicLinkMarker.mark(resolved, baseFontSize: baseFontSize, titles: musicLinkTitles)
+}
+
+/// The Spotify links of an HTML body whose text is their own URL: the links
+/// that can show a title (MATRIX-191). Reads the cached render.
+@MainActor
+func musicLinkTitleCandidates(inFormattedBody body: String, baseFontSize: CGFloat) -> [MusicLink] {
+    MusicLinkMarker.titleCandidates(in: renderHTML(ImageTagRewriter.rewrite(body).html, baseFontSize: baseFontSize))
 }
 
 /// One custom emoticon of a message body (MATRIX-161).

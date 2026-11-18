@@ -118,6 +118,8 @@ public extension MatrixClient {
         spaceService = nil
         // MATRIX-170: no cache write after the cache folder is removed.
         await roomAccounts.stop()
+        // MATRIX-191: the same for the music link titles.
+        await resetMusicLinkTitles()
 
         await syncService?.stop()
         syncService = nil

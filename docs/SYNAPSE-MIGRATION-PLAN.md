@@ -47,6 +47,22 @@ Deployed: Slack (`mautrix-slack` v0.2610.0, port 29335, bot `@slackbot:davlin.io
 4. Start Synapse first, then each bridge. Confirm the bot profile resolves and the bridge log has no `ERR` lines.
 5. Never run a bridge on two hosts at once: same rule as invariant 1, because both would answer for the same appservice namespace.
 
+## URL previews (MATRIX-191)
+
+Added 2026-11-18. The Mac client reads the title of a Spotify link from `GET /_matrix/client/v1/media/preview_url` (contract §11, 2026-11-18). The server previews `open.spotify.com` only.
+
+| Item | Location on the primary |
+|---|---|
+| Synapse include | `/etc/matrix-synapse/conf.d/url-preview.yaml` |
+
+The file sets:
+
+- `url_preview_enabled: true`.
+- `url_preview_ip_range_blacklist`: the private and reserved IP ranges, `100.64.0.0/10` included, so a preview never reaches the host's own network. Read the file on the primary for the full list.
+- `url_preview_url_blacklist` with the netloc pattern `^(?!open\.spotify\.com$)`, so every host other than `open.spotify.com` gets a 403 (`URL blocked by url pattern blocklist entry`).
+
+**Restore:** place `conf.d/url-preview.yaml` with the rest of the Synapse config (failover step 3). Without it, the client shows Spotify URLs in place of titles: nothing breaks. Confirm after the restore: a preview of an `open.spotify.com/track/...` URL gives 200 with `og:title`, and a preview of any other host gives 403.
+
 ## Migration: exe.dev → davbuntu (failover)
 
 1. Stop Synapse on the exe.dev primary. If the host is dead, make sure it stays dead (VM stopped or deleted) before step 4.

@@ -47,9 +47,11 @@ Each has a shipped default. Answer only where you want a change.
 - [ ] **Emoji alt text (MATRIX-153).** While an image loads or after a failed
   load, a long name is cut to fit the image's square (`:pa…`). Keep this, or
   show the full name at the cost of a row that changes height?
-- [ ] **Read-path exception.** The app makes one kind of read-only request
-  for room state outside the SDK (the emoji list; one DM per workspace for
-  your Slack image). Keep it, or schedule the SDK bump that removes it?
+- [ ] **Read-path exception.** The app makes two kinds of read-only request
+  outside the SDK: room state (the emoji list; one DM per workspace for
+  your Slack image), and the homeserver URL preview of a Spotify link (the
+  music link titles, MATRIX-191). Keep them, or schedule the SDK bump that
+  removes them?
 - [ ] **Broadcast rules (MATRIX-168).** One chat at a time; a merged chat
   gets one message; the count typed above 20 chats; Stop has no resume; no
   history. Images are MATRIX-177 (Backlog). Change any of these?

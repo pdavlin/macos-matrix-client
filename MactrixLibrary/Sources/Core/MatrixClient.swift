@@ -57,6 +57,7 @@ public class MatrixClient {
 
         spaceService = await LiveSpaceService(spaceService: client.spaceService())
         followJoinedSpaces()
+        configureMusicLinkTitles()
         clientDelegateHandle = try? client.setDelegate(delegate: self)
         await installUtdHook()
     }
@@ -69,6 +70,7 @@ public class MatrixClient {
 
         spaceService = await LiveSpaceService(spaceService: client.spaceService())
         followJoinedSpaces()
+        configureMusicLinkTitles()
         clientDelegateHandle = try? self.client.setDelegate(delegate: self)
         await installUtdHook()
     }

@@ -4,8 +4,10 @@ import Foundation
 /// packs of a workspace space (MATRIX-155), and for the bridge info of one
 /// direct chat of a workspace (MATRIX-165).
 ///
-/// **This is the only Matrix HTTP call that the app makes outside
-/// matrix-rust-sdk.** It is the bounded exception to hard rule 1 that
+/// **This is one of the two Matrix HTTP calls that the app makes outside
+/// matrix-rust-sdk.** (The other is `MusicLinkPreviewReader`, the URL
+/// preview of a Spotify link, contract §11 row of 2026-11-18, MATRIX-191.)
+/// It is the bounded exception to hard rule 1 that
 /// `docs/PROJECT_CONTRACT.md` §11 grants in the row of 2026-11-13 (MATRIX-151,
 /// decision b): the pinned SDK (26.04.01) has no read of room state, so the
 /// app makes one authenticated, read-only

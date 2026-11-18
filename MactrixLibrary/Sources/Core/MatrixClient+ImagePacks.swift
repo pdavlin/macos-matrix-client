@@ -131,14 +131,15 @@ enum RoomStateTransport {
         try await session.data(for: request, delegate: RefuseRedirects())
     }
 
-    private static let session: URLSession = {
+    /// Also the session of `MusicLinkPreviewTransport` (MATRIX-191).
+    static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = false
         configuration.timeoutIntervalForRequest = 30
         return URLSession(configuration: configuration)
     }()
 
-    private final class RefuseRedirects: NSObject, URLSessionTaskDelegate {
+    final class RefuseRedirects: NSObject, URLSessionTaskDelegate {
         func urlSession(
             _: URLSession,
             task _: URLSessionTask,

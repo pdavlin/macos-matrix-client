@@ -250,6 +250,7 @@ class TimelineViewController: NSViewController {
             name: UserDefaults.didChangeNotification,
             object: UserDefaults.standard
         )
+        listenForMusicLinkTitles()
 
         rebuildSnapshot()
 
@@ -337,6 +338,56 @@ class TimelineViewController: NSViewController {
         activeTypography = typography
         Logger.timelineTableView.info("typography tokens or music link marker changed: re-measuring all rows")
         noteAllRowHeightsChanged()
+    }
+
+    /// The keys of the music link titles that arrived since the last
+    /// re-measure (MATRIX-191).
+    private var pendingMusicLinkTitleKeys: [String] = []
+
+    /// A music link title replaces a URL and can change a row's height
+    /// (MATRIX-191).
+    private func listenForMusicLinkTitles() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMusicLinkTitles),
+            name: MusicLinkTitleStore.titlesDidChange,
+            object: nil
+        )
+    }
+
+    /// A music link title arrived. The body that shows the link draws the
+    /// title by itself (it reads the store), but the row keeps the height of
+    /// the URL until it is measured again. The re-measure runs after the
+    /// current pass, once for the titles that arrive together.
+    @objc func handleMusicLinkTitles(_ notification: Notification) {
+        guard let keys = notification.userInfo?[MusicLinkTitleStore.changedKeysKey] as? [String], !keys.isEmpty else { return }
+        let isFirst = pendingMusicLinkTitleKeys.isEmpty
+        pendingMusicLinkTitleKeys += keys
+        guard isFirst else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.remeasureRowsForMusicLinkTitles()
+        }
+    }
+
+    /// Measures again the rows whose HTML body can hold a link of the new
+    /// titles: a new revision drops each cached height.
+    private func remeasureRowsForMusicLinkTitles() {
+        let keys = pendingMusicLinkTitleKeys
+        pendingMusicLinkTitleKeys = []
+        var rows = IndexSet()
+        for (index, row) in timelineRows.enumerated() {
+            guard let html = row.heightFingerprint?.body.formattedText,
+                  MusicLinkTitleStore.body(html, mayHoldAnyOf: keys)
+            else { continue }
+            rowRevisions[row.uniqueId, default: 0] += 1
+            rows.insert(index)
+        }
+        guard !rows.isEmpty else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+            tableView.noteHeightOfRows(withIndexesChanged: rows)
+        }
     }
 
     var timelineFetchTask: Task<Void, Never>?

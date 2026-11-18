@@ -1,3 +1,4 @@
+import Models
 import SwiftUI
 import Tokens
 import UI
@@ -23,6 +24,11 @@ import UI
 /// view with the same switch, so the measured and the drawn string agree.
 /// Its gradient bar (MATRIX-187) draws behind the text, and its click areas
 /// lie over the text. Neither adds height.
+///
+/// On macOS, a Spotify link that shows its URL shows its title when
+/// `musicLinkTitles` holds one (MATRIX-191). The body reads the store as it
+/// parses, so a title that arrives draws the body again. When the body shows,
+/// a task asks the store to load the titles of its links.
 public struct FormattedBodyText: View {
     let html: String
     let baseFontSize: CGFloat
@@ -30,6 +36,7 @@ public struct FormattedBodyText: View {
     let imageLoader: (any ImageLoader)?
     let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
     let marksMusicLinks: Bool
+    let musicLinkTitles: MusicLinkTitleStore?
 
     /// Counts the emoticon images that arrived. `body` reads it, so each
     /// arrival parses the body again against the cache.
@@ -46,13 +53,16 @@ public struct FormattedBodyText: View {
     ///   - marksMusicLinks: The Settings switch of the music link marker
     ///     (`Models.MusicLinkPreferences`). Off by default, so a caller that
     ///     does not read the setting draws links as before.
+    ///   - musicLinkTitles: The titles of the Spotify links (MATRIX-191). The
+    ///     app's store by default. Nil shows every link's URL.
     public init(
         html: String,
         baseFontSize: CGFloat,
         isJumbo: Bool = false,
         imageLoader: (any ImageLoader)?,
         onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil,
-        marksMusicLinks: Bool = false
+        marksMusicLinks: Bool = false,
+        musicLinkTitles: MusicLinkTitleStore? = .shared
     ) {
         self.html = html
         self.baseFontSize = baseFontSize
@@ -60,6 +70,11 @@ public struct FormattedBodyText: View {
         self.imageLoader = imageLoader
         self.onEmoticons = onEmoticons
         self.marksMusicLinks = marksMusicLinks
+        self.musicLinkTitles = musicLinkTitles
+    }
+
+    private var fontSize: CGFloat {
+        isJumbo ? TypographyToken.jumboEmojiSize : baseFontSize
     }
 
     /// Takes the arrival count so that `body` depends on it. The cache, not
@@ -67,16 +82,29 @@ public struct FormattedBodyText: View {
     private func attributedBody(arrivals _: Int) -> NSAttributedString {
         parseFormattedBody(
             html,
-            baseFontSize: isJumbo ? TypographyToken.jumboEmojiSize : baseFontSize,
+            baseFontSize: fontSize,
             imageLoader: imageLoader,
-            marksMusicLinks: marksMusicLinks
+            marksMusicLinks: marksMusicLinks,
+            musicLinkTitles: musicLinkTitles
         )
+    }
+
+    /// Asks the store for the titles of the body's Spotify links. The store
+    /// reads only the links it has no answer for, and one read per link.
+    private func loadMusicLinkTitles() {
+        #if canImport(AppKit)
+            guard marksMusicLinks, let musicLinkTitles else { return }
+            for link in musicLinkTitleCandidates(inFormattedBody: html, baseFontSize: fontSize) {
+                musicLinkTitles.load(link)
+            }
+        #endif
     }
 
     public var body: some View {
         let text = AttributedTextView(attributedString: attributedBody(arrivals: arrivals))
         text
             .musicLinkBar(for: text.attributedString)
+            .task(id: marksMusicLinks ? html : "") { loadMusicLinkTitles() }
             .task(id: html) {
                 let found: [BodyEmoticon] = emoticons(inFormattedBody: html)
                 guard !found.isEmpty else { return }
