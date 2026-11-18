@@ -30,13 +30,38 @@ import SwiftUI
 
         public func sizeThatFits(_ proposal: ProposedViewSize, nsView textField: LinkCursorTextField, context _: Context) -> CGSize? {
             guard let width = proposal.width, width > 0, width != .infinity else { return nil }
+            return Self.fittingSize(of: textField, width: width)
+        }
 
-            textField.preferredMaxLayoutWidth = width
-            guard let size = textField.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: CGFloat.greatestFiniteMagnitude)) else {
-                return nil
+        /// The size of the field's text in `width`, at which the field lays
+        /// out every line it measured.
+        ///
+        /// When one paragraph style covers all of the string, as a block
+        /// quote's style does, the label cell leaves the style's head indent
+        /// out of the width it measures. At that width the indented lines
+        /// wrap again, and the field draws more lines than its height holds
+        /// (MATRIX-192). So a string with an indent gets the indent added to
+        /// the width. It keeps that width only if the cell lays out the
+        /// measured height there. Else it gets all of `width`, the width the
+        /// height was measured at.
+        static func fittingSize(of textField: NSTextField, width: CGFloat) -> CGSize? {
+            guard let cell = textField.cell else { return nil }
+            func measure(_ width: CGFloat) -> CGSize {
+                textField.preferredMaxLayoutWidth = width
+                let size = cell.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: CGFloat.greatestFiniteMagnitude))
+                return CGSize(width: ceil(size.width), height: ceil(size.height))
             }
 
-            return CGSize(width: ceil(size.width), height: ceil(size.height))
+            let size = measure(width)
+            let indent = textField.attributedStringValue.largestHeadIndent
+            guard indent > 0 else { return size }
+
+            let indented = min(width, ceil(size.width + indent))
+            if indented < width, measure(indented).height <= size.height {
+                return CGSize(width: indented, height: size.height)
+            }
+            textField.preferredMaxLayoutWidth = width
+            return CGSize(width: width, height: size.height)
         }
     }
 
@@ -98,5 +123,16 @@ extension NSAttributedString {
         }
         let end = last.location + last.length
         return attributedSubstring(from: NSRange(location: first.location, length: end - first.location))
+    }
+
+    /// The largest head indent of the string's paragraphs, first lines
+    /// included. Zero for a string with no indent.
+    var largestHeadIndent: CGFloat {
+        var largest: CGFloat = 0
+        enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: length)) { value, _, _ in
+            guard let style = value as? NSParagraphStyle else { return }
+            largest = max(largest, style.headIndent, style.firstLineHeadIndent)
+        }
+        return largest
     }
 }

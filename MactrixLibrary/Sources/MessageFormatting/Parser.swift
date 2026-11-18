@@ -172,6 +172,17 @@ private func buildHTML(_ body: String, baseFontSize: CGFloat) -> NSAttributedStr
                 )
             )
         )
+        // MATRIX-192: the parser's default quote is a 10 pt indent alone.
+        .add(
+            BLOCKQUOTE_HTMLTagName(),
+            withCustomStyle: MarkupStyle(
+                paragraphStyle: MarkupStyleParagraphStyle(
+                    headIndent: baseFontSize * BlockQuoteToken.indentScale,
+                    firstLineHeadIndent: baseFontSize * BlockQuoteToken.indentScale
+                ),
+                foregroundColor: MarkupStyleColor(color: BlockQuoteToken.textColor)
+            )
+        )
         .add(
             CODE_HTMLTagName(),
             withCustomStyle: MarkupStyle(
