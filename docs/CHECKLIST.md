@@ -58,10 +58,6 @@ Each has a shipped default. Answer only where you want a change.
   spaces before the labels. Change any of these?
 - [ ] **Low priority notifications.** Low priority chats no longer count in
   the rail and Dock badges. Must they also give no system notification?
-- [ ] **Music link titles (MATRIX-191).** Get the artist and title from the
-  homeserver URL preview (default; one more raw request outside the SDK) or
-  from Spotify directly (Spotify sees the Mac)? Put "Replaced automatically"
-  in the tooltip (default) or inline after the title?
 
 ## 5. Only Patrick can do these
 
