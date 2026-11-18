@@ -1,6 +1,6 @@
 # Checks for Patrick
 
-Last update: 2026-11-17, after the guided smoke test run. The orchestrator
+Last update: 2026-11-18, after the second guided smoke test run. The orchestrator
 keeps this list. Each item is a check on the running app or a decision that
 only Patrick can make. Tick an item in Plane (the issue is in Review,
 assigned to Patrick) or tell the orchestrator the result.
@@ -9,6 +9,8 @@ The app runs from `build/DerivedData/Build/Products/Debug/Mactrix.app`.
 
 Passed on 2026-11-17 and moved to Done: MATRIX-135 to 138, 141 to 145, 147
 to 151, 153 to 157, 159, 161, 162, 166, 168 to 170, 172, 175, 178.
+
+Passed on 2026-11-17 and 2026-11-18 and moved to Done: MATRIX-185 to 190.
 
 ## 1. Checks that wait for a convenient time
 
@@ -22,17 +24,11 @@ to 151, 153 to 157, 159, 161, 162, 166, 168 to 170, 172, 175, 178.
   badge. Remove the tag: both badges count it at once.
 - [ ] **Offline launch (MATRIX-171).** Start the app with no network, wait 70
   seconds, quit, start again with the network on. The spaces show at once on
-  both launches. Do this check after MATRIX-186 lands.
+  both launches. MATRIX-186 is on main, so this check can occur now.
 
 ## 2. Checks after the next build
 
-- [ ] **Space rail at launch again (MATRIX-186).** Quit and open the app two
-  times in sequence. Each launch shows the spaces in the first frame.
-- [ ] **Pinned tile names (MATRIX-185).** The names under the pinned tiles are
-  centered under the avatar. Long names truncate at the avatar width.
-- [ ] **Music link marker (MATRIX-187).** A song.link link has a gradient bar
-  under its text, also on each line of a wrapped link, in light and dark
-  mode. Other links keep the plain underline.
+None.
 
 ## 3. Questions
 
@@ -62,6 +58,10 @@ Each has a shipped default. Answer only where you want a change.
   spaces before the labels. Change any of these?
 - [ ] **Low priority notifications.** Low priority chats no longer count in
   the rail and Dock badges. Must they also give no system notification?
+- [ ] **Music link titles (MATRIX-191).** Get the artist and title from the
+  homeserver URL preview (default; one more raw request outside the SDK) or
+  from Spotify directly (Spotify sees the Mac)? Put "Replaced automatically"
+  in the tooltip (default) or inline after the title?
 
 ## 5. Only Patrick can do these
 
