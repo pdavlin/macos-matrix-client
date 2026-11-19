@@ -282,6 +282,8 @@ struct SidebarView: View {
                 }
             }
         }
+        // MATRIX-196: the system fade where the list runs under the toolbar.
+        .scrollEdgeEffectStyle(ScrollEdgeToken.sidebarTop, for: .top)
         // MATRIX-188: Return on the selected row moves the focus to the
         // chat's composer.
         .onKeyPress(.return) {

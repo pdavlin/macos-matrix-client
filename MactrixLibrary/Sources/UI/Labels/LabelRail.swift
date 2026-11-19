@@ -142,6 +142,8 @@ public struct LabelRail: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.never)
+            // MATRIX-196: the system fade where the rail runs under the toolbar.
+            .scrollEdgeEffectStyle(ScrollEdgeToken.sidebarTop, for: .top)
 
             Button(action: actions.newLabel) {
                 Image(systemName: "plus")
