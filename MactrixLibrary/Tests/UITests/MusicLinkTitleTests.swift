@@ -72,7 +72,9 @@ struct MusicLinkTitleTests {
         #expect((string.attribute(.musicLinkTarget, at: range.location, effectiveRange: nil) as? URL)?.absoluteString
             == Self.trackTarget)
         #expect(string.attribute(.link, at: range.location, effectiveRange: nil) == nil)
-        #expect(string.attribute(.foregroundColor, at: range.location, effectiveRange: nil) == nil)
+        // The body text color, which the field puts on each run with no
+        // color of its own (MATRIX-204).
+        #expect(string.attribute(.foregroundColor, at: range.location, effectiveRange: nil) as? NSColor == NSColor.labelColor)
         #expect(string.attribute(.musicLinkHelp, at: range.location, effectiveRange: nil) as? String
             == "Replaced automatically\n\(Self.posted)")
 

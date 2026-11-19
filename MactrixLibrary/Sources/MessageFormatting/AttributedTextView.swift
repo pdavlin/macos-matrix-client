@@ -5,7 +5,7 @@ import SwiftUI
         public let attributedString: NSAttributedString
 
         public init(attributedString: NSAttributedString) {
-            self.attributedString = attributedString.trimmed
+            self.attributedString = attributedString.trimmed.withBodyTextColor
         }
 
         public func makeNSView(context _: Context) -> LinkCursorTextField {
@@ -73,7 +73,7 @@ import SwiftUI
         public let attributedString: NSAttributedString
 
         public init(attributedString: NSAttributedString) {
-            self.attributedString = attributedString.trimmed
+            self.attributedString = attributedString.trimmed.withBodyTextColor
         }
 
         public func makeUIView(context _: Context) -> UITextView {
@@ -123,6 +123,34 @@ extension NSAttributedString {
         }
         let end = last.location + last.length
         return attributedSubstring(from: NSRange(location: first.location, length: end - first.location))
+    }
+
+    /// The color of body text that has no color of its own. It resolves
+    /// when the text draws, so it follows light and dark mode.
+    #if canImport(AppKit)
+        static var bodyTextColor: NSColor { .labelColor }
+    #else
+        static var bodyTextColor: UIColor { .label }
+    #endif
+
+    /// The string with `bodyTextColor` on each run that has no
+    /// `.foregroundColor` (MATRIX-204).
+    ///
+    /// A label draws such a run in its own text color. A click on the text
+    /// starts the field editor, which draws the same run in black, so the
+    /// text could not be read in dark mode. Runs with a color of their own
+    /// (links, mentions, block quotes) keep it.
+    var withBodyTextColor: NSAttributedString {
+        var missing: [NSRange] = []
+        enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: length)) { value, range, _ in
+            if value == nil { missing.append(range) }
+        }
+        guard !missing.isEmpty else { return self }
+        let output = NSMutableAttributedString(attributedString: self)
+        for range in missing {
+            output.addAttribute(.foregroundColor, value: Self.bodyTextColor, range: range)
+        }
+        return output
     }
 
     /// The largest head indent of the string's paragraphs, first lines
