@@ -10,7 +10,7 @@ The app runs from `build/DerivedData/Build/Products/Debug/Mactrix.app`.
 Passed on 2026-11-17 and moved to Done: MATRIX-135 to 138, 141 to 145, 147
 to 151, 153 to 157, 159, 161, 162, 166, 168 to 170, 172, 175, 178.
 
-Passed on 2026-11-17 to 2026-11-19 and moved to Done: MATRIX-183, 185 to 199.
+Passed on 2026-11-17 to 2026-11-19 and moved to Done: MATRIX-183, 185 to 200, 202, 204.
 
 ## 1. Checks that wait for a convenient time
 
