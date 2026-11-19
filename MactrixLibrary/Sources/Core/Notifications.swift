@@ -117,6 +117,40 @@ public extension MatrixNotifications {
         }
     }
 
+    /// Posts a local notification that no Matrix event carries: a snooze
+    /// end or a reminder (MATRIX-207). Settings > Notifications applies; a
+    /// click opens `roomId`.
+    func postLocalNotification(title: String, body: String, roomId: String) async {
+        let decision = NotificationDecision.decide(isMutedByLabel: false, settings: NotificationPreferences(defaults: settingsStore))
+        guard case let .post(playsSound) = decision else {
+            Logger.notification.debug("skipping local notification for \(roomId): notifications are off in Settings")
+            return
+        }
+        do {
+            guard try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) else {
+                Logger.notification.warning("user rejected notification request")
+                return
+            }
+        } catch {
+            Logger.notification.error("failed to request notification permissions: \(error)")
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = playsSound ? UNNotificationSound.default : nil
+        content.interruptionLevel = .timeSensitive
+        content.userInfo = [Self.roomIDUserInfoKey: roomId]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.01, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            Logger.notification.error("failed to schedule local notification: \(error)")
+        }
+    }
+
     func notificationTitle(for notification: NotificationItem) -> String {
         switch notification.event {
         case let .invite(sender: sender):

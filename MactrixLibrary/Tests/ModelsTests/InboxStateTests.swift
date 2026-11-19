@@ -133,7 +133,7 @@ struct InboxStateTests {
     @Test
     func archivedFilterShowsArchivedChatsAndOtherFiltersDoNot() {
         #expect(ChatListFilter.archived.inboxPlacement == .archived)
-        for filter in ChatListFilter.allCases where filter != .archived {
+        for filter in ChatListFilter.allCases where filter != .archived && filter != .snoozed {
             #expect(filter.inboxPlacement == .inbox)
         }
     }

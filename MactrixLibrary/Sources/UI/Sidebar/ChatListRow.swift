@@ -68,9 +68,18 @@ public struct ChatListRow: View {
         }
     }
 
+    /// The preview, or MATRIX-207's inbox note in its place.
+    private var previewText: Text {
+        guard let note = model.inboxNote else {
+            return Text(model.preview ?? "")
+        }
+        return Text("\(Image(systemName: "moon.zzz.fill")) \(note)")
+            .foregroundStyle(Color.accentColor)
+    }
+
     private var previewLine: some View {
         HStack(alignment: .top, spacing: 4) {
-            Text(model.preview ?? "")
+            previewText
                 .font(.system(size: ChatListToken.previewFontSize))
                 .foregroundStyle(secondaryStyle)
                 // Reserve both lines so every row has the same height and the

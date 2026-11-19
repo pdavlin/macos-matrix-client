@@ -79,8 +79,8 @@ struct RoomContextMenu: View {
 
             AddToLabelMenu(roomId: room.id)
 
-            // MATRIX-206.
-            ArchiveMenuItems(roomIds: [room.id], name: room.room.displayName() ?? "chat")
+            // MATRIX-206, MATRIX-207.
+            InboxMenuItems(roomIds: [room.id], name: room.room.displayName() ?? "chat")
 
             mergeButton(isDirect: roomInfo.isDirect)
 

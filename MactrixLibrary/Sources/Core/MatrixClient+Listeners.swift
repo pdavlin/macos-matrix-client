@@ -183,6 +183,16 @@ extension MatrixClient: RoomListServiceStateListener {
                 await mergedChats?.refresh()
                 await inbox?.refresh()
                 await bookmarks?.refresh()
+                // MATRIX-207: snooze ends and reminders fire once sync has
+                // caught up, so the first arm resolves what came due while
+                // the app was closed against current state. macOS only: the
+                // iOS UI is out of scope, and two devices would both post.
+                #if os(macOS)
+                    inbox?.startDueTimer { [weak self] title, body, roomId in
+                        guard let notifications = self?.notifications else { return }
+                        Task { await notifications.postLocalNotification(title: title, body: body, roomId: roomId) }
+                    }
+                #endif
             }
         }
     }

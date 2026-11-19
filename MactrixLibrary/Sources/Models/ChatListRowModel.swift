@@ -31,6 +31,9 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     /// MATRIX-148: a merged chat's badges, one per different network and
     /// account of its members, in member order. Empty for a plain room.
     public var memberBadges: [ChatBadge] = []
+    /// MATRIX-207: a note the row shows in place of the preview, for
+    /// example "Snoozed until tomorrow 9:00 AM". Nil shows the preview.
+    public var inboxNote: String?
 
     public init(
         id: String,

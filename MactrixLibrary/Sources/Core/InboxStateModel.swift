@@ -41,6 +41,13 @@ public final class InboxStateModel {
     @ObservationIgnored private weak var tracker: UnreadChatsTracker?
     @ObservationIgnored private var watchGeneration = 0
 
+    // MATRIX-207: the timer for the next snooze end or reminder. Used by
+    // `InboxStateModel+Due.swift`.
+    @ObservationIgnored var dueTimer: Task<Void, Never>?
+    @ObservationIgnored var dueGeneration = 0
+    @ObservationIgnored var dueNotify: (@MainActor (_ title: String, _ body: String, _ roomId: String) -> Void)?
+    @ObservationIgnored var wakeObserver: (any NSObjectProtocol)?
+
     /// - Parameters:
     ///   - client: the SDK client.
     ///   - mergedChats: the account's merged chats, so an action on one
@@ -48,6 +55,16 @@ public final class InboxStateModel {
     init(client: ClientProtocol, mergedChats: @escaping @MainActor () -> MergedChatDocument) {
         self.client = client
         self.mergedChats = mergedChats
+    }
+
+    /// The SDK client, for the due-time actions.
+    var sdkClient: ClientProtocol {
+        client
+    }
+
+    /// The account's merged chats now.
+    var merges: MergedChatDocument {
+        mergedChats()
     }
 
     // MARK: Reading
@@ -133,6 +150,47 @@ public final class InboxStateModel {
         return mutate { $0.unarchive(ids) }
     }
 
+    /// Snoozes the chats of `roomIds` until `until` (MATRIX-207). An
+    /// archived chat leaves the Archived list.
+    @discardableResult
+    public func snooze(roomIds: [String], until: Date) async -> Task<Void, Never> {
+        let ids = InboxStateDocument.chatRoomIds(for: roomIds, merges: mergedChats())
+        let time = await actionTime(roomIds: ids)
+        return mutate { $0.snooze(ids, until: until, at: time) }
+    }
+
+    /// Ends the snooze of the chats of `roomIds` now.
+    @discardableResult
+    public func unsnooze(roomIds: [String]) -> Task<Void, Never> {
+        let ids = InboxStateDocument.chatRoomIds(for: roomIds, merges: mergedChats())
+        return mutate { $0.unsnooze(ids) }
+    }
+
+    /// Sets a reminder on the chats of `roomIds` for `remindAt` (MATRIX-207).
+    @discardableResult
+    public func remind(roomIds: [String], at remindAt: Date) async -> Task<Void, Never> {
+        let ids = InboxStateDocument.chatRoomIds(for: roomIds, merges: mergedChats())
+        let time = await actionTime(roomIds: ids)
+        return mutate { $0.remind(ids, at: remindAt, setAt: time) }
+    }
+
+    /// Drops the reminder of the chats of `roomIds`.
+    @discardableResult
+    public func cancelReminder(roomIds: [String]) -> Task<Void, Never> {
+        let ids = InboxStateDocument.chatRoomIds(for: roomIds, merges: mergedChats())
+        return mutate { $0.cancelReminder(ids) }
+    }
+
+    /// The snooze end of the chat that holds `roomId`, if it is snoozed.
+    public func snoozedUntil(of roomId: String) -> Date? {
+        document.snoozedUntil(of: roomId, merges: mergedChats())
+    }
+
+    /// The reminder time of the chat that holds `roomId`, if it has one.
+    public func remindAt(of roomId: String) -> Date? {
+        document.remindAt(of: roomId, merges: mergedChats())
+    }
+
     /// Puts back the states an action replaced (the Undo of a toast).
     @discardableResult
     public func restore(_ states: [String: InboxRoomState]) -> Task<Void, Never> {
@@ -203,12 +261,12 @@ public final class InboxStateModel {
             }
         }
         guard !found.isEmpty else { return }
-        Logger.inbox.info("activity moved \(found.count, privacy: .public) chat(s) back to the Inbox")
-        mutate { document in
+        Logger.inbox.info("activity changed the inbox state of \(found.count, privacy: .public) chat(s)")
+        await mutate { document in
             for (roomId, activity) in found {
                 document.applyActivity(activity, in: roomId, merges: merges)
             }
-        }
+        }.value
     }
 
     /// The latest event of `roomId`, or nil when the client does not know

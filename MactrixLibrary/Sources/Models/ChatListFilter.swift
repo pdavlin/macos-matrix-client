@@ -19,16 +19,19 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
     case lowPriority
     /// Archived chats (MATRIX-206). Every other filter leaves them out.
     case archived
+    /// Snoozed chats (MATRIX-207). Every other filter leaves them out.
+    case snoozed
 
     public var id: Self { self }
 
-    /// The inbox placement this filter shows (MATRIX-206): the Archived
-    /// filter shows archived chats, every other filter the chats in the
-    /// Inbox.
+    /// The inbox placement this filter shows (MATRIX-206, MATRIX-207):
+    /// Archived and Snoozed show their chats, every other filter the chats
+    /// in the Inbox.
     public var inboxPlacement: InboxPlacement {
         switch self {
         case .inbox, .unread, .people, .groups, .lowPriority: .inbox
         case .archived: .archived
+        case .snoozed: .snoozed
         }
     }
 
@@ -40,6 +43,7 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
         case .groups: "Groups"
         case .lowPriority: "Low Priority"
         case .archived: "Archived"
+        case .snoozed: "Snoozed"
         }
     }
 
@@ -51,6 +55,7 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
         case .groups: "person.3"
         case .lowPriority: "arrow.down.to.line"
         case .archived: "archivebox"
+        case .snoozed: "moon.zzz"
         }
     }
 }

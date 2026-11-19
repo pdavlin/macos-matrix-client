@@ -4,8 +4,10 @@ import Models
 import SwiftUI
 import UI
 
-// MATRIX-206: the app-side glue for Archive. The rules are in
-// `Models/InboxState.swift`, the storage in `Core/InboxStateModel.swift`.
+// MATRIX-206, MATRIX-207: the app-side glue for Archive, Snooze, and Remind
+// Me Later. The rules are in `Models/InboxState.swift` and
+// `Models/InboxState+Snooze.swift`, the storage and the timer in
+// `Core/InboxStateModel.swift` and `Core/InboxStateModel+Due.swift`.
 
 /// The inbox actions every entry point shares: the row menus, ⌘K, and the
 /// File menu.
@@ -54,6 +56,46 @@ enum SidebarInbox {
         client?.inbox?.unarchive(roomIds: roomIds)
     }
 
+    /// Snoozes the chat until `until` and shows the note with Undo.
+    static func snooze(roomIds: [String], until: Date, name: String, client: MatrixClient?, windowState: WindowState) {
+        guard let inbox = client?.inbox, inbox.isEditable, !roomIds.isEmpty else { return }
+        let previous = inbox.states(of: roomIds)
+        Task {
+            await inbox.snooze(roomIds: roomIds, until: until)
+            windowState.inboxNotice = .snoozed(name, until: InboxTimeText.when(until, now: .now), undoStates: previous)
+        }
+    }
+
+    /// Sets a reminder on the chat and shows the note with Undo.
+    static func remind(roomIds: [String], at remindAt: Date, name: String, client: MatrixClient?, windowState: WindowState) {
+        guard let inbox = client?.inbox, inbox.isEditable, !roomIds.isEmpty else { return }
+        let previous = inbox.states(of: roomIds)
+        Task {
+            await inbox.remind(roomIds: roomIds, at: remindAt)
+            windowState.inboxNotice = .reminderSet(name, at: InboxTimeText.when(remindAt, now: .now), undoStates: previous)
+        }
+    }
+
+    /// Runs an item of the chat's inbox menu.
+    static func perform(_ action: InboxMenuAction, roomIds: [String], name: String, client: MatrixClient?, windowState: WindowState) {
+        switch action {
+        case .archive:
+            archive(roomIds: roomIds, name: name, client: client, windowState: windowState)
+        case .unarchive:
+            unarchive(roomIds: roomIds, client: client)
+        case let .snooze(until):
+            snooze(roomIds: roomIds, until: until, name: name, client: client, windowState: windowState)
+        case .unsnooze:
+            client?.inbox?.unsnooze(roomIds: roomIds)
+        case let .remind(at):
+            remind(roomIds: roomIds, at: at, name: name, client: client, windowState: windowState)
+        case .cancelReminder:
+            client?.inbox?.cancelReminder(roomIds: roomIds)
+        case let .pickDate(kind):
+            windowState.inboxDatePicker = InboxDatePickerRequest(kind: kind, roomIds: roomIds, chatName: name)
+        }
+    }
+
     /// Archives an Inbox chat, or moves an archived chat back.
     static func toggleArchive(roomIds: [String], name: String, client: MatrixClient?, windowState: WindowState) {
         if placement(of: roomIds, client: client) == .archived {
@@ -76,8 +118,9 @@ enum SidebarInbox {
     }
 }
 
-/// The Archive and Unarchive items of a chat's context menu.
-struct ArchiveMenuItems: View {
+/// The inbox items of a chat's context menu: Archive, Snooze, and Remind
+/// Me Later.
+struct InboxMenuItems: View {
     @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
 
@@ -86,21 +129,32 @@ struct ArchiveMenuItems: View {
 
     var body: some View {
         let client = appState.matrixClient
-        let isEditable = client?.inbox?.isEditable ?? false
-        if SidebarInbox.placement(of: roomIds, client: client) == .archived {
-            Button {
-                SidebarInbox.unarchive(roomIds: roomIds, client: client)
-            } label: {
-                Label("Unarchive", systemImage: "tray.and.arrow.up")
-            }
-            .disabled(!isEditable)
-        } else {
-            Button {
-                SidebarInbox.archive(roomIds: roomIds, name: name, client: client, windowState: windowState)
-            } label: {
-                Label("Archive", systemImage: "archivebox")
-            }
-            .disabled(!isEditable)
+        InboxMenuContent(
+            placement: SidebarInbox.placement(of: roomIds, client: client),
+            remindAt: roomIds.first.flatMap { client?.inbox?.remindAt(of: $0) },
+            isEditable: client?.inbox?.isEditable ?? false
+        ) { action in
+            SidebarInbox.perform(action, roomIds: roomIds, name: name, client: client, windowState: windowState)
+        }
+    }
+}
+
+/// The sheet behind "Pick a Date and Time…" (MATRIX-207).
+struct InboxDatePickerHost: View {
+    @Environment(AppState.self) private var appState
+    @Environment(WindowState.self) private var windowState
+
+    let request: InboxDatePickerRequest
+
+    var body: some View {
+        let client = appState.matrixClient
+        InboxDatePickerSheet(
+            kind: request.kind,
+            chatName: request.chatName,
+            initial: InboxTimeChoice.tomorrow.date(now: .now) ?? .now.addingTimeInterval(3600)
+        ) { date in
+            let action: InboxMenuAction = request.kind == .snooze ? .snooze(until: date) : .remind(at: date)
+            SidebarInbox.perform(action, roomIds: request.roomIds, name: request.chatName, client: client, windowState: windowState)
         }
     }
 }

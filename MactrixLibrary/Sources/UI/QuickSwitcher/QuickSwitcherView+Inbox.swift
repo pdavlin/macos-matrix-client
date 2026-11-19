@@ -1,40 +1,40 @@
 import Models
 import SwiftUI
 
-// MATRIX-206: Archive and Unarchive in ⌘K.
+// MATRIX-206, MATRIX-207: Archive, Snooze, and Remind Me Later in ⌘K.
 
-/// The inbox actions ⌘K offers on a room row (MATRIX-206): a context menu,
-/// and ⌘E on the highlighted row.
+/// The inbox actions ⌘K offers on a room row: the context menu of the row
+/// menus (`InboxMenuContent`), and ⌘E on the highlighted row.
 public struct QuickSwitcherInboxActions {
     /// The list a room's chat shows in.
     let placement: @MainActor (_ roomId: String) -> InboxPlacement
-    /// Archives (true) or unarchives (false) a room's chat.
-    let setArchived: @MainActor (_ roomId: String, _ archived: Bool) -> Void
+    /// The reminder of a room's chat, if it has one.
+    let remindAt: @MainActor (_ roomId: String) -> Date?
+    /// Runs a menu item for a room's chat.
+    let perform: @MainActor (_ roomId: String, _ action: InboxMenuAction) -> Void
 
     public init(
         placement: @escaping @MainActor (_ roomId: String) -> InboxPlacement,
-        setArchived: @escaping @MainActor (_ roomId: String, _ archived: Bool) -> Void
+        remindAt: @escaping @MainActor (_ roomId: String) -> Date?,
+        perform: @escaping @MainActor (_ roomId: String, _ action: InboxMenuAction) -> Void
     ) {
         self.placement = placement
-        self.setArchived = setArchived
+        self.remindAt = remindAt
+        self.perform = perform
     }
 }
 
 extension QuickSwitcherView {
-    /// Archive or Unarchive for a room row (MATRIX-206). The sheet closes
-    /// after the action, and the window shows the note with Undo.
-    @ViewBuilder
+    /// The inbox items for a room row. The sheet closes after an item, and
+    /// the window shows the note with Undo.
     func inboxMenu(roomId: String, inbox: QuickSwitcherInboxActions) -> some View {
-        if inbox.placement(roomId) == .archived {
-            Button("Unarchive") {
-                inbox.setArchived(roomId, false)
-                close()
-            }
-        } else {
-            Button("Archive") {
-                inbox.setArchived(roomId, true)
-                close()
-            }
+        InboxMenuContent(
+            placement: inbox.placement(roomId),
+            remindAt: inbox.remindAt(roomId),
+            isEditable: true
+        ) { action in
+            inbox.perform(roomId, action)
+            close()
         }
     }
 
@@ -46,7 +46,7 @@ extension QuickSwitcherView {
         guard let id = effectiveHighlightId(in: results),
               case let .room(room) = results.first(where: { $0.id == id })
         else { return }
-        inbox.setArchived(room.id, inbox.placement(room.id) != .archived)
+        inbox.perform(room.id, inbox.placement(room.id) == .archived ? .unarchive : .archive)
         close()
     }
 }

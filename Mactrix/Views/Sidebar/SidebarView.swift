@@ -54,17 +54,25 @@ struct SidebarView: View {
         let chatRooms = (client?.rooms ?? []).filter { !$0.room.isSpace() }
         let labels = client?.labels?.document ?? ChatLabelDocument()
         let accounts = client?.roomAccounts
+        let merges = client?.mergedChats?.document ?? MergedChatDocument()
+        let inbox = client?.inbox?.document ?? InboxStateDocument()
+        let placement = windowState.chatListFilter.inboxPlacement
         let visible = ChatListMerging.visible(
             entries: chatListEntries(client: client, rooms: chatRooms, now: now),
             filter: SidebarRail.filter(client: client, windowState: windowState),
             labels: labels,
             spaces: accounts?.spaceMap ?? RoomSpaceMap(),
-            document: client?.mergedChats?.document ?? MergedChatDocument(),
-            // MATRIX-206: archived chats show under the Archived filter only.
-            inbox: client?.inbox?.document ?? InboxStateDocument(),
-            placement: windowState.chatListFilter.inboxPlacement
+            document: merges,
+            // MATRIX-206, MATRIX-207: archived and snoozed chats show under
+            // their own list filter only.
+            inbox: inbox,
+            placement: placement
         )
-        return SidebarChatList(visible: visible, rooms: chatRooms)
+        guard placement == .snoozed else {
+            return SidebarChatList(visible: visible, rooms: chatRooms)
+        }
+        // MATRIX-207: each row says when its snooze ends.
+        return SidebarChatList(visible: visible.withSnoozeNotes(inbox: inbox, merges: merges, now: now), rooms: chatRooms)
     }
 
     /// The chat-list entries of the sidebar's chat rooms, in SDK order. The
@@ -159,6 +167,9 @@ struct SidebarView: View {
         }
         .sheet(item: $windowState.broadcast) { request in
             BroadcastHost(request: request)
+        }
+        .sheet(item: $windowState.inboxDatePicker) { request in
+            InboxDatePickerHost(request: request)
         }
     }
 

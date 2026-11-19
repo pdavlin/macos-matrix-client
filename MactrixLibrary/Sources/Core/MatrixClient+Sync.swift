@@ -148,6 +148,7 @@ public extension MatrixClient {
         notificationClient = nil
         labels = nil
         mergedChats = nil
+        inbox?.stopDueTimer()
         inbox = nil
         bookmarks = nil
 

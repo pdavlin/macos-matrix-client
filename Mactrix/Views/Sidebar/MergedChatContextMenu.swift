@@ -90,7 +90,8 @@ struct MergedChatContextMenu: View {
             }
         }
 
-        // MATRIX-206: the merged chat archives as one chat.
-        ArchiveMenuItems(roomIds: memberRoomIds, name: merged.merge.name)
+        // MATRIX-206, MATRIX-207: the merged chat archives, snoozes, and
+        // reminds as one chat.
+        InboxMenuItems(roomIds: memberRoomIds, name: merged.merge.name)
     }
 }

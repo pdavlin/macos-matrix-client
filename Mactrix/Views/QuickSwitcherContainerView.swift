@@ -124,9 +124,17 @@ struct QuickSwitcherContainerView: View {
                     peerUserId: nil,
                     roomName: nil
                 ).detail
-            } else if case .navigate = purpose, matrixClient.inbox?.placement(of: room.id) == .archived {
-                // MATRIX-206: ⌘K lists archived chats too, marked.
-                room.detail = "Archived"
+            } else if case .navigate = purpose, let inbox = matrixClient.inbox {
+                // MATRIX-206, MATRIX-207: ⌘K lists archived and snoozed
+                // chats too, marked.
+                switch inbox.placement(of: room.id) {
+                case .archived:
+                    room.detail = "Archived"
+                case .snoozed:
+                    room.detail = inbox.snoozedUntil(of: room.id).map { InboxTimeText.snoozed(until: $0, now: .now) }
+                case .inbox:
+                    break
+                }
             }
             return room
         }
@@ -151,26 +159,28 @@ struct QuickSwitcherContainerView: View {
         }
     }
 
-    /// Archive and Unarchive on ⌘K's room rows (MATRIX-206). A room in a
-    /// merged chat archives the whole merged chat.
+    /// The inbox items on ⌘K's room rows (MATRIX-206, MATRIX-207). A room in
+    /// a merged chat acts for the whole merged chat.
     private func inboxActions(matrixClient: MatrixClient) -> UI.QuickSwitcherInboxActions? {
         guard matrixClient.inbox?.isEditable == true else { return nil }
         return UI.QuickSwitcherInboxActions(
             placement: { matrixClient.inbox?.placement(of: $0) ?? .inbox },
-            setArchived: { roomId, archived in
-                if archived {
-                    let selection = MergedChatSelection.selection(
-                        showing: roomId,
-                        document: matrixClient.mergedChats?.document ?? MergedChatDocument()
-                    )
-                    SidebarInbox.archive(
-                        roomIds: [roomId],
-                        name: SidebarInbox.name(of: selection, client: matrixClient),
-                        client: matrixClient,
-                        windowState: windowState
-                    )
-                } else {
-                    SidebarInbox.unarchive(roomIds: [roomId], client: matrixClient)
+            remindAt: { matrixClient.inbox?.remindAt(of: $0) },
+            perform: { roomId, action in
+                let selection = MergedChatSelection.selection(
+                    showing: roomId,
+                    document: matrixClient.mergedChats?.document ?? MergedChatDocument()
+                )
+                let name = SidebarInbox.name(of: selection, client: matrixClient)
+                guard case .pickDate = action else {
+                    SidebarInbox.perform(action, roomIds: [roomId], name: name, client: matrixClient, windowState: windowState)
+                    return
+                }
+                // The date picker is a sheet of the window: it opens once
+                // the switcher's sheet has gone.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    SidebarInbox.perform(action, roomIds: [roomId], name: name, client: matrixClient, windowState: windowState)
                 }
             }
         )

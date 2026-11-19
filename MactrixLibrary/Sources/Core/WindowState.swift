@@ -144,6 +144,10 @@ public final class WindowState {
     /// restored.
     public var inboxNotice: InboxNotice?
 
+    /// The date picker of "Pick a Date and Time…", if any (MATRIX-207). Not
+    /// restored.
+    public var inboxDatePicker: InboxDatePickerRequest?
+
     /// The one room a single-room window shows (MATRIX-116), or `nil` for a
     /// main window. A single-room window never shows another room, so the
     /// menu commands that change the selection skip it.
