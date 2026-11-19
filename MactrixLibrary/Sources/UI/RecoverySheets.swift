@@ -4,6 +4,7 @@
     import UIKit
 #endif
 import SwiftUI
+import Tokens
 
 extension EnvironmentValues {
     /// When true, busy-state views show a static, non-control substitute
@@ -49,7 +50,7 @@ public struct RecoveryKeyDisplaySheet: View {
             .fixedSize(horizontal: false, vertical: true)
 
             Text(recoveryKey)
-                .font(.system(.body, design: .monospaced))
+                .font(TypographyToken.codeFont)
                 .textSelection(.enabled)
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -123,7 +124,7 @@ public struct RecoveryKeyEntrySheet: View {
 
             TextField("Recovery key", text: $enteredKey, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(.body, design: .monospaced))
+                .font(TypographyToken.codeFont)
                 .keyEntryTextTraits()
                 .lineLimit(2 ... 4)
                 .disabled(isBusy)

@@ -183,10 +183,15 @@ private func buildHTML(_ body: String, baseFontSize: CGFloat) -> NSAttributedStr
                 foregroundColor: MarkupStyleColor(color: BlockQuoteToken.textColor)
             )
         )
+        // MATRIX-202: the installed code family. The parser applies bold and
+        // italic by family and traits, so they get the family's own faces.
         .add(
             CODE_HTMLTagName(),
             withCustomStyle: MarkupStyle(
-                font: MarkupStyleFont(size: baseFontSize * TypographyToken.bodyScale, familyName: .familyNames(["Menlo"]))
+                font: MarkupStyleFont(
+                    size: baseFontSize * TypographyToken.bodyScale,
+                    familyName: TypographyToken.installedCodeFontFamily.map { .familyNames([$0]) }
+                )
                 // backgroundColor: .init(color: NSColor(red: 0.8, green: 0.8, blue: 1, alpha: 0.5))
             )
         )

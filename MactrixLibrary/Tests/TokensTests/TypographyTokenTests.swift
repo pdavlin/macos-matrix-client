@@ -57,4 +57,41 @@ struct TypographyTokenTests {
     func typographyDefaultIsAvailableThroughTheEnvironment() {
         #expect(EnvironmentValues().timelineTypography == .default)
     }
+
+    // MARK: Code font (MATRIX-202)
+
+    @Test
+    func codeFontPrefersBerkeleyMonoThenMenlo() {
+        #expect(TypographyToken.codeFontFamilies == ["Berkeley Mono", "Menlo"])
+    }
+
+    @Test
+    func codeFontUsesBerkeleyMonoWhenItIsInstalled() {
+        #expect(TypographyToken.codeFontFamily(isInstalled: { _ in true }) == "Berkeley Mono")
+    }
+
+    @Test
+    func codeFontFallsBackToMenloWithoutBerkeleyMono() {
+        #expect(TypographyToken.codeFontFamily(isInstalled: { $0 == "Menlo" }) == "Menlo")
+    }
+
+    @Test
+    func codeFontIsNilWhenNoFamilyIsInstalled() {
+        #expect(TypographyToken.codeFontFamily(isInstalled: { _ in false }) == nil)
+    }
+
+    @Test
+    func installedCheckFindsMenloAndRejectsAnUnknownFamily() {
+        #expect(TypographyToken.isFontFamilyInstalled("Menlo"))
+        #expect(!TypographyToken.isFontFamilyInstalled("No Such Font Family MATRIX-202"))
+        // A PostScript name is not a family name.
+        #expect(!TypographyToken.isFontFamilyInstalled("Menlo-Regular"))
+    }
+
+    @Test
+    func installedCodeFontFamilyIsAnInstalledFamilyOfTheList() {
+        let family = TypographyToken.installedCodeFontFamily
+        #expect(family == TypographyToken.codeFontFamily())
+        #expect(family.map(TypographyToken.codeFontFamilies.contains) == true)
+    }
 }

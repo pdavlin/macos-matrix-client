@@ -1,3 +1,4 @@
+import CoreText
 import SwiftUI
 
 /// The typography scale the timeline consumes, driven by the user-tunable base size.
@@ -50,6 +51,58 @@ public enum TypographyToken {
     /// Caption/footnote size derived from the active base size.
     public static func footnote(relativeTo base: CGFloat) -> CGFloat {
         max(9, base - 3)
+    }
+
+    // MARK: Code font (MATRIX-202)
+
+    /// The font families of code text, most preferred first: inline code,
+    /// code blocks, and the recovery key. The first installed family wins.
+    ///
+    /// Berkeley Mono is a commercial font. The app never bundles it, so it
+    /// shows only on a device where the user installed it. Menlo ships with
+    /// macOS and iOS.
+    ///
+    /// Code uses the body size, with no scale: at the same point size, the
+    /// x-height of Berkeley Mono is 98% of the system font's (6.73 pt
+    /// against 6.84 pt at 13 pt), and Menlo's is 104%.
+    public static let codeFontFamilies = ["Berkeley Mono", "Menlo"]
+
+    /// The first family of `families` that `isInstalled` accepts, or nil if
+    /// it accepts none.
+    public static func codeFontFamily(
+        in families: [String] = codeFontFamilies,
+        isInstalled: (String) -> Bool = isFontFamilyInstalled
+    ) -> String? {
+        families.first(where: isInstalled)
+    }
+
+    /// The code font family of this process. It resolves once: a font that
+    /// the user installs while the app runs shows after a relaunch.
+    public static let installedCodeFontFamily: String? = codeFontFamily()
+
+    /// True if a font of the family `family` is installed.
+    public static func isFontFamilyInstalled(_ family: String) -> Bool {
+        let descriptor = CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: family] as CFDictionary)
+        let mandatory: Set<CFString> = [kCTFontFamilyNameAttribute]
+        return CTFontDescriptorCreateMatchingFontDescriptor(descriptor, mandatory as CFSet) != nil
+    }
+
+    /// The SwiftUI font of code text at the body text style: the installed
+    /// code family, else the system monospaced font.
+    public static var codeFont: Font {
+        guard let family = installedCodeFontFamily else {
+            return .system(.body, design: .monospaced)
+        }
+        return .custom(family, size: bodyTextStyleSize, relativeTo: .body)
+    }
+
+    /// The point size of the body text style at the default text size.
+    private static var bodyTextStyleSize: CGFloat {
+        #if os(macOS)
+            13
+        #else
+            17
+        #endif
     }
 }
 
