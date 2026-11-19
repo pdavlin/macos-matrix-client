@@ -8,7 +8,9 @@ import SwiftUI
 /// - Motion in the timeline never changes a row's height. Animate opacity,
 ///   color, a layer transform, or an overlay only (MATRIX-49 and 50).
 /// - Every animation goes through `animation(_:reduceMotion:)`, so Reduce
-///   Motion turns it into an instant change.
+///   Motion turns it into an instant change. The one exception is a count
+///   change (MATRIX-193): Reduce Motion turns its roll into a cross-fade,
+///   through `countTransition(value:reduceMotion:)`.
 public enum MotionToken {
     /// Hover color and opacity changes.
     public static let hoverDuration: Double = 0.08
@@ -42,6 +44,23 @@ public enum MotionToken {
 
     /// A short spring with a little overshoot, for pops.
     public static let pop: Animation = .spring(response: 0.3, dampingFraction: 0.62)
+
+    /// A count that changes (MATRIX-193): unread badges and reaction tallies.
+    /// The house curve at state speed, also under Reduce Motion, where the
+    /// content transition is a cross-fade in place of the roll.
+    public static let countChange: Animation = standard()
+
+    /// How a count's digits change (MATRIX-193). The digits roll up for a
+    /// larger value and down for a smaller one; Reduce Motion cross-fades
+    /// them in place.
+    ///
+    /// - Parameters:
+    ///   - value: the number the count shows. Give the capped value for a
+    ///     capped badge ("99+"), so a change past the cap does not roll.
+    ///   - reduceMotion: the Reduce Motion setting.
+    public static func countTransition(value: Double, reduceMotion: Bool) -> ContentTransition {
+        reduceMotion ? .opacity : .numericText(value: value)
+    }
 
     /// The animation to use, or nil when Reduce Motion is on.
     public static func animation(_ animation: Animation, reduceMotion: Bool) -> Animation? {

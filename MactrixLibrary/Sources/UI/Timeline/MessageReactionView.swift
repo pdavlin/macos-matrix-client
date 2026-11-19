@@ -96,7 +96,6 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
     let ownUserId: String
     let displayName: (String) -> String?
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.reactionEmojiName) private var customEmojiName
 
     /// - Parameters:
@@ -170,21 +169,26 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
             .padding(DensityToken.reactionPadding)
         })
         .toggleStyle(MessageReactionToggleStyle())
+        .rollingCountAnimation(Double(count))
     }
 
     /// The tally. It is semibold for the account's own reaction. A hidden
     /// semibold copy sets the width for both weights, so the chip's width
-    /// depends on the digits only, as `ReactionPillGeometry` assumes: a
+    /// depends on the digit count only, as `ReactionPillGeometry` assumes: a
     /// toggle never resizes the chip or the strip.
+    ///
+    /// MATRIX-193: the tally rolls to its new value. Both copies use tabular
+    /// digits, so 1 to 2 keeps the chip's width; when the tally gains a
+    /// digit, the animation on the chip eases the capsule to its new width.
     private var countLabel: some View {
         Text("\(count)")
             .fontWeight(.semibold)
+            .monospacedDigit()
             .hidden()
             .overlay {
                 Text("\(count)")
                     .fontWeight(active.wrappedValue ? .semibold : .regular)
-                    .contentTransition(.numericText(value: Double(count)))
-                    .animation(MotionToken.animation(MotionToken.standard(), reduceMotion: reduceMotion), value: count)
+                    .rollingCountText(Double(count))
             }
     }
 }

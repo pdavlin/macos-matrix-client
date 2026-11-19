@@ -253,8 +253,8 @@ struct ChatListUnreadIndicator: View {
         backgroundProminence == .increased
     }
 
-    private var countText: String {
-        unread.count > 99 ? "99+" : "\(unread.count)"
+    private var count: Int {
+        Int(clamping: unread.count)
     }
 
     private var capsuleFill: Color {
@@ -271,16 +271,17 @@ struct ChatListUnreadIndicator: View {
                     .font(.system(size: ChatListToken.mentionGlyphFontSize, weight: .bold))
                     .foregroundStyle(onAccent ? Color.white : Color.accentColor)
             }
-            if unread.count > 0 {
-                Text(countText)
+            if count > 0 {
+                Text(UnreadCountCap.text(count))
                     .font(.system(size: ChatListToken.unreadCountFontSize, weight: .bold))
-                    .monospacedDigit()
+                    .rollingCountText(UnreadCountCap.rollValue(count))
                     .foregroundStyle(.white)
                     .padding(.horizontal, ChatListToken.unreadCountHorizontalPadding)
                     .frame(minWidth: ChatListToken.unreadCountMinWidth, minHeight: ChatListToken.unreadCountMinWidth)
                     .background(Capsule().fill(capsuleFill))
             }
         }
+        .rollingCountAnimation(UnreadCountCap.rollValue(count))
         .accessibilityHidden(true)
     }
 }

@@ -95,11 +95,24 @@ public struct SpaceRailIcon: View {
     }
 }
 
-/// The unread mark on a rail item: Beeper's AccountBadge (MATRIX-77).
+/// The unread mark on a rail item: Beeper's AccountBadge (MATRIX-77). A
+/// count rolls to its new value (MATRIX-193).
 struct LabelBadgeView: View {
     let badge: ChatLabelBadge
 
+    /// The value the count rolls on; zero for a dot or no mark.
+    private var rollValue: Double {
+        if case let .count(count) = badge {
+            return UnreadCountCap.rollValue(count)
+        }
+        return 0
+    }
+
     var body: some View {
+        mark.rollingCountAnimation(rollValue)
+    }
+
+    @ViewBuilder private var mark: some View {
         switch badge {
         case .none:
             EmptyView()
@@ -108,9 +121,9 @@ struct LabelBadgeView: View {
                 .fill(Color.accentColor)
                 .frame(width: LabelToken.badgeDotSize, height: LabelToken.badgeDotSize)
         case let .count(count):
-            Text(count > 99 ? "99+" : "\(count)")
+            Text(UnreadCountCap.text(count))
                 .font(.system(size: LabelToken.badgeCountFontSize, weight: .bold))
-                .monospacedDigit()
+                .rollingCountText(UnreadCountCap.rollValue(count))
                 .foregroundStyle(.white)
                 .padding(.horizontal, LabelToken.badgeCountHorizontalPadding)
                 .frame(minWidth: LabelToken.badgeCountMinWidth, minHeight: LabelToken.badgeCountHeight)

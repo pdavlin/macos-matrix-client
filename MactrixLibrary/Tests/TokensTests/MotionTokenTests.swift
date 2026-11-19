@@ -18,4 +18,20 @@ struct MotionTokenTests {
         let animation = MotionToken.standard(duration: MotionToken.revealDuration)
         #expect(MotionToken.animation(animation, reduceMotion: false) == animation)
     }
+
+    /// MATRIX-193: a count rolls on its value, so the roll goes up for more
+    /// and down for fewer.
+    @Test
+    func countRollsOnItsValue() {
+        #expect(MotionToken.countTransition(value: 10, reduceMotion: false) == .numericText(value: 10))
+        #expect(MotionToken.countTransition(value: 10, reduceMotion: false) != .opacity)
+    }
+
+    /// MATRIX-193: Reduce Motion cross-fades the digits in place of the roll,
+    /// and the change still follows the house curve.
+    @Test
+    func reduceMotionCrossFadesTheCount() {
+        #expect(MotionToken.countTransition(value: 10, reduceMotion: true) == .opacity)
+        #expect(MotionToken.countChange == MotionToken.standard())
+    }
 }
