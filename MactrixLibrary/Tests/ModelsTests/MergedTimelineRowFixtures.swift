@@ -98,6 +98,7 @@ extension MergedTimelineRowFixtures {
                 case .readMarker: "read"
                 case .dateDivider: "day"
                 case let .mergedSource(label): "note:" + label.roomId
+                case let .threadReplies(count): "replies:\(count)"
                 }
             case .typingIndicator, .paginationActivity, .paginationFailure:
                 "decoration"

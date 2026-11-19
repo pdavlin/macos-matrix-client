@@ -18,9 +18,12 @@ struct TimelineViewRepresentable: NSViewControllerRepresentable {
     /// timeline: the scroll view's bottom content inset (MATRIX-198).
     private let bottomInset: CGFloat
 
-    /// One room's timeline.
+    /// One room's timeline, or a thread's: a thread timeline gets the
+    /// "N replies" divider after its root (MATRIX-183). The controller keeps
+    /// the source it was made with, so a new thread needs a new view
+    /// identity (`InspectorScreen` gives one per thread timeline).
     init(timeline: LiveTimeline, items: [TimelineItem], bottomInset: CGFloat = 0) {
-        self.source = timeline
+        self.source = timeline.focusedThreadId == nil ? timeline : ThreadTimelineRowSource(timeline: timeline)
         self.items = items
         self.rows = []
         self.bottomInset = bottomInset

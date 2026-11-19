@@ -46,11 +46,19 @@ public extension TimelineRow {
     /// content, so the container need not measure it. Nil for every row that
     /// must be measured.
     ///
-    /// Only the merged timeline's source note has one (MATRIX-142): its view
-    /// (`UI.MergedSourceNote`) is one truncating line in a fixed frame.
+    /// The merged timeline's source note has one (MATRIX-142): its view
+    /// (`UI.MergedSourceNote`) is one truncating line in a fixed frame. So
+    /// has a thread's "N replies" divider (MATRIX-183,
+    /// `UI.ThreadRepliesDividerRow`).
     var fixedHeight: CGFloat? {
-        guard case .virtual(_, .mergedSource) = self else { return nil }
-        return MergedSourceLabel.rowHeight
+        switch self {
+        case .virtual(_, .mergedSource):
+            return MergedSourceLabel.rowHeight
+        case .virtual(_, .threadReplies):
+            return ThreadRepliesDivider.rowHeight
+        default:
+            return nil
+        }
     }
 }
 

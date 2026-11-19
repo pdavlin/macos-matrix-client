@@ -92,10 +92,10 @@ public final class LiveTimeline {
 
     public private(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
 
-    /// The reply count of a thread timeline (MATRIX-183), or nil for a room
-    /// timeline and for a thread with no event loaded yet. The thread panel
-    /// header shows it. See `refreshThreadFacts()`.
-    public internal(set) var threadReplyCount: Int?
+    /// What the thread panel shows of a thread timeline (MATRIX-183): the
+    /// reply count and the root's row. Empty for a room timeline. See
+    /// `refreshThreadFacts()`.
+    public internal(set) var threadFacts = ThreadTimelineFacts()
 
     public private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false

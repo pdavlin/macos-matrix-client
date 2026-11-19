@@ -22,4 +22,10 @@ public enum VirtualTimelineItem {
      * Its row height is fixed (`MergedSourceLabel.rowHeight`).
      */
     case mergedSource(MergedSourceLabel)
+    /**
+     * The "N replies" divider of a thread timeline (MATRIX-183), right after
+     * the thread root. The app makes it; no SDK item stands behind it. Its
+     * row height is fixed (`ThreadRepliesDivider.rowHeight`).
+     */
+    case threadReplies(count: Int)
 }

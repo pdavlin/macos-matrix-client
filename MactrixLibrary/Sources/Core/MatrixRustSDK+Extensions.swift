@@ -628,6 +628,22 @@ extension MatrixRustSDK.ThreadSummary: Models.ThreadSummary {
     public var description: String? {
         latestEvent().message
     }
+
+    /// The sender of the latest reply (MATRIX-183). The SDK summary gives
+    /// the reply count and the latest event only, with no list of
+    /// participants, so the chip shows this one person. No other repliers
+    /// are derived from the thread's events (hard rule 1).
+    public var repliers: [Models.ThreadReplier] {
+        guard case let .ready(content: _, sender: sender, senderProfile: profile, timestamp: _, eventOrTransactionId: _) = latestEvent()
+        else { return [] }
+        var displayName: String?
+        var avatarUrl: String?
+        if case let .ready(displayName: name, displayNameAmbiguous: _, avatarUrl: url) = profile {
+            displayName = name
+            avatarUrl = url
+        }
+        return [Models.ThreadReplier(userId: sender, displayName: displayName, avatarUrl: avatarUrl)]
+    }
 }
 
 extension MatrixRustSDK.SpaceRoom: @retroactive Identifiable {

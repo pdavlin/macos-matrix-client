@@ -153,6 +153,8 @@ public extension VirtualTimelineItem {
             return "timelineStart"
         case .mergedSource:
             return "mergedSource"
+        case .threadReplies:
+            return "threadReplies"
         }
     }
 }

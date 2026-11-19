@@ -282,7 +282,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
                 // MATRIX-183: the panel's root shows no chip, because the
                 // chip would point at the panel it is in.
                 if let threadSummary = msg.threadSummary, !isThreadPanelRoot {
-                    MessageThreadSummary(summary: threadSummary) {
+                    MessageThreadSummary(summary: threadSummary, imageLoader: appState.matrixClient) {
                         windowState.focusThread(rootEventId: event.eventOrTransactionId.id)
                     }
                 }
