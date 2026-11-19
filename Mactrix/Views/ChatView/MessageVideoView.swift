@@ -3,7 +3,6 @@ import Core
 import MatrixRustSDK
 import Models
 import OSLog
-import QuickLook
 import SwiftUI
 import Tokens
 import UI
@@ -16,7 +15,6 @@ struct MessageVideoView: View {
     let rowActions: MessageActionTarget
 
     @State private var media = MediaFileController()
-    @State private var quickLookUrl: URL?
     @State private var video: AVPlayer?
 
     var aspectRatio: CGFloat? {
@@ -28,8 +26,12 @@ struct MessageVideoView: View {
     }
 
     func presentQuickLook() async {
-        guard let url = await localFile() else { return }
-        quickLookUrl = url
+        await media.quickLook(
+            client: appState.matrixClient?.client,
+            source: content.source,
+            filename: content.filename,
+            mimeType: content.info?.mimetype
+        )
     }
 
     func playInline() async {
@@ -120,7 +122,6 @@ struct MessageVideoView: View {
                 MediaErrorLabel(message: mediaError)
             }
         }
-        .quickLookPreview($quickLookUrl)
         .aspectRatio(aspectRatio, contentMode: .fit)
         .frame(maxHeight: maxHeight)
         .frame(minHeight: content.info?.thumbnailSource == nil ? maxHeight : nil)

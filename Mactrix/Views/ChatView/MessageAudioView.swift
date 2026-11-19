@@ -2,7 +2,6 @@ import Core
 import MatrixRustSDK
 import Models
 import OSLog
-import QuickLook
 import SwiftUI
 import UI
 import UniformTypeIdentifiers
@@ -17,7 +16,6 @@ struct MessageAudioView: View {
     let rowActions: MessageActionTarget
 
     @State private var media = MediaFileController()
-    @State private var quickLookUrl: URL?
 
     var contentType: UTType? {
         return content.info?.mimetype.flatMap { UTType(mimeType: $0) }
@@ -35,13 +33,12 @@ struct MessageAudioView: View {
     }
 
     func presentQuickLook() async {
-        guard let url = await media.localFile(
+        await media.quickLook(
             client: appState.matrixClient?.client,
             source: content.source,
             filename: content.filename,
             mimeType: content.info?.mimetype
-        ) else { return }
-        quickLookUrl = url
+        )
     }
 
     func saveToDownloads() async {
@@ -93,6 +90,5 @@ struct MessageAudioView: View {
                 MediaErrorLabel(message: mediaError)
             }
         }
-        .quickLookPreview($quickLookUrl)
     }
 }

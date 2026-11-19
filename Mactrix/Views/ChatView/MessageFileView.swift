@@ -2,7 +2,6 @@ import Core
 import MatrixRustSDK
 import Models
 import OSLog
-import QuickLook
 import SwiftUI
 import UI
 import UniformTypeIdentifiers
@@ -16,7 +15,6 @@ struct MessageFileView: View {
 
     @State private var icon: Image?
     @State private var media = MediaFileController()
-    @State private var quickLookUrl: URL?
 
     var contentType: UTType? {
         return content.info?.mimetype.flatMap { UTType(mimeType: $0) }
@@ -27,7 +25,7 @@ struct MessageFileView: View {
     }
 
     func presentQuickLook() async {
-        guard let url = await media.localFile(
+        guard let url = await media.quickLook(
             client: appState.matrixClient?.client,
             source: content.source,
             filename: content.filename,
@@ -37,7 +35,6 @@ struct MessageFileView: View {
         // The downloaded file yields a richer icon (previews, correct type
         // even when the event carried no usable mimetype).
         icon = Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-        quickLookUrl = url
     }
 
     func saveToDownloads() async {
@@ -89,7 +86,6 @@ struct MessageFileView: View {
                 MediaErrorLabel(message: mediaError)
             }
         }
-        .quickLookPreview($quickLookUrl)
         .onChange(of: content.info?.mimetype, initial: true) { _, _ in
             let nsImage = NSWorkspace.shared.icon(for: contentType ?? .item)
             icon = Image(nsImage: nsImage)

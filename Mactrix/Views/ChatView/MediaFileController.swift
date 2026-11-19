@@ -2,6 +2,7 @@ import AppKit
 import MatrixRustSDK
 import OSLog
 import SwiftUI
+import UI
 import Utils
 
 /// Downloads a timeline media item to a local file through the SDK and backs
@@ -9,7 +10,8 @@ import Utils
 ///
 /// The SDK's `MediaFileHandle` owns the temp file on disk — the file is
 /// deleted when the handle drops — so the controller keeps the handle alive
-/// for as long as the owning row's state lives.
+/// for as long as the owning row's state lives. Quick Look holds the handle
+/// too while its panel shows the file (MATRIX-199).
 @MainActor
 @Observable
 final class MediaFileController {
@@ -18,6 +20,9 @@ final class MediaFileController {
 
     private var fileHandle: MediaFileHandle?
     private var localUrl: URL?
+    /// The media the local file is for. The table reuses a row's view, and
+    /// with it this controller, for another message of the same kind.
+    private var localSourceUrl: String?
 
     /// The local file for the media, downloading it through the SDK on the
     /// first call. Returns nil (and sets `errorMessage`) on failure.
@@ -27,7 +32,7 @@ final class MediaFileController {
         filename: String,
         mimeType: String?
     ) async -> URL? {
-        if let localUrl {
+        if let localUrl, localSourceUrl == source.url() {
             return localUrl
         }
         guard let client else {
@@ -48,9 +53,10 @@ final class MediaFileController {
                 useCache: true,
                 tempDir: NSTemporaryDirectory()
             )
-            fileHandle = handle
             let url = try URL(filePath: handle.path(), directoryHint: .notDirectory)
+            fileHandle = handle
             localUrl = url
+            localSourceUrl = source.url()
             Logger.viewCycle.debug("downloaded media file \(url.absoluteString)")
             return url
         } catch {
@@ -58,6 +64,30 @@ final class MediaFileController {
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    /// Shows the media in the Quick Look panel, downloading it first when
+    /// the local file is not there yet. Returns the local file, or nil on
+    /// failure.
+    ///
+    /// The app-wide presenter, not the row, owns the preview (MATRIX-199): it
+    /// takes the panel from the composer and holds the file handle, so the
+    /// preview outlives a row the table rebuilds.
+    @discardableResult
+    func quickLook(
+        client: ClientProtocol?,
+        source: MediaSource,
+        filename: String,
+        mimeType: String?
+    ) async -> URL? {
+        // The window of the click. The download can take long enough for
+        // the user to move to another window.
+        let window = NSApp.keyWindow
+        guard let url = await localFile(
+            client: client, source: source, filename: filename, mimeType: mimeType
+        ), let fileHandle else { return nil }
+        QuickLookPresenter.shared.present(url: url, keepAlive: fileHandle, in: window)
+        return url
     }
 
     /// Copies the media into the user's Downloads folder under a

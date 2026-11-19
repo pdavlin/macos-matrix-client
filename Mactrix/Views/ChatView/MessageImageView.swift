@@ -2,7 +2,6 @@ import Core
 import MatrixRustSDK
 import Models
 import OSLog
-import QuickLook
 import SwiftUI
 import Tokens
 import UI
@@ -20,7 +19,6 @@ struct MessageImageView: View {
     @State private var image: Image?
     @State private var errorMessage: String?
     @State private var media = MediaFileController()
-    @State private var quickLookUrl: URL?
 
     init(content: ImageMessageContent, rowActions: MessageActionTarget) {
         self.content = content
@@ -109,7 +107,6 @@ struct MessageImageView: View {
                 }
             }
         }
-        .quickLookPreview($quickLookUrl)
         .frame(maxHeight: maxHeight)
         .aspectRatio(aspectRatio, contentMode: .fit)
         .task(id: content.source.url(), priority: .utility) {
@@ -145,13 +142,12 @@ struct MessageImageView: View {
     }
 
     func presentQuickLook() async {
-        guard let url = await media.localFile(
+        await media.quickLook(
             client: appState.matrixClient?.client,
             source: content.source,
             filename: content.filename,
             mimeType: content.info?.mimetype
-        ) else { return }
-        quickLookUrl = url
+        )
     }
 
     func saveToDownloads() async {
