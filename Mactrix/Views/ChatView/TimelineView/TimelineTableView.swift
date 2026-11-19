@@ -208,11 +208,8 @@ class TimelineViewController: NSViewController {
         tableView.delegate = self
         installMessageSelection()
 
-        tableView.onLiveResizeEnd = { [weak self] in
-            guard let self else { return }
-            Logger.timelineTableView.debug("live resize ended: re-measuring all rows at the final width")
-            noteAllRowHeightsChanged()
-        }
+        tableView.onLiveResizeStart = { [weak self] in self?.liveResizeDidStart() }
+        tableView.onLiveResizeEnd = { [weak self] in self?.liveResizeDidEnd() }
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
@@ -274,9 +271,11 @@ class TimelineViewController: NSViewController {
 
     var heightRenoteScheduled = false
     /// Identifies the pending re-note, so a later width change retires it.
-    private var heightRenoteGeneration = 0
+    var heightRenoteGeneration = 0
 
     @objc func handleTableResize(_: Notification) {
+        // MATRIX-197: every frame of a live resize, height-only ones too.
+        holdLiveResizeAnchor()
         // Heights are cached against the column width, so that is the width a
         // re-measure must react to. The table frame can move without it.
         let width = tableView.tableColumns.first?.width
@@ -306,19 +305,20 @@ class TimelineViewController: NSViewController {
     /// re-note after the pass completes, breaking the re-entrancy.
     ///
     /// A live resize keeps the next-cycle timing: the drag must stay responsive,
-    /// and it re-measures the visible rows only.
+    /// and it re-measures the visible rows and a margin, then holds the anchor.
     private func scheduleHeightRenote() {
         heightRenoteScheduled = true
         heightRenoteGeneration &+= 1
         let generation = heightRenoteGeneration
-        let delay = tableView.inLiveResize ? 0 : Self.heightRenoteSettleDelay
+        let delay = isLiveResizing ? 0 : Self.heightRenoteSettleDelay
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, generation == heightRenoteGeneration else { return }
             heightRenoteScheduled = false
-            if tableView.inLiveResize {
+            if isLiveResizing {
                 // During a live resize, re-measure only the visible rows for
                 // responsiveness; `onLiveResizeEnd` settles the rest once.
                 noteVisibleRowHeightsChanged()
+                holdLiveResizeAnchor()
             } else {
                 noteAllRowHeightsChanged()
             }
@@ -402,6 +402,8 @@ class TimelineViewController: NSViewController {
     /// True while a compensation is writing the bounds origin.
     var isAdjustingScrollAnchor = false
     var scrollReportScheduled = false
+    /// What a running live resize holds still (MATRIX-197); nil outside one.
+    var liveResizeHold: LiveResizeHold?
 
     /// A focus request whose row has not arrived yet.
     ///

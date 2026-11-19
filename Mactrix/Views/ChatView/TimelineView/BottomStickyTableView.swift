@@ -16,6 +16,10 @@ protocol TimelineMessageSelectionCommands: AnyObject {
 /// Moved out of `TimelineTableView.swift` by MATRIX-113, which added the
 /// message-selection commands below.
 class BottomStickyTableView: NSTableView {
+    /// Called once when a window live resize starts, so the controller can
+    /// record the row it holds still through the resize (MATRIX-197).
+    var onLiveResizeStart: (() -> Void)?
+
     /// Called once when a window live resize finishes, so the controller can
     /// settle heights for rows that were offscreen during the resize.
     var onLiveResizeEnd: (() -> Void)?
@@ -35,6 +39,11 @@ class BottomStickyTableView: NSTableView {
     // By returning false, the table starts drawing from the bottom up
     override var isFlipped: Bool {
         return false
+    }
+
+    override func viewWillStartLiveResize() {
+        super.viewWillStartLiveResize()
+        onLiveResizeStart?()
     }
 
     override func viewDidEndLiveResize() {

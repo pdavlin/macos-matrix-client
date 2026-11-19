@@ -101,9 +101,15 @@ extension TimelineViewController {
                     tableView.noteHeightOfRows(withIndexesChanged: regroupedRows)
                 }
 
-                guard let anchor else { return }
-                tableView.tile()
-                restoreScrollAnchor(anchor)
+                if let anchor {
+                    tableView.tile()
+                    restoreScrollAnchor(anchor)
+                } else if case .row = liveResizeHold {
+                    // MATRIX-197: a batch during a live resize keeps the
+                    // resize's anchor row in place.
+                    tableView.tile()
+                    holdLiveResizeAnchor()
+                }
             }
             applyMs = TimelineStormProfiler.elapsedMilliseconds(since: applyStarted)
         }

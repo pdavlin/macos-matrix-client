@@ -12,15 +12,25 @@ import Utils
 /// trigger, and the measured-delta compensation that holds visible content
 /// still when a structural update changes the document around it (S-33).
 extension TimelineViewController {
-    /// Re-measures the rows the viewport shows. Internal, not private: the
-    /// width path that calls it lives in `TimelineTableView.swift`.
+    /// Re-measures the rows the viewport shows, plus half a viewport of rows
+    /// below it. Internal, not private: the width path that calls it lives in
+    /// `TimelineTableView.swift`.
+    ///
+    /// A live resize holds its anchor at the top (MATRIX-197), so when the
+    /// rows get shorter, rows come into view from below. The margin measures
+    /// them before they show, not one frame later.
     func noteVisibleRowHeightsChanged() {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
 
-            let visibleRows = tableView.rows(in: tableView.visibleRect)
-            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: visibleRows.lowerBound ..< visibleRows.upperBound))
+            // Unflipped: lower y is the newer end, which is below on screen.
+            var rect = tableView.visibleRect
+            let margin = rect.height / 2
+            rect.origin.y -= margin
+            rect.size.height += margin
+            let rows = tableView.rows(in: rect)
+            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: rows.lowerBound ..< rows.upperBound))
         }
     }
 
@@ -95,12 +105,36 @@ extension TimelineViewController {
         }
     }
 
-    /// The visible row a compensation holds still across a structural update.
+    /// The visible row a compensation holds still across a structural update
+    /// or a live resize.
     struct ScrollAnchor {
         /// Row identity, not index: a structural update renumbers rows.
         let rowId: String
         /// The row's distance from the document origin, before the update.
+        /// A structural update holds this one.
         let originBefore: CGFloat
+        /// The row's top edge below the top of the viewport, before the
+        /// update. A live resize holds this one (MATRIX-197): the viewport
+        /// height changes with the window and the row wraps again, so only
+        /// its top edge stays where the reader looks.
+        let distanceFromViewportTop: CGFloat
+    }
+
+    /// What a live resize holds still (MATRIX-197).
+    enum LiveResizeHold {
+        /// At the newest end. The unflipped geometry pins the bottom by
+        /// itself, through every width and height, so nothing moves.
+        case bottom
+        /// The top-most visible row, at its distance from the viewport top.
+        case row(ScrollAnchor)
+    }
+
+    /// True from `viewWillStartLiveResize` to `viewDidEndLiveResize`.
+    ///
+    /// `inLiveResize` is the window's state; the hold is the controller's own
+    /// record of the same span, which a hosted test can also drive.
+    var isLiveResizing: Bool {
+        liveResizeHold != nil || tableView.inLiveResize
     }
 
     /// Captures the top-most visible row and where it sits in the document.
@@ -118,8 +152,15 @@ extension TimelineViewController {
     ///   geometry until it has run; compensating against heights it is about to
     ///   replace would fight it.
     func currentScrollAnchor() -> ScrollAnchor? {
-        guard !heightRenoteScheduled, !tableView.inLiveResize else { return nil }
-        guard scrollView.contentView.bounds.origin.y > Self.bottomThreshold else { return nil }
+        guard !heightRenoteScheduled, !isLiveResizing else { return nil }
+        return topVisibleRowAnchor()
+    }
+
+    /// The top-most visible row and where it sits, or `nil` at the newest end
+    /// (or with no rows on screen).
+    private func topVisibleRowAnchor() -> ScrollAnchor? {
+        let clipView = scrollView.contentView
+        guard clipView.bounds.origin.y > Self.bottomThreshold else { return nil }
 
         let visibleRows = tableView.rows(in: tableView.visibleRect)
         guard visibleRows.length > 0 else { return nil }
@@ -127,9 +168,11 @@ extension TimelineViewController {
         let topRow = visibleRows.location + visibleRows.length - 1
         guard timelineRows.indices.contains(topRow) else { return nil }
 
+        let rowRect = tableView.rect(ofRow: topRow)
         return ScrollAnchor(
             rowId: timelineRows[topRow].uniqueId,
-            originBefore: tableView.rect(ofRow: topRow).minY
+            originBefore: rowRect.minY,
+            distanceFromViewportTop: clipView.bounds.maxY - rowRect.maxY
         )
     }
 
@@ -165,12 +208,69 @@ extension TimelineViewController {
             "scroll anchor: row moved \(originAfter - anchor.originBefore)pt, compensating viewport"
         )
 
+        moveViewport(toOriginY: originY)
+    }
+
+    /// Writes a compensating bounds origin. The move is not the user
+    /// scrolling, so `viewDidScroll` ignores it and the report waits for the
+    /// end of the pass.
+    private func moveViewport(toOriginY originY: CGFloat) {
+        let clipView = scrollView.contentView
         isAdjustingScrollAnchor = true
         clipView.setBoundsOrigin(NSPoint(x: clipView.bounds.origin.x, y: originY))
         scrollView.reflectScrolledClipView(clipView)
         isAdjustingScrollAnchor = false
 
         scheduleScrollReport()
+    }
+
+    // MARK: - Live resize (MATRIX-197)
+
+    /// Records what the resize holds still: the top-most visible row and its
+    /// distance from the viewport top, or the bottom pin at the newest end.
+    func liveResizeDidStart() {
+        liveResizeHold = topVisibleRowAnchor().map(LiveResizeHold.row) ?? .bottom
+    }
+
+    /// Re-measures every row at the final width once, then puts the anchor
+    /// row back in the same step, so the rows that were offscreen during the
+    /// drag do not move the content when they take their new heights.
+    func liveResizeDidEnd() {
+        Logger.timelineTableView.debug("live resize ended: re-measuring all rows at the final width")
+        cancelHeightRenote()
+        noteAllRowHeightsChanged()
+        holdLiveResizeAnchor()
+        liveResizeHold = nil
+    }
+
+    /// Retires a pending re-note. The end of a live resize re-measures every
+    /// row itself, so a re-note the last frame of the drag queued would only
+    /// repeat that work.
+    private func cancelHeightRenote() {
+        heightRenoteGeneration &+= 1
+        heightRenoteScheduled = false
+    }
+
+    /// Moves the viewport so the anchor row's top edge is back at its
+    /// distance from the viewport top. Absolute, not a delta, so it is safe
+    /// to call on every frame of the drag and again after each re-measure.
+    /// A no-op outside a live resize and for the bottom pin.
+    func holdLiveResizeAnchor() {
+        // The snapshot's identity lookup, not a scan of the rows: this runs
+        // on every frame of the drag.
+        guard case let .row(anchor) = liveResizeHold, let row = rowIndex(ofRowId: anchor.rowId) else { return }
+
+        let clipView = scrollView.contentView
+        let viewportHeight = clipView.bounds.height
+        let originY = ScrollAnchorMath.clamped(
+            tableView.rect(ofRow: row).maxY + anchor.distanceFromViewportTop - viewportHeight,
+            maximumOriginY: ScrollAnchorMath.maximumOriginY(
+                documentHeight: tableView.frame.height,
+                viewportHeight: viewportHeight
+            )
+        )
+        guard originY != clipView.bounds.origin.y else { return }
+        moveViewport(toOriginY: originY)
     }
 }
 
