@@ -79,7 +79,7 @@ extension MatrixRustSDK.TimelineEventContent {
                 return .unableToDecrypt
             case .callAnswer, .callInvite, .rtcNotification, .callHangup, .callCandidates, .keyVerificationReady,
                  .keyVerificationStart, .keyVerificationCancel, .keyVerificationAccept, .keyVerificationKey,
-                 .keyVerificationMac, .keyVerificationDone, .reactionContent, .roomRedaction:
+                 .keyVerificationMac, .keyVerificationDone, .reactionContent, .roomRedaction, .beacon:
                 return .other
             }
         case .state:

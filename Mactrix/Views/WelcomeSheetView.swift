@@ -110,7 +110,7 @@ struct WelcomeSheetView: View {
                     .disabled(loading)
                     .onSubmit { loadHomeserver() }
 
-                if homeserverLogin?.loginDetails.supportsOidcLogin() == true {
+                if homeserverLogin?.loginDetails.supportsOauthLogin() == true {
                     oidcLogin
                 }
 

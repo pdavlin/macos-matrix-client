@@ -75,7 +75,7 @@ public final class RecoveryProgress {
         do {
             let key = try await encryption.enableRecovery(
                 waitForBackupsToUpload: true,
-                passphrase: nil,
+                key: nil,
                 progressListener: listener
             )
             Logger.matrixClient.info("recovery enabled; key returned to the user once")

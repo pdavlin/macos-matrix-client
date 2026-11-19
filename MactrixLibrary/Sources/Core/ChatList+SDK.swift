@@ -62,7 +62,7 @@ extension MatrixRustSDK.ProfileDetails {
     /// The display name once the profile has loaded; nil while it is pending,
     /// unavailable, or failed, so the preview falls back to the localpart.
     var readyDisplayName: String? {
-        guard case let .ready(displayName: displayName, displayNameAmbiguous: _, avatarUrl: _) = self else {
+        guard case let .ready(displayName: displayName, displayNameAmbiguous: _, avatarUrl: _, status: _, call: _) = self else {
             return nil
         }
         return displayName
@@ -203,7 +203,8 @@ extension Models.ChatListFilter {
         case .inbox:
             [.nonLowPriority]
         case .unread:
-            [.nonLowPriority, .unread]
+            // SDK 26.11.11 renamed `.unread`; `.notifications` is its old rule.
+            [.nonLowPriority, .readReceipts(expect: .notifications)]
         case .people:
             [.nonLowPriority, .category(expect: .people)]
         case .groups:

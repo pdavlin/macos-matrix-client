@@ -21,10 +21,12 @@ public final class LiveSpaceRoomList {
         self.spaceRoomList = spaceRoomList
 
         listenToSpaceRoom()
-        listenToRooms()
         listenToPagination()
 
         Task {
+            // The rooms subscription is async since SDK 26.11.11. Load the
+            // first page after it, so no update of that page is lost.
+            await listenToRooms()
             await loadChildRooms()
         }
     }
@@ -45,9 +47,9 @@ public final class LiveSpaceRoomList {
         }
     }
 
-    fileprivate func listenToRooms() {
+    fileprivate func listenToRooms() async {
         let roomsListener = AsyncSDKListener<[SpaceListUpdate]>()
-        roomsHandle = spaceRoomList.subscribeToRoomUpdate(listener: roomsListener)
+        roomsHandle = await spaceRoomList.subscribeToRoomUpdate(listener: roomsListener)
 
         Task { [weak self] in
             for await roomUpdates in roomsListener {

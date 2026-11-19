@@ -33,7 +33,7 @@ extension MatrixRustSDK.MsgLikeContent {
             sendFailureMessage: event.sendFailureMessage,
             senderName: event.fingerprintSenderName,
             reactions: Models.ReactionStripGeometry(
-                reactions: reactions.lazy.map { (key: $0.key, senderCount: $0.senders.count) },
+                reactions: event.reactions.lazy.map { (key: $0.key, senderCount: $0.senders.count) },
                 // `readReceipts`, not the mapped `userReadReceipts`: the model
                 // property rebuilds the dictionary, and only emptiness is read.
                 hasReadReceipts: !event.readReceipts.isEmpty

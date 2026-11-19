@@ -24,7 +24,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ZhgChgLi/ZMarkupParser.git", from: "1.12.0"),
         // Same exact pin as Mactrix.xcodeproj. Bump both together, in an SDK story only.
-        .package(url: "https://github.com/matrix-org/matrix-rust-components-swift", exact: "26.04.01"),
+        .package(url: "https://github.com/matrix-org/matrix-rust-components-swift", exact: "26.11.11"),
         .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "1.1.2"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing.git", exact: "1.19.4"),
     ],

@@ -9,7 +9,7 @@ uninstall Beeper and Element Desktop.
 This is a hard fork of [Mactrix](https://github.com/viktorstrate/mactrix).
 It is a SwiftUI and AppKit shell over the
 [matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk) FFI bindings
-(`matrix-rust-components-swift`, pinned at 26.04.01). The SDK owns sync,
+(`matrix-rust-components-swift`, pinned at 26.11.11). The SDK owns sync,
 encryption, verification, and timeline state.
 
 ## Status

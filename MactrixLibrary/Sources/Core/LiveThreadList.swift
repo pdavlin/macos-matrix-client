@@ -173,7 +173,7 @@ extension ThreadListMessage {
     init(_ event: MatrixRustSDK.ThreadListItemEvent) {
         var displayName: String?
         var avatarUrl: String?
-        if case let .ready(displayName: name, displayNameAmbiguous: _, avatarUrl: url) = event.senderProfile {
+        if case let .ready(displayName: name, displayNameAmbiguous: _, avatarUrl: url, status: _, call: _) = event.senderProfile {
             displayName = name
             avatarUrl = url
         }

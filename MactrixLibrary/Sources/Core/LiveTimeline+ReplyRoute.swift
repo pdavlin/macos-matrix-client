@@ -4,7 +4,7 @@ import Models
 
 /// Applies `Models.ReplyRoute` to the SDK (MATRIX-169).
 ///
-/// The pinned SDK (26.04.01) has no reply parameters on the FFI: `Timeline`
+/// The pinned SDK (26.11.11) has no reply parameters on the FFI: `Timeline`
 /// has `send(msg:)` and `sendReply(msg:eventId:)` only. The SDK takes the
 /// relation from the focus of the timeline that sends:
 ///
@@ -47,7 +47,7 @@ public extension LiveTimeline {
         let route = target.map { replyRoute(to: $0) }
         guard let sendTimeline = try await sdkTimeline(for: route) else { return false }
         if let inReplyTo = route?.inReplyTo {
-            try await sendTimeline.sendReply(msg: msg, eventId: inReplyTo)
+            _ = try await sendTimeline.sendReply(msg: msg, eventId: inReplyTo)
         } else {
             _ = try await sendTimeline.send(msg: msg)
         }

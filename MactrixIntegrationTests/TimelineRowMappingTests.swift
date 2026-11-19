@@ -75,7 +75,7 @@ final class TimelineRowMappingTests: XCTestCase {
     func testNonMessageContentKindsMapToStateRows() {
         let contents: [MatrixRustSDK.TimelineItemContent] = [
             .callInvite,
-            .rtcNotification,
+            .rtcNotification(callIntent: nil, declinedBy: [], activeMembers: [], callStartTsMillis: nil, isJoined: false),
             .roomMembership(userId: "@bob:example.org", userDisplayName: "Bob", change: nil, reason: nil),
             .profileChange(displayName: "Bob", prevDisplayName: "Alice", avatarUrl: nil, prevAvatarUrl: nil),
             .state(stateKey: "m.room.name", content: .roomName(name: "Room")),
@@ -186,8 +186,13 @@ final class TimelineRowMappingTests: XCTestCase {
             isOwn: false,
             isEditable: false,
             content: content,
+            reactions: [],
+            eventTypeRaw: nil,
             timestamp: 1_700_000_000_000,
             localSendState: nil,
+            editSendState: nil,
+            redactionSendState: nil,
+            redactionReason: nil,
             localCreatedAt: nil,
             readReceipts: [:],
             origin: nil,
@@ -199,7 +204,6 @@ final class TimelineRowMappingTests: XCTestCase {
     private func makeMsgLikeContent() -> MatrixRustSDK.MsgLikeContent {
         MatrixRustSDK.MsgLikeContent(
             kind: .redacted,
-            reactions: [],
             inReplyTo: nil,
             threadRoot: nil,
             threadSummary: nil

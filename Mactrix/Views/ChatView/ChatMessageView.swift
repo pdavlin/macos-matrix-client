@@ -147,7 +147,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
         case let .unableToDecrypt(msg: encrypted):
             UI.UnableToDecryptView(cause: Models.UnableToDecryptCause(encrypted: encrypted))
         case let .other(eventType: eventType):
-            let eventText = eventType.description
+            let eventText = eventType.readableName
 
             Text("Custom event: \(eventText)").textSelection(.enabled)
         case .liveLocation(content: let content):
@@ -253,7 +253,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
         UI.MessageEventBodyView(
             event: event,
             focused: isEventFocused || isOpenThreadRoot,
-            reactions: msg.reactions,
+            reactions: event.reactions,
             actions: self,
             ownUserID: ownUserId,
             imageLoader: appState.matrixClient,

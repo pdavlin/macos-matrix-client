@@ -103,8 +103,13 @@ final class MediaUploadMappingTests: XCTestCase {
             isOwn: true,
             isEditable: false,
             content: .msgLike(content: makeMsgLikeContent()),
+            reactions: [],
+            eventTypeRaw: nil,
             timestamp: 1_700_000_000_000,
             localSendState: sendState,
+            editSendState: nil,
+            redactionSendState: nil,
+            redactionReason: nil,
             localCreatedAt: nil,
             readReceipts: [:],
             origin: nil,
@@ -118,7 +123,6 @@ final class MediaUploadMappingTests: XCTestCase {
     private func makeMsgLikeContent() -> MatrixRustSDK.MsgLikeContent {
         MatrixRustSDK.MsgLikeContent(
             kind: .redacted,
-            reactions: [],
             inReplyTo: nil,
             threadRoot: nil,
             threadSummary: nil

@@ -14,6 +14,8 @@ public struct UserSession: Codable {
     public let userID: String
     public let deviceID: String
     public let homeserverURL: String
+    /// The SDK `Session.oauthData` (named `oidcData` before 26.11.11). The
+    /// stored name stays, so a keychain item saved by an older build decodes.
     public let oidcData: String?
     public let storeID: String
     public let storePassphrase: String
@@ -24,7 +26,7 @@ public struct UserSession: Codable {
         userID = session.userId
         deviceID = session.deviceId
         homeserverURL = session.homeserverUrl
-        oidcData = session.oidcData
+        oidcData = session.oauthData
         self.storeID = storeID
         self.storePassphrase = storePassphrase
     }
@@ -35,7 +37,7 @@ public struct UserSession: Codable {
                 userId: userID,
                 deviceId: deviceID,
                 homeserverUrl: homeserverURL,
-                oidcData: oidcData,
+                oauthData: oidcData,
                 slidingSyncVersion: .native)
     }
 

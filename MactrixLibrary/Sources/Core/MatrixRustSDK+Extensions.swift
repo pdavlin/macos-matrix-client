@@ -175,7 +175,7 @@ public extension MatrixRustSDK.ProfileDetails {
             return .unavailable
         case .pending:
             return .pending
-        case let .ready(displayName, displayNameAmbiguous, avatarUrl):
+        case let .ready(displayName, displayNameAmbiguous, avatarUrl, _, _):
             return .ready(displayName: displayName, displayNameAmbiguous: displayNameAmbiguous, avatarUrl: avatarUrl)
         case let .error(message):
             return .error(message: message)
@@ -194,6 +194,10 @@ public extension MatrixRustSDK.QueueWedgeError {
             return "a previously verified user's identity changed"
         case .crossVerificationRequired:
             return "verify this session before sending"
+        case .expiredAccessToken:
+            // SDK 26.11.11: the send waits until the session has a working
+            // access token again.
+            return "the session's access token expired"
         case .missingMediaContent:
             return "the media to send is no longer cached"
         case let .invalidMimeType(mimeType: mimeType):
@@ -354,6 +358,10 @@ public extension Models.UnableToDecryptCause {
             self = .withheldBySender
         case .historicalMessageAndDeviceIsUnverified:
             self = .historicalMessageAndDeviceIsUnverified
+        case .malformed:
+            // SDK 26.11.11 added this case. The row has no reason text for
+            // it, so it shows as before: no cause assigned.
+            self = .unknown
         }
     }
 
@@ -466,15 +474,18 @@ extension MatrixRustSDK.MsgLikeKind: @retroactive CustomStringConvertible {
         case .unableToDecrypt:
             return "Unable to decrypt"
         case let .other(eventType: eventType):
-            return "Other: \(eventType)"
+            return "Other: \(eventType.readableName)"
         case let .liveLocation(content: content):
             return "Live location: \(content.description ?? "no description")"
         }
     }
 }
 
-extension MatrixRustSDK.MessageLikeEventType: @retroactive CustomStringConvertible {
-    public var description: String {
+/// A readable name of the event type. SDK 26.11.11 makes the type the ruma
+/// type, whose own `description` is the Matrix type string (`m.call.answer`),
+/// so the readable name has its own property.
+public extension MatrixRustSDK.MessageLikeEventType {
+    var readableName: String {
         switch self {
         case .callAnswer:
             "call answer"
@@ -522,8 +533,8 @@ extension MatrixRustSDK.MessageLikeEventType: @retroactive CustomStringConvertib
             "unstable poll response"
         case .unstablePollStart:
             "unstable poll start"
-        case let .other(other):
-            other
+        case .custom:
+            description
         case .audio:
             "audio"
         case .beacon:
@@ -569,8 +580,6 @@ extension MatrixRustSDK.OtherState: @retroactive CustomStringConvertible {
             return "changed policy rules for server"
         case .policyRuleUser:
             return "changed policy rule for user"
-        case .roomAliases:
-            return "changed room aliases"
         case .roomAvatar:
             return "changed room avatar"
         case .roomCanonicalAlias:
@@ -638,7 +647,7 @@ extension MatrixRustSDK.ThreadSummary: Models.ThreadSummary {
         else { return [] }
         var displayName: String?
         var avatarUrl: String?
-        if case let .ready(displayName: name, displayNameAmbiguous: _, avatarUrl: url) = profile {
+        if case let .ready(displayName: name, displayNameAmbiguous: _, avatarUrl: url, status: _, call: _) = profile {
             displayName = name
             avatarUrl = url
         }

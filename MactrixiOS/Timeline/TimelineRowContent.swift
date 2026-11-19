@@ -262,7 +262,7 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
             UI.MessageEventBodyView(
                 event: event,
                 focused: isFocused,
-                reactions: msgLike.reactions,
+                reactions: event.reactions,
                 actions: self,
                 ownUserID: context.ownUserId,
                 imageLoader: context.imageLoader,
@@ -307,7 +307,7 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
             case let .ready(content, sender, senderProfile, _, _):
                 UI.MessageReplyView(
                     username: {
-                        if case let .ready(name, _, _) = senderProfile, let name { return name }
+                        if case let .ready(name, _, _, _, _) = senderProfile, let name { return name }
                         return sender
                     }(),
                     message: content.description

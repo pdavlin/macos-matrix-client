@@ -28,7 +28,7 @@ struct LoginService {
             let login = try await MatrixClient.loginDetails(homeServer: homeserver)
             return LoginOptions(
                 supportsPassword: login.loginDetails.supportsPasswordLogin(),
-                supportsOidc: login.loginDetails.supportsOidcLogin(),
+                supportsOidc: login.loginDetails.supportsOauthLogin(),
                 signInWithPassword: { username, password in
                     let client = try await login.loginPassword(homeServer: homeserver, username: username, password: password)
                     await onSignedIn(client)

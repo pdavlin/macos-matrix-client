@@ -81,7 +81,9 @@ public extension MatrixClient {
             appDisplayName: PushGateway.appDisplayName,
             deviceDisplayName: deviceDisplayName,
             profileTag: nil,
-            lang: lang
+            lang: lang,
+            // false keeps the replace behavior above (SDK 26.11.11 added the flag).
+            append: false
         )
     }
 }

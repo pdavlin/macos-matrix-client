@@ -11,7 +11,7 @@ struct ThreadListMappingTests {
             eventId: id,
             timestamp: ms,
             sender: sender,
-            senderProfile: .ready(displayName: "Ana", displayNameAmbiguous: false, avatarUrl: "mxc://example.org/a"),
+            senderProfile: .ready(displayName: "Ana", displayNameAmbiguous: false, avatarUrl: "mxc://example.org/a", status: nil, call: nil),
             isOwn: false,
             content: nil
         )

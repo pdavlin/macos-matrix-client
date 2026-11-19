@@ -20,16 +20,20 @@ and return types before you write any code that calls the SDK.
 - `matrix_sdk.swift`
 - `matrix_sdk_base.swift`
 - `matrix_sdk_common.swift`
+- `matrix_sdk_contentscanner.swift`
 - `matrix_sdk_crypto.swift`
 - `matrix_sdk_ffi.swift`
+- `matrix_sdk_sqlite.swift`
 - `matrix_sdk_ui.swift`
+- `ruma_events.swift` (since 26.11.11: the ruma event type enums, such as
+  `MessageLikeEventType` and `StateEventType`)
 
 ## Pinned SDK version
 
 - Package: `matrix-rust-components-swift`
-- Version: `26.04.01`
-- Revision: `2916f3f9cc2aea86ba3a820cb6a8389e13e0284a`
-- Upstream `matrix-rust-sdk` commit: `388ced09a6b3f5e63521e0c8f7c2eec811ffd37a`
+- Version: `26.11.11` (MATRIX-211)
+- Revision: `a4aeb910aee9ea5130ae6cfa9b3cc6b4f912ec2e`
+- Upstream `matrix-rust-sdk` commit: `5e0a2b834cb81195fba12e8dec93ca9acf816ab1`
   on `main`
 
 This matches the pin recorded in

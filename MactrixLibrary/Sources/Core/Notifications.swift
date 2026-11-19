@@ -216,6 +216,9 @@ public extension MatrixNotifications {
                         return "Asked \(question)"
                     case .reactionContent:
                         return "Reaction content"
+                    case .beacon:
+                        // SDK 26.11.11 added this case (a live location update).
+                        return "Live location"
                     case .roomEncrypted:
                         return "Room encrypted"
                     case let .roomMessage(messageType, _):

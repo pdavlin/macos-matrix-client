@@ -31,7 +31,7 @@ struct MatrixClientSessionDelegateTests {
             userId: userId,
             deviceId: "DEVICE",
             homeserverUrl: "https://matrix.example.org",
-            oidcData: "{\"client_id\":\"abc\"}",
+            oauthData: "{\"client_id\":\"abc\"}",
             slidingSyncVersion: .native
         )
     }

@@ -5,9 +5,9 @@ usable slice at some future pinned version). Do not run these steps unless
 the prebuilt XCFramework from the pinned Swift package stops shipping a
 working `macos-arm64` slice.
 
-Current pin (set in S-02): `matrix-rust-components-swift` version `26.04.01`,
-which corresponds to `matrix-rust-sdk` commit
-`388ced09a6b3f5e63521e0c8f7c2eec811ffd37a` on `main`.
+Current pin (set in MATRIX-211): `matrix-rust-components-swift` version
+`26.11.11`, which corresponds to `matrix-rust-sdk` commit
+`5e0a2b834cb81195fba12e8dec93ca9acf816ab1` on `main`.
 
 ## What builds what
 
@@ -17,7 +17,7 @@ and running its Swift-bindings build task, then copying the generated
 XCFramework and Swift sources into the components repo. The build logic and
 tooling live in `matrix-rust-sdk`, at `bindings/apple/`.
 
-Reference: `matrix-rust-components-swift` at tag `26.04.01`, file
+Reference: `matrix-rust-components-swift` at tag `26.11.11`, file
 `Tools/Release/Sources/Release.swift` (the maintainers' own release script)
 runs, inside a checkout of `matrix-rust-sdk`:
 
@@ -33,7 +33,7 @@ pinned components-swift tag's bump commit message:
 ```
 git clone https://github.com/matrix-org/matrix-rust-sdk
 cd matrix-rust-sdk
-git checkout 388ced09a6b3f5e63521e0c8f7c2eec811ffd37a
+git checkout 5e0a2b834cb81195fba12e8dec93ca9acf816ab1
 ```
 
 Do not build from `main` of `matrix-rust-sdk` — that floats. Building from
