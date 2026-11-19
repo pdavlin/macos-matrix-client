@@ -176,12 +176,13 @@ extension MatrixClient: RoomListServiceStateListener {
             // MATRIX-171, MATRIX-186: an empty space graph counts only
             // after a sync (`running`).
             roomAccounts.note(roomListState: evidence)
-            // MATRIX-77, MATRIX-140: sync has caught up, so the labels and
-            // merged chats in the store are current.
+            // MATRIX-77, MATRIX-140, MATRIX-208: sync has caught up, so the
+            // labels, merged chats, and bookmarks in the store are current.
             if case .running = state {
                 await labels?.refresh()
                 await mergedChats?.refresh()
                 await inbox?.refresh()
+                await bookmarks?.refresh()
             }
         }
     }

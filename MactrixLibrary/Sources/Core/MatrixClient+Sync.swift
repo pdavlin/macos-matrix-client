@@ -60,6 +60,12 @@ public extension MatrixClient {
         }
         await mergedChats?.refresh()
 
+        // MATRIX-208: bookmarks are read the same way.
+        if bookmarks == nil {
+            bookmarks = BookmarksModel(client: client)
+        }
+        await bookmarks?.refresh()
+
         // MATRIX-144 hookup (MATRIX-141 Phase B): notifications and the Dock
         // badge read the merged chats live. The badge reads the observable
         // document inside Observation tracking, so a merge or an unmerge
@@ -143,6 +149,7 @@ public extension MatrixClient {
         labels = nil
         mergedChats = nil
         inbox = nil
+        bookmarks = nil
 
         try? await client.logout()
         client = nil

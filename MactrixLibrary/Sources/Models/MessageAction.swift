@@ -53,6 +53,11 @@ public enum MessageAction: Hashable, Sendable {
     case pin
     /// Unpin the message.
     case unpin
+    /// Bookmark the message (MATRIX-208): the account's Bookmarks list
+    /// (Go > Bookmarks) shows it. Menus only, not the hover row.
+    case bookmark
+    /// Remove the message's bookmark (MATRIX-208).
+    case removeBookmark
     /// Open the media in Quick Look.
     case quickLook
     /// Play a video inside the row (S-38). A click on the video opens Quick
@@ -84,7 +89,7 @@ public enum MessageAction: Hashable, Sendable {
         case .replyInThread, .pin, .unpin:
             return true
         case .reply, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .quickLook, .playInline,
-             .saveToDownloads, .redact, .copyMessages, .openOriginalLink, .copyOriginalLink:
+             .saveToDownloads, .redact, .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
             return false
         }
     }
@@ -99,7 +104,7 @@ public enum MessageAction: Hashable, Sendable {
         case .quickLook, .playInline, .saveToDownloads:
             return true
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .pin, .unpin, .redact,
-             .copyMessages, .openOriginalLink, .copyOriginalLink:
+             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
             return false
         }
     }
@@ -208,6 +213,8 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// link marker is on (MATRIX-178), as the sender wrote it. Nil when the
     /// body has no marked link.
     public var originalMusicLink: String?
+    /// Whether the account's bookmarks hold this message (MATRIX-208).
+    public var isBookmarked: Bool
 
     /// - Parameters:
     ///   - redactPermission: The room's redact permission. It defaults to
@@ -228,7 +235,8 @@ public struct MessageActionSubject: Equatable, Sendable {
         isEditable: Bool = false,
         isForwardable: Bool = false,
         isInMergedChat: Bool = false,
-        originalMusicLink: String? = nil
+        originalMusicLink: String? = nil,
+        isBookmarked: Bool = false
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -241,6 +249,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.isForwardable = isForwardable
         self.isInMergedChat = isInMergedChat
         self.originalMusicLink = originalMusicLink
+        self.isBookmarked = isBookmarked
     }
 
     /// The same subject with other content. A video view uses it to report
@@ -362,7 +371,22 @@ public enum MessageActionModel {
             // message has no body.
             return subject.originalMusicLink == nil ? .notApplicable : .available
         }
+        if action == .bookmark || action == .removeBookmark {
+            return bookmarkAvailability(of: action, for: subject)
+        }
         return messageAvailability(of: action, for: subject)
+    }
+
+    /// Bookmark and Remove Bookmark (MATRIX-208). A bookmark names the
+    /// event, so a local echo shows Bookmark disabled until the send
+    /// completes, as Pin does. Remove Bookmark also shows on a message
+    /// deleted after it was saved.
+    private static func bookmarkAvailability(of action: MessageAction, for subject: MessageActionSubject) -> Availability {
+        if action == .removeBookmark {
+            return subject.isBookmarked ? .available : .notApplicable
+        }
+        if subject.content == .redacted || subject.isBookmarked { return .notApplicable }
+        return subject.eventId != nil ? .available : .unavailable
     }
 
     /// The rule for one action from the facts of the message alone.
@@ -411,11 +435,11 @@ public enum MessageActionModel {
             // eligible. A message the power levels protect gets no item.
             if isRedacted { return .notApplicable }
             return subject.redactPermission.allows(isOwn: subject.isOwn) ? .available : .notApplicable
-        case .copyMessages, .openOriginalLink, .copyOriginalLink:
+        case .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
             // Copy Messages: decided in
             // `items(for:on:quickReactionKeys:hasMessageSelection:)` from the
-            // selection. No message fact makes it apply. The music link
-            // actions: decided in `availability(of:for:)`.
+            // selection. No message fact makes it apply. The music link and
+            // bookmark actions: decided in `availability(of:for:)`.
             return .notApplicable
         }
     }
@@ -423,7 +447,8 @@ public enum MessageActionModel {
     /// The display order of the actions each surface can show.
     ///
     /// The Edit menu shows one Pin or Unpin item: Unpin when the target is
-    /// pinned, else Pin. Delete is not in the hover row: one stray click there
+    /// pinned, else Pin. The same for Bookmark and Remove Bookmark
+    /// (MATRIX-208), which are not in the hover row. Delete is not in the hover row: one stray click there
     /// must not start a destructive action. Forward is not in the hover row either
     /// (MATRIX-112): the menus carry it, after Edit. The menus put "Add Reaction…"
     /// after the React submenu (MATRIX-111). Copy Messages heads the copy
@@ -442,15 +467,16 @@ public enum MessageActionModel {
                 + [.edit, .forward]
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyMessages, .copyText, .copyLink, .openOriginalLink, .copyOriginalLink]
-                + [.pin, .unpin]
+                + [.pin, .unpin, .bookmark, .removeBookmark]
                 + [.redact]
         case .hoverRow:
             return reactions + [.openReactionPicker, .reply, .replyInThread, .edit, .pin, .unpin]
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
+            let bookmarkAction: MessageAction = subject?.isBookmarked == true ? .removeBookmark : .bookmark
             let copySelection: [MessageAction] = hasMessageSelection ? [.copyMessages] : []
             return [.reply] + reactions + [.openReactionPicker] + [.edit, .forward]
-                + copySelection + [.copyText, .copyLink, pinAction, .redact]
+                + copySelection + [.copyText, .copyLink, pinAction, bookmarkAction, .redact]
         }
     }
 
@@ -464,7 +490,7 @@ public enum MessageActionModel {
             return .media
         case .copyText, .copyLink, .copyMessages, .openOriginalLink, .copyOriginalLink:
             return .copy
-        case .pin, .unpin:
+        case .pin, .unpin, .bookmark, .removeBookmark:
             return .organize
         case .redact:
             return .destructive

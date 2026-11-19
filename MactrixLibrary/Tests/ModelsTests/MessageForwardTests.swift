@@ -43,7 +43,7 @@ struct MessageForwardTests {
 
     @Test func otherPeoplesTextOffersForwardAfterTheRespondGroup() {
         let other = subject()
-        #expect(actions(other, on: .contextMenu) == [.reply] + Self.react + [.forward, .copyText, .copyLink, .pin])
+        #expect(actions(other, on: .contextMenu) == [.reply] + Self.react + [.forward, .copyText, .copyLink, .pin, .bookmark])
         #expect(item(.forward, other, on: .contextMenu)?.isEnabled == true)
         #expect(item(.forward, other, on: .contextMenu)?.section == .modify)
     }
@@ -53,7 +53,7 @@ struct MessageForwardTests {
             content: .text, isOwn: true, eventId: "$event", canBeRepliedTo: true, isPinned: false,
             copyableText: "hello", isEditable: true, isForwardable: true
         )
-        #expect(actions(own, on: .contextMenu) == [.reply] + Self.react + [.edit, .forward, .copyText, .copyLink, .pin])
+        #expect(actions(own, on: .contextMenu) == [.reply] + Self.react + [.edit, .forward, .copyText, .copyLink, .pin, .bookmark])
         let entries = MessageActionMenuLayout.entries(for: MessageActionModel.items(for: own, on: .contextMenu))
         let edit = MessageActionMenuEntry.action(MessageActionItem(action: .edit, section: .modify, isEnabled: true))
         let forward = MessageActionMenuEntry.action(MessageActionItem(action: .forward, section: .modify, isEnabled: true))

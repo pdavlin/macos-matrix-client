@@ -151,6 +151,9 @@ public class MatrixClient {
 
     /// MATRIX-206: the account's inbox states (archived, snoozed, reminders).
     public var inbox: InboxStateModel?
+    /// MATRIX-208: the account's bookmarked messages. Created when sync
+    /// starts, refreshed on the same triggers as `labels`.
+    public var bookmarks: BookmarksModel?
 
     /// MATRIX-147: the space names that tell merged-chat members apart.
     public let roomAccounts = RoomAccountNames()

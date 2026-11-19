@@ -148,6 +148,8 @@ struct SidebarView: View {
             Task { await appState.matrixClient?.mergedChats?.refresh() }
             // MATRIX-206: nor do the inbox states.
             Task { await appState.matrixClient?.inbox?.refresh() }
+            // MATRIX-208: nor do bookmarks.
+            Task { await appState.matrixClient?.bookmarks?.refresh() }
         }
         .sheet(item: $windowState.labelEditor) { request in
             LabelEditorHost(request: request)

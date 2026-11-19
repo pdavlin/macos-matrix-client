@@ -19,6 +19,9 @@ struct GoCommands: Commands {
     /// Whether the key window shows its quick switcher. `nil` when no main
     /// window is focused or no account is signed in, which disables the item.
     @FocusedBinding(\.quickSwitcherPresented) private var quickSwitcherPresented: Bool?
+    /// Whether the key window shows its Bookmarks list (MATRIX-208). `nil`
+    /// when no main window is focused or no account is signed in.
+    @FocusedBinding(\.bookmarksPresented) private var bookmarksPresented: Bool?
     /// The key window's room navigation, published by `GoNavigationPublisher`.
     @FocusedValue(\.goNavigation) private var navigation: GoNavigation?
     @FocusedValue(WindowState.self) private var windowState: WindowState?
@@ -31,6 +34,14 @@ struct GoCommands: Commands {
             }
             .keyboardShortcut("k", modifiers: [.command])
             .disabled(quickSwitcherPresented == nil)
+
+            // MATRIX-208: ⇧⌘B, Beeper's and Safari's key for bookmarks.
+            // Again closes the list.
+            Button("Bookmarks") {
+                bookmarksPresented?.toggle()
+            }
+            .keyboardShortcut("b", modifiers: [.command, .shift])
+            .disabled(bookmarksPresented == nil)
 
             Divider()
 
@@ -131,6 +142,9 @@ struct GoNavigationPublisher: ViewModifier {
 extension FocusedValues {
     /// The key window's quick switcher presentation, published by `MainView`.
     @Entry var quickSwitcherPresented: Binding<Bool>?
+    /// The key window's Bookmarks list presentation, published by `MainView`
+    /// (MATRIX-208).
+    @Entry var bookmarksPresented: Binding<Bool>?
     /// The key window's room navigation, published by `GoNavigationPublisher`.
     @Entry var goNavigation: GoNavigation?
 }

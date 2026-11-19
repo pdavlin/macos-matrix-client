@@ -292,6 +292,9 @@ struct ChatMessageView: View, UI.MessageEventActions {
             }
         }
         .environment(\.timelineRowIsThreadRoot, isThreadPanelRoot)
+        // MATRIX-208: the bookmark mark beside the time. An overlay, so the
+        // row is not re-measured.
+        .environment(\.timelineRowIsBookmarked, rowActions.isBookmarked)
         .font(.system(size: typography.base))
         .environment(\.timelineTypography, typography)
         // The Edit menu acts on the hovered or focused message (MATRIX-108).

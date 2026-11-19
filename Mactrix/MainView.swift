@@ -25,6 +25,8 @@ struct MainView: View {
     @State private var showWelcomeSheet: Bool = false
     /// The ⌘K quick switcher (MATRIX-114), toggled from the Go menu.
     @State private var showQuickSwitcher: Bool = false
+    /// The Bookmarks list (MATRIX-208), toggled from Go > Bookmarks (⇧⌘B).
+    @State private var showBookmarks: Bool = false
 
     @ViewBuilder var details: some View {
         switch windowState.selectedScreen {
@@ -131,6 +133,10 @@ struct MainView: View {
             QuickSwitcherContainerView(openRoom: { await openRoom($0, from: .quickSwitcher) })
                 .environment(windowState)
         }
+        .sheet(isPresented: $showBookmarks) {
+            BookmarksSheetHost()
+                .environment(windowState)
+        }
         .onChange(of: appState.matrixClient == nil) { _, matrixClientIsNil in
             if matrixClientIsNil {
                 Logger.viewCycle.info("Matrix client is nil, present welcome sheet")
@@ -198,6 +204,8 @@ struct MainView: View {
         .focusedSceneValue(windowState)
         // Only a signed-in window offers ⌘K.
         .focusedSceneValue(\.quickSwitcherPresented, appState.matrixClient == nil ? nil : $showQuickSwitcher)
+        // Go > Bookmarks (MATRIX-208), also only when signed in.
+        .focusedSceneValue(\.bookmarksPresented, appState.matrixClient == nil ? nil : $showBookmarks)
         // ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ in the Go menu (MATRIX-115).
         .modifier(GoNavigationPublisher(windowState: windowState))
         // File > "Broadcast to <filter>…" (MATRIX-168).

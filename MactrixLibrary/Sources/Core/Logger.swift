@@ -31,4 +31,6 @@ extension Logger {
     static let mergedChats = Logger(subsystem: subsystem, category: "merged-chats")
 
     static let inbox = Logger(subsystem: subsystem, category: "inbox")
+
+    static let bookmarks = Logger(subsystem: subsystem, category: "bookmarks")
 }

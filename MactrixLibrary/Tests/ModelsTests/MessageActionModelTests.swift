@@ -48,7 +48,7 @@ struct MessageActionModelTests {
     // MARK: - Context menu
 
     @Test func textMessageGetsAContextMenu() {
-        #expect(actions(subject(), on: .contextMenu) == [.reply] + Self.react + [.copyText, .copyLink, .pin])
+        #expect(actions(subject(), on: .contextMenu) == [.reply] + Self.react + [.copyText, .copyLink, .pin, .bookmark])
         #expect(disabled(subject(), on: .contextMenu).isEmpty)
     }
 
@@ -59,7 +59,7 @@ struct MessageActionModelTests {
 
     @Test func imageKeepsQuickLookAndSave() {
         let image = subject(.image, copyableText: nil)
-        #expect(actions(image, on: .contextMenu) == [.reply] + Self.react + [.quickLook, .saveToDownloads, .copyLink, .pin])
+        #expect(actions(image, on: .contextMenu) == [.reply] + Self.react + [.quickLook, .saveToDownloads, .copyLink, .pin, .bookmark])
     }
 
     @Test func imageCaptionIsCopyable() {
@@ -97,8 +97,8 @@ struct MessageActionModelTests {
 
     @Test func localEchoDisablesLinkPinAndReply() {
         let echo = subject(eventId: nil, canBeRepliedTo: false)
-        #expect(actions(echo, on: .contextMenu) == [.reply] + Self.react + [.copyText, .copyLink, .pin])
-        #expect(disabled(echo, on: .contextMenu) == [.reply, .copyLink, .pin])
+        #expect(actions(echo, on: .contextMenu) == [.reply] + Self.react + [.copyText, .copyLink, .pin, .bookmark])
+        #expect(disabled(echo, on: .contextMenu) == [.reply, .copyLink, .pin, .bookmark])
     }
 
     @Test func redactedOffersOnlyCopyLink() {
@@ -115,7 +115,7 @@ struct MessageActionModelTests {
 
     @Test func otherContentOffersRespondAndLinkOnly() {
         // Stickers, polls, undecryptable messages: no text, no media.
-        #expect(actions(subject(.other, copyableText: nil), on: .contextMenu) == [.reply] + Self.react + [.copyLink, .pin])
+        #expect(actions(subject(.other, copyableText: nil), on: .contextMenu) == [.reply] + Self.react + [.copyLink, .pin, .bookmark])
     }
 
     // MARK: - Hover row
@@ -151,7 +151,7 @@ struct MessageActionModelTests {
 
     @Test func editMenuKeepsOneShapeAcrossMessages() {
         let text = actions(subject(), on: .editMenu)
-        #expect(text == [.reply] + Self.react + [.edit, .forward, .copyText, .copyLink, .pin, .redact])
+        #expect(text == [.reply] + Self.react + [.edit, .forward, .copyText, .copyLink, .pin, .bookmark, .redact])
         #expect(actions(subject(.image, copyableText: nil), on: .editMenu) == text)
         #expect(actions(subject(.redacted, copyableText: nil), on: .editMenu) == text)
         #expect(actions(nil, on: .editMenu) == text)
@@ -160,7 +160,7 @@ struct MessageActionModelTests {
     @Test func editMenuDisablesWhatDoesNotApply() {
         #expect(disabled(subject(.image, copyableText: nil, isForwardable: true), on: .editMenu) == [.edit, .copyText, .redact])
         let redacted = subject(.redacted, copyableText: nil)
-        #expect(disabled(redacted, on: .editMenu) == [.reply] + Self.react + [.edit, .forward, .copyText, .pin, .redact])
+        #expect(disabled(redacted, on: .editMenu) == [.reply] + Self.react + [.edit, .forward, .copyText, .pin, .bookmark, .redact])
     }
 
     @Test func editMenuWithoutATargetIsAllDisabled() {
@@ -351,7 +351,7 @@ struct MessageActionMenuLayoutTests {
         #expect(shape == [
             "action:reply", "reactions:3", "action:openReactionPicker", "separator",
             "action:copyText", "action:copyLink", "separator",
-            "action:pin"
+            "action:pin", "action:bookmark"
         ])
     }
 

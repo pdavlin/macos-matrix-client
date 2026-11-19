@@ -31,7 +31,7 @@ struct MessageActionMergedChatTests {
     @Test func hoverRowAndContextMenuLeaveOutThreadAndPinActions() {
         let merged = subject(isInMergedChat: true)
         #expect(actions(merged, on: .hoverRow) == Self.reactions + [.openReactionPicker, .reply])
-        #expect(actions(merged, on: .contextMenu) == [.reply] + Self.reactions + [.openReactionPicker, .copyText, .copyLink])
+        #expect(actions(merged, on: .contextMenu) == [.reply] + Self.reactions + [.openReactionPicker, .copyText, .copyLink, .bookmark])
 
         let pinned = subject(isPinned: true, isInMergedChat: true)
         #expect(!actions(pinned, on: .hoverRow).contains(.unpin))

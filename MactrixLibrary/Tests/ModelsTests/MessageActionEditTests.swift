@@ -36,7 +36,7 @@ struct MessageActionEditTests {
 
     @Test func ownEditableTextOffersEditInItsOwnSection() {
         let own = subject(isOwn: true, isEditable: true)
-        #expect(actions(own, on: .contextMenu) == [.reply] + Self.react + [.edit, .copyText, .copyLink, .pin])
+        #expect(actions(own, on: .contextMenu) == [.reply] + Self.react + [.edit, .copyText, .copyLink, .pin, .bookmark])
         let items = MessageActionModel.items(for: own, on: .contextMenu)
         #expect(items.first { $0.action == .edit }?.section == .modify)
         let entries = MessageActionMenuLayout.entries(for: items)
@@ -77,7 +77,9 @@ struct MessageActionEditTests {
 
     @Test func ownMediaOffersCaptionEditBeforeTheMediaActions() {
         let image = subject(.image, isOwn: true, copyableText: nil, isEditable: true)
-        #expect(actions(image, on: .contextMenu) == [.reply] + Self.react + [.edit, .quickLook, .saveToDownloads, .copyLink, .pin])
+        #expect(
+            actions(image, on: .contextMenu) == [.reply] + Self.react + [.edit, .quickLook, .saveToDownloads, .copyLink, .pin, .bookmark]
+        )
     }
 
     @Test func hoverRowShowsEditBeforePin() {

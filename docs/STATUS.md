@@ -107,6 +107,11 @@ Composer and message actions
 - Forward text and media to another room.
 - Whole-message selection in the timestamp column, and transcript copy.
 - One action model drives the context menu, the hover row, and the Edit menu.
+- Bookmarks (MATRIX-208): "Bookmark" and "Remove Bookmark" in the context
+  menu and the Edit menu. A bookmarked row shows a small bookmark before its
+  time. Go > Bookmarks (⇧⌘B) lists every bookmark, the newest saved first,
+  and a click opens the message and flashes it. The list stores IDs and times
+  only, in account data (`io.davlin.matrixclient.bookmarks`).
 
 Mac platform
 

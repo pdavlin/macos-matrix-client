@@ -50,7 +50,7 @@ public extension MessageEventActions {
         case let .toggleReaction(key): toggleReaction(key: key)
         case .pin: pin()
         case .openReactionPicker, .edit, .forward, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact,
-             .copyMessages, .openOriginalLink, .copyOriginalLink:
+             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
             break
         }
     }
@@ -69,6 +69,8 @@ struct MessageTimestampView: View {
     let hover: Bool
 
     @Environment(\.timelineTypography) private var typography
+    /// MATRIX-208: a bookmarked message shows a small mark before its time.
+    @Environment(\.timelineRowIsBookmarked) private var isBookmarked
 
     var timeFormat: DateFormatter {
         let formatter = DateFormatter()
@@ -81,11 +83,41 @@ struct MessageTimestampView: View {
             Text(timeFormat.string(from: date))
                 .foregroundStyle(.gray)
                 .font(.system(size: typography.footnote))
+                // An overlay, so the mark never changes the column or the
+                // row height (MATRIX-63).
+                .overlay(alignment: .leading) {
+                    if isBookmarked {
+                        // A zero-width frame on the time's leading edge,
+                        // with the mark on its trailing side: the mark ends
+                        // just before the time.
+                        BookmarkMark(size: typography.footnote)
+                            .fixedSize()
+                            .frame(width: 0, alignment: .trailing)
+                            .offset(x: -BookmarkMark.spacing)
+                    }
+                }
                 .padding(.trailing, DensityToken.timestampTrailingPadding)
                 .padding(.top, DensityToken.timestampTopPadding)
         }
         .frame(width: DensityToken.timestampColumnWidth)
         // .opacity(hover ? 1 : 0)
+    }
+}
+
+/// The mark of a bookmarked message (MATRIX-208): a filled bookmark in the
+/// accent color, a little smaller than the time beside it.
+struct BookmarkMark: View {
+    /// The point size of the time text the mark sits beside.
+    let size: CGFloat
+
+    /// The gap between the mark and the time.
+    static let spacing: CGFloat = 2
+
+    var body: some View {
+        Image(systemName: "bookmark.fill")
+            .font(.system(size: size * 0.8))
+            .foregroundStyle(Color.accentColor)
+            .accessibilityLabel("Bookmarked")
     }
 }
 
@@ -359,6 +391,12 @@ public extension EnvironmentValues {
     /// the row's height. Rows outside the thread panel keep the default,
     /// false.
     @Entry var timelineRowIsThreadRoot: Bool = false
+
+    /// Whether the account bookmarked the message of this row (MATRIX-208).
+    /// The timestamp draws a small bookmark mark before the time, as an
+    /// overlay that never changes the row's height. Rows outside the Mac
+    /// timeline keep the default, false.
+    @Entry var timelineRowIsBookmarked: Bool = false
 
     /// The signed-in account's global profile avatar, an `mxc://` URL
     /// (MATRIX-163). The timeline container sets it from the client's one

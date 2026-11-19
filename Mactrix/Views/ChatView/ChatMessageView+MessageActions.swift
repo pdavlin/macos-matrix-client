@@ -35,7 +35,15 @@ struct ChatMessageActions {
             isInMergedChat: timeline?.isMergedChatMember ?? false
         )
         subject.originalMusicLink = originalMusicLink
+        subject.isBookmarked = isBookmarked
         return subject
+    }
+
+    /// Whether the account bookmarked this message (MATRIX-208). The row's
+    /// own room holds the event, also in a merged chat.
+    var isBookmarked: Bool {
+        guard case let .eventId(eventId: eventId) = event.eventOrTransactionId, let roomId = timeline?.room.id else { return false }
+        return appState.matrixClient?.bookmarks?.isBookmarked(roomId: roomId, eventId: eventId) ?? false
     }
 
     /// The original target of the first link the body marks as a music link
@@ -105,6 +113,10 @@ struct ChatMessageActions {
             pin()
         case .unpin:
             unpin()
+        case .bookmark:
+            setBookmarked(true)
+        case .removeBookmark:
+            setBookmarked(false)
         case .redact:
             requestRedaction()
         case .copyMessages:
@@ -186,6 +198,13 @@ struct ChatMessageActions {
                 Logger.viewCycle.error("Failed to unpin message: \(error)")
             }
         }
+    }
+
+    /// Saves or removes the message's bookmark (MATRIX-208), under the room
+    /// that holds the event: in a merged chat, the member room.
+    func setBookmarked(_ isBookmarked: Bool) {
+        guard case let .eventId(eventId: eventId) = event.eventOrTransactionId, let roomId = timeline?.room.id else { return }
+        appState.matrixClient?.bookmarks?.setBookmarked(isBookmarked, roomId: roomId, eventId: eventId)
     }
 
     func focusUser() {
