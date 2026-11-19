@@ -181,6 +181,7 @@ extension MatrixClient: RoomListServiceStateListener {
             if case .running = state {
                 await labels?.refresh()
                 await mergedChats?.refresh()
+                await inbox?.refresh()
             }
         }
     }

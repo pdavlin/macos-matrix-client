@@ -56,6 +56,12 @@ public final class DockBadgeController {
         didSet { refresh() }
     }
 
+    /// MATRIX-206: the archived and snoozed rooms, which never count. Read
+    /// inside Observation tracking like `mergedChats`.
+    public var inboxHiddenRoomIds: @MainActor () -> Set<String> = { [] } {
+        didSet { refresh() }
+    }
+
     /// - Parameter settingsStore: the defaults store that Settings >
     ///   Notifications writes with `@AppStorage`.
     public init(settingsStore: UserDefaults = .standard) {
@@ -68,7 +74,8 @@ public final class DockBadgeController {
         DockBadge.unreadChatCount(
             unreadChats.chats.values,
             labelMutedRoomIds: labels?.document.labelMutedRoomIds ?? [],
-            mergedChats: mergedChats()
+            mergedChats: mergedChats(),
+            hiddenRoomIds: inboxHiddenRoomIds()
         )
     }
 

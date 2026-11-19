@@ -89,5 +89,8 @@ struct MergedChatContextMenu: View {
                 Label("Mute", systemImage: "bell.slash")
             }
         }
+
+        // MATRIX-206: the merged chat archives as one chat.
+        ArchiveMenuItems(roomIds: memberRoomIds, name: merged.merge.name)
     }
 }

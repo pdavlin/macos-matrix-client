@@ -184,10 +184,16 @@ extension Models.ChatListFilter {
 
     /// MATRIX-77: the filter narrowed to a label's rooms. Spaces still pass,
     /// for the reason above; the label narrows only the chats.
+    ///
+    /// MATRIX-206: the Archived filter has no SDK kind of its own: the
+    /// caller narrows it to the archived rooms. Without a narrowing it shows
+    /// no chat.
     func roomListFilter(labelRooms: [String]?) -> RoomListEntriesDynamicFilterKind {
         var chats = chatFilters
         if let labelRooms {
             chats.append(.identifiers(identifiers: labelRooms))
+        } else if inboxPlacement != .inbox {
+            chats.append(.identifiers(identifiers: []))
         }
         return .any(filters: [.space, .all(filters: chats)])
     }
@@ -204,6 +210,9 @@ extension Models.ChatListFilter {
             [.nonLowPriority, .category(expect: .group)]
         case .lowPriority:
             [.lowPriority]
+        case .archived:
+            // Low priority or not: the narrowing picks the rooms.
+            []
         }
     }
 }

@@ -250,6 +250,11 @@ public extension ChatListMerging {
     ///    it, and then sums only those members.
     /// 3. Split. Favourites go to the grid, the rest to the list.
     ///
+    /// MATRIX-206: before step 1, the inbox state keeps only the chats of
+    /// `placement`. For the Inbox (every list filter but Archived) that
+    /// drops the archived chats, under any rail filter. A merged chat is
+    /// one chat (`InboxStateDocument.placement(of:merges:)`).
+    ///
     /// The SDK applies the chat-list filter (MATRIX-67) and the same room
     /// narrowing before `entries` arrive, so for a label or a space step 1
     /// drops only rows the SDK has not removed yet.
@@ -261,6 +266,9 @@ public extension ChatListMerging {
     ///   - labels: the labels document.
     ///   - spaces: the room-to-space map.
     ///   - document: the account's merged chats.
+    ///   - inbox: the account's inbox states (MATRIX-206).
+    ///   - placement: the inbox placement the list filter shows
+    ///     (`ChatListFilter.inboxPlacement`).
     /// - Returns: the pinned grid and the list. `ordered` is what the Go menu
     ///   walks.
     static func visible(
@@ -268,8 +276,11 @@ public extension ChatListMerging {
         filter: ChatListRailFilter,
         labels: ChatLabelDocument,
         spaces: RoomSpaceMap,
-        document: MergedChatDocument
+        document: MergedChatDocument,
+        inbox: InboxStateDocument = InboxStateDocument(),
+        placement: InboxPlacement = .inbox
     ) -> VisibleChatList<ChatListItem> {
+        let entries = placementEntries(entries, inbox: inbox, placement: placement, merges: document)
         let shown: [ChatListEntry]
         switch filter {
         case let .space(id):
@@ -302,6 +313,21 @@ public extension ChatListMerging {
         visible(entries: entries, filter: filter, labels: labels, spaces: spaces, document: document)
             .ordered
             .flatMap(\.roomIds)
+    }
+
+    /// The entries whose inbox placement is `placement` (MATRIX-206).
+    private static func placementEntries(
+        _ entries: [ChatListEntry],
+        inbox: InboxStateDocument,
+        placement: InboxPlacement,
+        merges: MergedChatDocument
+    ) -> [ChatListEntry] {
+        if placement == .inbox {
+            let hidden = inbox.hiddenRoomIds(merges: merges)
+            return hidden.isEmpty ? entries : entries.filter { !hidden.contains($0.id) }
+        }
+        let kept = inbox.roomIds(in: placement, merges: merges)
+        return entries.filter { kept.contains($0.id) }
     }
 
     private static func inboxEntries(_ entries: [ChatListEntry], labels: ChatLabelDocument) -> [ChatListEntry] {

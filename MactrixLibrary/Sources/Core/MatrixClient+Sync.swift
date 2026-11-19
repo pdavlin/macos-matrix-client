@@ -67,6 +67,19 @@ public extension MatrixClient {
         notifications.mergedChats = { [weak self] in self?.mergedChats?.document ?? MergedChatDocument() }
         dockBadge.mergedChats = { [weak self] in self?.mergedChats?.document ?? MergedChatDocument() }
 
+        // MATRIX-206: inbox states are read the same way. Archived chats do
+        // not count in the Dock badge, and the tracker's unread changes
+        // drive the rule that moves a chat back to the Inbox.
+        if inbox == nil {
+            let model = InboxStateModel(client: client) { [weak self] in
+                self?.mergedChats?.document ?? MergedChatDocument()
+            }
+            model.startWatching(dockBadge.unreadChats)
+            inbox = model
+        }
+        await inbox?.refresh()
+        dockBadge.inboxHiddenRoomIds = { [weak self] in self?.inbox?.hiddenRoomIds ?? [] }
+
         // MATRIX-119: a no-op on iOS. Restart sync calls this again with
         // the new room list service.
         await dockBadge.start(roomListService: _roomListService, labels: labels)
@@ -129,6 +142,7 @@ public extension MatrixClient {
         notificationClient = nil
         labels = nil
         mergedChats = nil
+        inbox = nil
 
         try? await client.logout()
         client = nil

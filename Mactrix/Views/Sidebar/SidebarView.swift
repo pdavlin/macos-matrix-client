@@ -59,7 +59,10 @@ struct SidebarView: View {
             filter: SidebarRail.filter(client: client, windowState: windowState),
             labels: labels,
             spaces: accounts?.spaceMap ?? RoomSpaceMap(),
-            document: client?.mergedChats?.document ?? MergedChatDocument()
+            document: client?.mergedChats?.document ?? MergedChatDocument(),
+            // MATRIX-206: archived chats show under the Archived filter only.
+            inbox: client?.inbox?.document ?? InboxStateDocument(),
+            placement: windowState.chatListFilter.inboxPlacement
         )
         return SidebarChatList(visible: visible, rooms: chatRooms)
     }
@@ -84,9 +87,10 @@ struct SidebarView: View {
     }
 
     /// The rooms the SDK list is narrowed to: the selected label's or
-    /// space's rooms, or nil for the Inbox.
+    /// space's rooms, or nil for the Inbox. MATRIX-206: for the Archived
+    /// filter, only the archived rooms among them.
     private var narrowingRoomIds: [String]? {
-        SidebarRail.narrowingRoomIds(client: appState.matrixClient, windowState: windowState)
+        SidebarInbox.narrowingRoomIds(client: appState.matrixClient, windowState: windowState)
     }
 
     /// The account's chat rooms, for the room-to-space map.
@@ -142,6 +146,8 @@ struct SidebarView: View {
             Task { await labels?.refresh() }
             // MATRIX-140: merged chats have no change listener either.
             Task { await appState.matrixClient?.mergedChats?.refresh() }
+            // MATRIX-206: nor do the inbox states.
+            Task { await appState.matrixClient?.inbox?.refresh() }
         }
         .sheet(item: $windowState.labelEditor) { request in
             LabelEditorHost(request: request)
@@ -287,6 +293,11 @@ struct SidebarView: View {
         }
         // MATRIX-196: the system fade where the list runs under the toolbar.
         .scrollEdgeEffectStyle(ScrollEdgeToken.sidebarTop, for: .top)
+        // MATRIX-206: "Archived <chat>" with Undo.
+        .overlay(alignment: .bottom) {
+            InboxNoticeOverlay()
+        }
+        .animation(.easeOut(duration: 0.2), value: windowState.inboxNotice?.id)
         // MATRIX-188: Return on the selected row moves the focus to the
         // chat's composer.
         .onKeyPress(.return) {

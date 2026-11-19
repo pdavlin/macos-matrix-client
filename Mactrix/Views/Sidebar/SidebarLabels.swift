@@ -24,7 +24,7 @@ struct SidebarLabelRail: View {
         LabelRail(
             spaces: spaces,
             labels: document.labels,
-            badges: labels?.badges ?? [:],
+            badges: labels?.badges(hiding: appState.matrixClient?.inbox?.hiddenRoomIds ?? []) ?? [:],
             selection: selection,
             isEditable: labels?.isEditable ?? false,
             imageLoader: appState.matrixClient,

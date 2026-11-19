@@ -24,6 +24,8 @@ public struct QuickSwitcherActions {
     let openRoomInNewWindow: (@MainActor (_ roomId: String) async throws -> Void)?
     /// Hands a room back to the caller. Picker mode only.
     let pickRoom: (@MainActor (_ roomId: String) -> Void)?
+    /// Archive and Unarchive on room rows (MATRIX-206). Navigate mode only.
+    var inbox: QuickSwitcherInboxActions?
 
     /// ⌘K: rooms and people. Picking a room opens it; picking a person opens
     /// or starts the DM.
@@ -34,11 +36,13 @@ public struct QuickSwitcherActions {
     ///   - startDirectChat: New Chat's start path for one person.
     ///   - openRoomInNewWindow: ⌥-Return, the room in its own window
     ///     (MATRIX-116). Optional, so a caller without windows leaves it out.
+    ///   - inbox: Archive and Unarchive on room rows (MATRIX-206).
     public static func navigate(
         searchPeople: @escaping @MainActor (_ query: String) async throws -> [NewChatPerson],
         openRoom: @escaping @MainActor (_ roomId: String) async throws -> Void,
         startDirectChat: @escaping @MainActor (_ userId: String) async throws -> Void,
-        openRoomInNewWindow: (@MainActor (_ roomId: String) async throws -> Void)? = nil
+        openRoomInNewWindow: (@MainActor (_ roomId: String) async throws -> Void)? = nil,
+        inbox: QuickSwitcherInboxActions? = nil
     ) -> QuickSwitcherActions {
         QuickSwitcherActions(
             mode: .navigate,
@@ -46,7 +50,8 @@ public struct QuickSwitcherActions {
             openRoom: openRoom,
             startDirectChat: startDirectChat,
             openRoomInNewWindow: openRoomInNewWindow,
-            pickRoom: nil
+            pickRoom: nil,
+            inbox: inbox
         )
     }
 
@@ -198,6 +203,16 @@ public struct QuickSwitcherView: View {
             }
         }
         .frame(width: 560, height: 420)
+        // MATRIX-206: ⌘E archives or unarchives the highlighted room. A
+        // button in the sheet takes the key before the File menu does.
+        .background {
+            if actions.inbox != nil {
+                Button("Archive", action: toggleArchiveOfHighlighted)
+                    .keyboardShortcut("e", modifiers: [.command])
+                    .opacity(0)
+                    .accessibilityHidden(true)
+            }
+        }
         .onAppear { isFieldFocused = true }
         .onChange(of: query) { _, _ in highlightedId = nil }
         .task(id: trimmedQuery) { await runSearch() }
@@ -294,6 +309,11 @@ public struct QuickSwitcherView: View {
                 }
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                if case let .room(room) = result, let inbox = actions.inbox {
+                    inboxMenu(roomId: room.id, inbox: inbox)
+                }
+            }
             .id(result.id)
             .onHover { hovering in
                 if hovering {

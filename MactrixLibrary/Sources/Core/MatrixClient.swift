@@ -149,6 +149,9 @@ public class MatrixClient {
     /// refreshed on the same triggers as `labels`.
     public var mergedChats: MergedChatsModel?
 
+    /// MATRIX-206: the account's inbox states (archived, snoozed, reminders).
+    public var inbox: InboxStateModel?
+
     /// MATRIX-147: the space names that tell merged-chat members apart.
     public let roomAccounts = RoomAccountNames()
 

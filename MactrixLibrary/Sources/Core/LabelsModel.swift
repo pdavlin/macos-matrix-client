@@ -100,8 +100,14 @@ public final class LabelsModel {
     /// The rail badge of every label, from the tracked rooms' unread counts.
     /// A room with the low priority tag adds nothing (MATRIX-180).
     public var badges: [String: ChatLabelBadge] {
+        badges(hiding: [])
+    }
+
+    /// The rail badge of every label. A room in `hiddenRoomIds` (archived or
+    /// snoozed, MATRIX-206) adds nothing, as a low priority room.
+    public func badges(hiding hiddenRoomIds: Set<String>) -> [String: ChatLabelBadge] {
         var unread: [String: ChatListUnread] = [:]
-        var lowPriority = Set<String>()
+        var lowPriority = hiddenRoomIds
         for (roomId, room) in trackedRooms {
             guard let info = room.roomInfo else { continue }
             if info.isLowPriority {

@@ -140,6 +140,10 @@ public final class WindowState {
     /// The Merge Chats sheet to show, if any (MATRIX-141). Not restored.
     public var mergeEditor: MergedChatEditorRequest?
 
+    /// The note with Undo after an inbox action, if any (MATRIX-206). Not
+    /// restored.
+    public var inboxNotice: InboxNotice?
+
     /// The one room a single-room window shows (MATRIX-116), or `nil` for a
     /// main window. A single-room window never shows another room, so the
     /// menu commands that change the selection skip it.

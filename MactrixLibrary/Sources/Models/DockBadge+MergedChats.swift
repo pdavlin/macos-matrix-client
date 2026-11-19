@@ -23,11 +23,15 @@ public extension DockBadge {
     ///   - chats: the unread inputs of every non-space room.
     ///   - labelMutedRoomIds: `ChatLabelDocument.labelMutedRoomIds`.
     ///   - mergedChats: the account's merged chats.
+    ///   - hiddenRoomIds: the archived and snoozed rooms
+    ///     (`InboxStateDocument.hiddenRoomIds(merges:)`, MATRIX-206). They
+    ///     never count.
     /// - Returns: the count, zero or more.
     static func unreadChatCount(
         _ chats: some Sequence<UnreadChatState>,
         labelMutedRoomIds: Set<String>,
-        mergedChats: MergedChatDocument
+        mergedChats: MergedChatDocument,
+        hiddenRoomIds: Set<String> = []
     ) -> Int {
         var mergedChatIdByRoom: [String: String] = [:]
         for merge in mergedChats.merges {
@@ -38,7 +42,9 @@ public extension DockBadge {
 
         var unmergedCount = 0
         var unreadMergedChatIds: Set<String> = []
-        for chat in chats where counts(chat, isMutedByLabel: labelMutedRoomIds.contains(chat.roomId)) {
+        for chat in chats where !hiddenRoomIds.contains(chat.roomId)
+            && counts(chat, isMutedByLabel: labelMutedRoomIds.contains(chat.roomId))
+        {
             if let mergedChatId = mergedChatIdByRoom[chat.roomId] {
                 unreadMergedChatIds.insert(mergedChatId)
             } else {

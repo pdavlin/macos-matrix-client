@@ -8,6 +8,9 @@ struct AppCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     /// The key window's broadcast (MATRIX-168), or nil when it has none.
     @FocusedValue(\.broadcastCommand) private var broadcastCommand: BroadcastCommand?
+    /// The key window's Archive command (MATRIX-206), or nil when no chat is
+    /// selected.
+    @FocusedValue(\.inboxCommand) private var inboxCommand: InboxCommand?
     @AppStorage(TypographyToken.fontSizeStorageKey) var fontSize = TypographyToken.defaultBaseFontSize
 
     /// The key window's state when it is a main window. A single-room
@@ -92,6 +95,17 @@ struct AppCommands: Commands {
                 broadcastCommand?.open()
             }
             .disabled(broadcastCommand == nil)
+
+            Divider()
+
+            // MATRIX-206: ⌘E, as in Beeper. In the File menu because AppKit
+            // matches key equivalents in menu order and the Edit menu's
+            // "Use Selection for Find" also takes ⌘E.
+            Button(inboxCommand?.isArchived == true ? "Unarchive Chat" : "Archive Chat") {
+                inboxCommand?.toggle()
+            }
+            .keyboardShortcut("e", modifiers: [.command])
+            .disabled(inboxCommand == nil)
         }
     }
 

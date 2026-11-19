@@ -42,13 +42,17 @@ enum SidebarRail {
     /// that are not muted (by the room's own mode or by its labels), else a
     /// dot for other unread activity. A low priority chat adds nothing
     /// (MATRIX-180).
+    ///
+    /// MATRIX-206: an archived or snoozed chat adds nothing either.
     static func spaces(client: MatrixClient?) -> [ChatListRailSpace] {
         guard let client else { return [] }
+        let hidden = client.inbox?.hiddenRoomIds ?? []
+        let chats = client.dockBadge.unreadChats.chats
         return ChatListRailSpace.items(
             joined: joinedSpaces(client: client),
             spaces: client.roomAccounts.spaceMap,
             chatIds: chatIds(client: client),
-            chats: client.dockBadge.unreadChats.chats,
+            chats: hidden.isEmpty ? chats : chats.filter { !hidden.contains($0.key) },
             labelMutedRoomIds: client.labels?.document.labelMutedRoomIds ?? []
         )
     }

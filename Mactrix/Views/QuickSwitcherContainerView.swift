@@ -124,6 +124,9 @@ struct QuickSwitcherContainerView: View {
                     peerUserId: nil,
                     roomName: nil
                 ).detail
+            } else if case .navigate = purpose, matrixClient.inbox?.placement(of: room.id) == .archived {
+                // MATRIX-206: ⌘K lists archived chats too, marked.
+                room.detail = "Archived"
             }
             return room
         }
@@ -140,10 +143,36 @@ struct QuickSwitcherContainerView: View {
                     await openRoom(roomId)
                 },
                 // ⌥-Return: the room in its own window (MATRIX-116).
-                openRoomInNewWindow: { openWindow(value: RoomWindowID(roomId: $0)) }
+                openRoomInNewWindow: { openWindow(value: RoomWindowID(roomId: $0)) },
+                inbox: inboxActions(matrixClient: matrixClient)
             )
         case let .pickRoom(_, _, onPick):
             .picker(onPick: onPick)
         }
+    }
+
+    /// Archive and Unarchive on ⌘K's room rows (MATRIX-206). A room in a
+    /// merged chat archives the whole merged chat.
+    private func inboxActions(matrixClient: MatrixClient) -> UI.QuickSwitcherInboxActions? {
+        guard matrixClient.inbox?.isEditable == true else { return nil }
+        return UI.QuickSwitcherInboxActions(
+            placement: { matrixClient.inbox?.placement(of: $0) ?? .inbox },
+            setArchived: { roomId, archived in
+                if archived {
+                    let selection = MergedChatSelection.selection(
+                        showing: roomId,
+                        document: matrixClient.mergedChats?.document ?? MergedChatDocument()
+                    )
+                    SidebarInbox.archive(
+                        roomIds: [roomId],
+                        name: SidebarInbox.name(of: selection, client: matrixClient),
+                        client: matrixClient,
+                        windowState: windowState
+                    )
+                } else {
+                    SidebarInbox.unarchive(roomIds: [roomId], client: matrixClient)
+                }
+            }
+        )
     }
 }

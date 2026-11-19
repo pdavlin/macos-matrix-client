@@ -202,6 +202,8 @@ struct MainView: View {
         .modifier(GoNavigationPublisher(windowState: windowState))
         // File > "Broadcast to <filter>…" (MATRIX-168).
         .modifier(BroadcastCommandPublisher(windowState: windowState))
+        // File > Archive Chat (MATRIX-206).
+        .modifier(InboxCommandPublisher(windowState: windowState))
     }
 
     /// MATRIX-175: the first main window of a launch that macOS did not
