@@ -196,7 +196,13 @@ struct ChatInputView: View {
             }
             ChatTextView(
                 text: $chatInput,
-                placeholder: merged?.placeholder ?? "Message \(room.displayName() ?? "room")",
+                // MATRIX-183: the thread panel's composer says it replies in
+                // the thread.
+                placeholder: ComposerPlaceholder.text(
+                    isThreadTimeline: timeline.focusedThreadId != nil,
+                    mergedPlaceholder: merged?.placeholder,
+                    roomName: room.displayName()
+                ),
                 disabled: !isDraftLoaded,
                 mentions: mentions,
                 attachments: attachments,

@@ -209,6 +209,24 @@ struct ChatMessageView: View, UI.MessageEventActions {
         return timeline?.focusedTimelineEventId == event.eventOrTransactionId
     }
 
+    /// Whether this row is the root of the thread timeline it is in: the
+    /// first row of the thread panel (MATRIX-183).
+    var isThreadPanelRoot: Bool {
+        guard let threadId = timeline?.focusedThreadId else { return false }
+        return threadId == event.eventOrTransactionId.id
+    }
+
+    /// Whether this main-column row is the root of the thread the inspector
+    /// shows (MATRIX-183). The row then draws the focus background.
+    var isOpenThreadRoot: Bool {
+        OpenThreadMark.isMarked(
+            rowEventId: event.eventOrTransactionId.id,
+            rowRoomId: timeline?.room.id,
+            rowTimelineIsThread: timeline?.focusedThreadId != nil,
+            panel: windowState.openThreadPanel
+        )
+    }
+
     var ownUserId: String {
         do {
             return try appState.matrixClient?.client.userId() ?? ""
@@ -232,7 +250,15 @@ struct ChatMessageView: View, UI.MessageEventActions {
     }
 
     private var eventBody: some View {
-        UI.MessageEventBodyView(event: event, focused: isEventFocused, reactions: msg.reactions, actions: self, ownUserID: ownUserId, imageLoader: appState.matrixClient, roomMembers: timeline?.room.members ?? []) {
+        UI.MessageEventBodyView(
+            event: event,
+            focused: isEventFocused || isOpenThreadRoot,
+            reactions: msg.reactions,
+            actions: self,
+            ownUserID: ownUserId,
+            imageLoader: appState.matrixClient,
+            roomMembers: timeline?.room.members ?? []
+        ) {
             VStack(alignment: .leading, spacing: 10) {
                 if let replyTo = msg.inReplyTo {
                     let eventId = replyTo.eventId()
@@ -253,13 +279,16 @@ struct ChatMessageView: View, UI.MessageEventActions {
                     )
                 }
 
-                if let threadSummary = msg.threadSummary {
+                // MATRIX-183: the panel's root shows no chip, because the
+                // chip would point at the panel it is in.
+                if let threadSummary = msg.threadSummary, !isThreadPanelRoot {
                     MessageThreadSummary(summary: threadSummary) {
                         windowState.focusThread(rootEventId: event.eventOrTransactionId.id)
                     }
                 }
             }
         }
+        .environment(\.timelineRowIsThreadRoot, isThreadPanelRoot)
         .font(.system(size: typography.base))
         .environment(\.timelineTypography, typography)
         // The Edit menu acts on the hovered or focused message (MATRIX-108).

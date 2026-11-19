@@ -92,6 +92,11 @@ public final class LiveTimeline {
 
     public private(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
 
+    /// The reply count of a thread timeline (MATRIX-183), or nil for a room
+    /// timeline and for a thread with no event loaded yet. The thread panel
+    /// header shows it. See `refreshThreadFacts()`.
+    public internal(set) var threadReplyCount: Int?
+
     public private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false
 
@@ -355,6 +360,7 @@ extension LiveTimeline {
         // A failure here can stop the room's send queue (MATRIX-173).
         threadReplies.refresh()
         loadPendingReplyDetails()
+        refreshThreadFacts()
     }
 
     /// Applies one SDK diff to the SDK-ordered array and mirrors it onto the
@@ -489,11 +495,5 @@ extension LiveTimeline {
                 }
             }
         }
-    }
-}
-
-extension LiveTimeline: Equatable {
-    public nonisolated static func == (lhs: LiveTimeline, rhs: LiveTimeline) -> Bool {
-        lhs.room.id == rhs.room.id && lhs.focusedThreadId == rhs.focusedThreadId
     }
 }

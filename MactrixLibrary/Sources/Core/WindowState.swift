@@ -242,6 +242,18 @@ public final class WindowState {
         inspectorContent = .focusThread(threadTimeline: LiveTimeline(room: roomTimeline.room, focusThread: rootEventId))
     }
 
+    /// The thread the visible inspector shows, or nil (MATRIX-183). The main
+    /// column marks that thread's root (`OpenThreadMark`). Nil while the
+    /// inspector is hidden, also in the half second after the close button
+    /// hides it and before the content goes back to the room info.
+    public var openThreadPanel: OpenThreadPanel? {
+        guard inspectorVisible,
+              case let .focusThread(threadTimeline: thread) = inspectorContent,
+              let rootEventId = thread.focusedThreadId
+        else { return nil }
+        return OpenThreadPanel(roomId: thread.room.id, rootEventId: rootEventId)
+    }
+
     public func showRoomThreads() {
         if inspectorVisible, inspectorContent == .roomThreads {
             inspectorVisible = false

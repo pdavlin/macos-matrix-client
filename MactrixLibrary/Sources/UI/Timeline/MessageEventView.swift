@@ -98,6 +98,10 @@ struct MessageMainBody<MessageView: View, EventTimelineItem: Models.EventTimelin
     /// (MATRIX-113).
     var select: (@MainActor (MessageSelectionGesture) -> Void)?
 
+    /// Whether the row is the root of the thread panel it is in
+    /// (MATRIX-183).
+    @Environment(\.timelineRowIsThreadRoot) private var isThreadRoot
+
     var body: some View {
         // Main body
         HStack(alignment: .top, spacing: 0) {
@@ -113,14 +117,33 @@ struct MessageMainBody<MessageView: View, EventTimelineItem: Models.EventTimelin
                 MessageSelectionGutter(select: select)
             }
         }
+        // MATRIX-183: the accent bar of the panel's root, in the leading
+        // column. An overlay, so it cannot change the row height.
+        .overlay(alignment: .leading) {
+            if isThreadRoot {
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: ThreadToken.rootBarWidth)
+                    .allowsHitTesting(false)
+            }
+        }
         .background(
-            RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
-                .fill(
-                    focused
-                        ? Color.accentColor.opacity(AccentToken.focusBackgroundOpacity)
-                        : Color.gray.opacity(AccentToken.hoverBackgroundOpacity)
-                )
-                .opacity(hover || focused ? AccentToken.activeBackgroundOpacity : AccentToken.inactiveBackgroundOpacity)
+            ZStack {
+                // MATRIX-183: the permanent band of the panel's root, under
+                // the hover and focus background. Same layer, so it stays out
+                // of the row height.
+                if isThreadRoot {
+                    RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                        .fill(Color.accentColor.opacity(ThreadToken.rootBandOpacity))
+                }
+                RoundedRectangle(cornerRadius: BubbleToken.cornerRadius)
+                    .fill(
+                        focused
+                            ? Color.accentColor.opacity(AccentToken.focusBackgroundOpacity)
+                            : Color.gray.opacity(AccentToken.hoverBackgroundOpacity)
+                    )
+                    .opacity(hover || focused ? AccentToken.activeBackgroundOpacity : AccentToken.inactiveBackgroundOpacity)
+            }
         )
         .padding(.horizontal, DensityToken.rowHorizontalPadding)
     }
@@ -329,6 +352,13 @@ public extension EnvironmentValues {
     /// covers a neighbor row. It is a background only: it never changes a
     /// row's height. Rows outside the Mac timeline keep the default, false.
     @Entry var timelineRowIsHovered: Bool = false
+
+    /// Whether the message row is the root of the thread panel it is in
+    /// (MATRIX-183). The row draws a permanent accent band and a leading
+    /// accent bar. Both are a background and an overlay: they never change
+    /// the row's height. Rows outside the thread panel keep the default,
+    /// false.
+    @Entry var timelineRowIsThreadRoot: Bool = false
 
     /// The signed-in account's global profile avatar, an `mxc://` URL
     /// (MATRIX-163). The timeline container sets it from the client's one

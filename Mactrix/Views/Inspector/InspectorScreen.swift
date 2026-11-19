@@ -29,7 +29,8 @@ struct InspectorScreen: View {
             SearchInspectorView()
         case let .focusThread(threadTimeline: thread):
             VStack(spacing: 0) {
-                UI.ThreadTimelineHeader {
+                // MATRIX-183: the header names the room and the reply count.
+                UI.ThreadTimelineHeader(roomName: thread.room.room.displayName(), replyCount: thread.threadReplyCount) {
                     windowState.inspectorVisible = false
                     Task {
                         // Insert sleep to delay UI update until close animation finishes
