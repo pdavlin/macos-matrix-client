@@ -144,7 +144,7 @@ public final class WindowState {
     /// restored.
     public var inboxNotice: InboxNotice?
 
-    /// The date picker of "Pick a Date and Time…", if any (MATRIX-207). Not
+    /// The time sheet of "Custom…", if any (MATRIX-207). Not
     /// restored.
     public var inboxDatePicker: InboxDatePickerRequest?
 

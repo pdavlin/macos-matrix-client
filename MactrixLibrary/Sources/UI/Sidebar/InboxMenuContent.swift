@@ -73,7 +73,7 @@ public struct InboxMenuContent: View {
                 }
             }
             Divider()
-            Button("Pick a Date and Time…") {
+            Button("Custom…") {
                 perform(.pickDate(kind))
             }
         } label: {
@@ -86,47 +86,32 @@ public struct InboxMenuContent: View {
     }
 }
 
-/// The sheet behind "Pick a Date and Time…" (MATRIX-207).
+/// The sheet behind "Custom…" (MATRIX-207): a typed time, presets, and a
+/// field-style date picker (`TimeChoiceSheet`).
 public struct InboxDatePickerSheet: View {
     let kind: InboxTimeKind
     let chatName: String
+    let now: Date
     let pick: (Date) -> Void
-
-    @State private var date: Date
-    @Environment(\.dismiss) private var dismiss
 
     /// - Parameters:
     ///   - kind: a snooze end or a reminder.
     ///   - chatName: the chat, for the title.
-    ///   - initial: the time the picker starts at.
+    ///   - now: the time the choices count from.
     ///   - pick: gets the chosen time. The sheet then closes.
-    public init(kind: InboxTimeKind, chatName: String, initial: Date, pick: @escaping (Date) -> Void) {
+    public init(kind: InboxTimeKind, chatName: String, now: Date = .now, pick: @escaping (Date) -> Void) {
         self.kind = kind
         self.chatName = chatName
+        self.now = now
         self.pick = pick
-        _date = State(initialValue: initial)
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(kind == .snooze ? "Snooze \(chatName) Until" : "Remind Me About \(chatName)")
-                .font(.headline)
-                .lineLimit(1)
-            DatePicker("Time", selection: $date, in: Date.now..., displayedComponents: [.date, .hourAndMinute])
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button(kind == .snooze ? "Snooze" : "Set Reminder") {
-                    pick(date)
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(20)
-        .frame(width: 340)
+        TimeChoiceSheet(
+            title: kind == .snooze ? "Snooze \(chatName) until" : "Remind me about \(chatName)",
+            confirmLabel: kind == .snooze ? "Snooze" : "Set Reminder",
+            now: now,
+            choose: pick
+        )
     }
 }

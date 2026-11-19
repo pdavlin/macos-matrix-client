@@ -139,7 +139,7 @@ struct InboxMenuItems: View {
     }
 }
 
-/// The sheet behind "Pick a Date and Time…" (MATRIX-207).
+/// The sheet behind "Custom…" (MATRIX-207).
 struct InboxDatePickerHost: View {
     @Environment(AppState.self) private var appState
     @Environment(WindowState.self) private var windowState
@@ -148,11 +148,7 @@ struct InboxDatePickerHost: View {
 
     var body: some View {
         let client = appState.matrixClient
-        InboxDatePickerSheet(
-            kind: request.kind,
-            chatName: request.chatName,
-            initial: InboxTimeChoice.tomorrow.date(now: .now) ?? .now.addingTimeInterval(3600)
-        ) { date in
+        InboxDatePickerSheet(kind: request.kind, chatName: request.chatName) { date in
             let action: InboxMenuAction = request.kind == .snooze ? .snooze(until: date) : .remind(at: date)
             SidebarInbox.perform(action, roomIds: request.roomIds, name: request.chatName, client: client, windowState: windowState)
         }

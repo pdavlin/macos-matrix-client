@@ -51,7 +51,7 @@ public enum InboxMenuAction: Equatable, Sendable {
     case unsnooze
     case remind(at: Date)
     case cancelReminder
-    /// "Pick a Date and Time…": opens the date picker.
+    /// "Custom…": opens the time sheet.
     case pickDate(InboxTimeKind)
 }
 
