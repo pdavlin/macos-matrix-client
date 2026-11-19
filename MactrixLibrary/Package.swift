@@ -57,7 +57,12 @@ let package = Package(
         .target(
             name: "Models"
         ),
-        .testTarget(name: "ModelsTests", dependencies: ["Models"]),
+        .testTarget(
+            name: "ModelsTests",
+            dependencies: ["Models"],
+            // MATRIX-201: the X and Bluesky answers of the post peek.
+            resources: [.copy("Fixtures")]
+        ),
         .target(
             name: "MessageFormatting",
             dependencies: [

@@ -18,6 +18,9 @@ struct MactrixApp: App {
         // MATRIX-166 follow-up: tooltips show after 400 ms. Registered here,
         // before AppKit makes its tooltip manager and before any window shows.
         ToolTipDelay.register()
+        // MATRIX-201: a plain click on an X or Bluesky post link in a
+        // message body opens the post in a popover.
+        PostPeekPresenter.install()
     }
 
     var body: some Scene {

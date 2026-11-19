@@ -109,6 +109,22 @@ in the Mactrix Xcode project, checked on 2026-08-19.
   distribution of the data, if the copyright notice and the license text
   come with all copies of the data or the documentation.
 
+## post-peek
+
+- License: MIT License, Copyright (c) 2026 tsvb
+- SPDX id: MIT
+- Source: https://github.com/tsvb/post-peek (LICENSE file at repo root)
+- Use: the post peek (MATRIX-201) re-implements in Swift the approach of
+  its `src/background.js` and `src/content.js`: the X syndication
+  endpoint, its token derivation and feature flag list, the Bluesky
+  `getPostThread` call, and the Bluesky moderation rules. No JavaScript
+  is copied. The Swift files credit post-peek in their doc comments
+  (`MactrixLibrary/Sources/Models/PostPeekReader.swift` and its
+  neighbors).
+- Obligations: the MIT License permits use, copy, modification, and
+  distribution, if the copyright notice and the permission notice come
+  with all copies or substantial portions of the software.
+
 ## Summary for the current phase (private, personal use)
 
 No obligation is currently triggered. GPLv3 and Apache-2.0 both leave

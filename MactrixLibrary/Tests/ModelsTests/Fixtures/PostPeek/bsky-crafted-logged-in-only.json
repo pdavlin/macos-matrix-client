@@ -1,0 +1,168 @@
+{
+ "thread": {
+  "post": {
+   "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2m24be4e223",
+   "cid": "bafyreidmek54k7omtngzcobp6dwrszrcmulo77uhgo2uttgmm5vwkwcdda",
+   "author": {
+    "did": "did:plc:z72i7hdynmk6r22z27h6tvur",
+    "handle": "bsky.app",
+    "displayName": "Bluesky",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka",
+    "associated": {
+     "chat": {
+      "allowIncoming": "none"
+     },
+     "activitySubscription": {
+      "allowSubscriptions": "followers"
+     }
+    },
+    "labels": [
+     {
+      "src": "did:plc:ar7c4by46qjdydhdevvrndac",
+      "uri": "did:plc:z72i7hdynmk6r22z27h6tvur",
+      "val": "!no-unauthenticated",
+      "cts": "2026-01-01T00:00:00.000Z"
+     }
+    ],
+    "createdAt": "2023-04-12T04:53:57.057Z",
+    "verification": {
+     "verifications": [],
+     "verifiedStatus": "none",
+     "trustedVerifierStatus": "valid"
+    },
+    "status": {
+     "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.actor.status/self",
+     "cid": "bafyreihkojqw7p22odgjcbzjh5sh4vrntow24sd4nvntpqnddrd5pqma44",
+     "record": {
+      "$type": "app.bsky.actor.status",
+      "createdAt": "2026-10-20T16:00:37.680Z",
+      "durationMinutes": 60,
+      "embed": {
+       "$type": "app.bsky.embed.external",
+       "external": {
+        "$type": "app.bsky.embed.external#external",
+        "description": "Elon Take The Wheel Livestream: Alex Gibney, Director of \"MUSK\"",
+        "thumb": {
+         "$type": "blob",
+         "ref": {
+          "$link": "bafkreifbiu2m3dnnhmzq4dk6u4227p3xuq3zzqhhzvibhuojnz6unengny"
+         },
+         "mimeType": "image/jpeg",
+         "size": 195438
+        },
+        "title": "e.w. niedermeyer is live on Streamplace",
+        "uri": "https://stream.place/niedermeyer.online"
+       }
+      },
+      "status": "app.bsky.actor.status#live"
+     },
+     "status": "app.bsky.actor.status#live",
+     "embed": {
+      "external": {
+       "uri": "https://stream.place/niedermeyer.online",
+       "title": "e.w. niedermeyer is live on Streamplace",
+       "description": "Elon Take The Wheel Livestream: Alex Gibney, Director of \"MUSK\"",
+       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreifbiu2m3dnnhmzq4dk6u4227p3xuq3zzqhhzvibhuojnz6unengny"
+      },
+      "$type": "app.bsky.embed.external#view"
+     },
+     "labels": [],
+     "expiresAt": "2026-10-20T17:00:37.680Z",
+     "isActive": false
+    }
+   },
+   "record": {
+    "$type": "app.bsky.feed.post",
+    "createdAt": "2026-11-18T17:05:26.596Z",
+    "embed": {
+     "$type": "app.bsky.embed.images",
+     "images": [
+      {
+       "alt": "Graphic showing the Germ DM button at the top of a Bluesky profile.",
+       "aspectRatio": {
+        "height": 2400,
+        "width": 2400
+       },
+       "image": {
+        "$type": "blob",
+        "ref": {
+         "$link": "bafkreiau3zyexluy3ri4q4az2fiiagzsmn5x4drfv2pttv7z4bzxd7nopu"
+        },
+        "mimeType": "image/jpeg",
+        "size": 1216309
+       }
+      }
+     ]
+    },
+    "facets": [
+     {
+      "$type": "app.bsky.richtext.facet",
+      "features": [
+       {
+        "$type": "app.bsky.richtext.facet#mention",
+        "did": "did:plc:4yvwfwxfz5sney4twepuzdu7"
+       }
+      ],
+      "index": {
+       "byteEnd": 281,
+       "byteStart": 265
+      }
+     }
+    ],
+    "langs": [
+     "en"
+    ],
+    "text": "Encrypted DMs from your Bluesky profile—now for Android and iOS!\n\nOur friends at Germ have built end-to-end encrypted messaging, including voice notes, on the same open protocol as Bluesky. Log in to Germ with your Bluesky account for fully private DMs.\n\nTry it: @germnetwork.com"
+   },
+   "embed": {
+    "images": [
+     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreiau3zyexluy3ri4q4az2fiiagzsmn5x4drfv2pttv7z4bzxd7nopu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreiau3zyexluy3ri4q4az2fiiagzsmn5x4drfv2pttv7z4bzxd7nopu",
+      "alt": "Graphic showing the Germ DM button at the top of a Bluesky profile.",
+      "aspectRatio": {
+       "height": 2400,
+       "width": 2400
+      }
+     }
+    ],
+    "$type": "app.bsky.embed.images#view"
+   },
+   "bookmarkCount": 458,
+   "replyCount": 110,
+   "repostCount": 453,
+   "likeCount": 2060,
+   "quoteCount": 119,
+   "indexedAt": "2026-11-18T17:05:30.047Z",
+   "labels": [],
+   "threadgate": {
+    "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.threadgate/3n2m24be4e223",
+    "cid": "bafyreidmo3dikc6jk6arxupivpnoe6ldnxqtwealo4wjnsbuhlgyfaxtxi",
+    "record": {
+     "$type": "app.bsky.feed.threadgate",
+     "createdAt": "2026-11-19T04:14:14.523Z",
+     "hiddenReplies": [
+      "at://did:plc:mmdoq2ungwugguqmhlihjza4/app.bsky.feed.post/3n2mogpoggt23"
+     ],
+     "post": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2m24be4e223"
+    },
+    "lists": []
+   }
+  },
+  "threadContext": {},
+  "$type": "app.bsky.feed.defs#threadViewPost"
+ },
+ "threadgate": {
+  "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.threadgate/3n2m24be4e223",
+  "cid": "bafyreidmo3dikc6jk6arxupivpnoe6ldnxqtwealo4wjnsbuhlgyfaxtxi",
+  "record": {
+   "$type": "app.bsky.feed.threadgate",
+   "createdAt": "2026-11-19T04:14:14.523Z",
+   "hiddenReplies": [
+    "at://did:plc:mmdoq2ungwugguqmhlihjza4/app.bsky.feed.post/3n2mogpoggt23"
+   ],
+   "post": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2m24be4e223"
+  },
+  "lists": []
+ }
+}

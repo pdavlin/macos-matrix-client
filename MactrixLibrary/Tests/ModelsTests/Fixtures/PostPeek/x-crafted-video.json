@@ -1,0 +1,89 @@
+{
+ "__typename": "Tweet",
+ "favorite_count": 325482,
+ "lang": "en",
+ "created_at": "2006-03-21T20:50:14.000Z",
+ "display_text_range": [
+  0,
+  5
+ ],
+ "entities": {
+  "media": [
+   {
+    "indices": [
+     6,
+     22
+    ],
+    "url": "https://t.co/vid"
+   }
+  ]
+ },
+ "id_str": "1000000000000000002",
+ "text": "watch https://t.co/vid",
+ "user": {
+  "id_str": "12",
+  "name": "jack",
+  "screen_name": "jack",
+  "is_blue_verified": true,
+  "profile_image_shape": "Circle",
+  "verified": false,
+  "profile_image_url_https": "https://pbs.twimg.com/profile_images/1661201415899951105/azNjKOSH_normal.jpg",
+  "highlighted_label": {
+   "badge": {
+    "url": "https://pbs.twimg.com/profile_images/1285655593592791040/HtwPZgej_bigger.jpg"
+   },
+   "description": "Square",
+   "url": {
+    "url": "https://twitter.com/Square",
+    "url_type": "DeepLink"
+   },
+   "user_label_display_type": "Badge",
+   "user_label_type": "BusinessLabel"
+  }
+ },
+ "edit_control": {
+  "edit_tweet_ids": [
+   "20"
+  ],
+  "editable_until_msecs": "1142976014000",
+  "edits_remaining": "5",
+  "is_edit_eligible": true
+ },
+ "conversation_count": 19261,
+ "news_action_type": "conversation",
+ "isEdited": false,
+ "isStaleEdit": false,
+ "mediaDetails": [
+  {
+   "type": "video",
+   "media_url_https": "https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/poster.jpg",
+   "video_info": {
+    "aspect_ratio": [
+     16,
+     9
+    ],
+    "variants": [
+     {
+      "content_type": "application/x-mpegURL",
+      "url": "https://video.twimg.com/ext_tw_video/1/pu/pl/list.m3u8"
+     },
+     {
+      "bitrate": 256000,
+      "content_type": "video/mp4",
+      "url": "https://video.twimg.com/ext_tw_video/1/pu/vid/480x270/low.mp4"
+     },
+     {
+      "bitrate": 2176000,
+      "content_type": "video/mp4",
+      "url": "https://video.twimg.com/ext_tw_video/1/pu/vid/1280x720/high.mp4"
+     },
+     {
+      "bitrate": 9000000,
+      "content_type": "video/mp4",
+      "url": "https://evil.example.com/high.mp4"
+     }
+    ]
+   }
+  }
+ ]
+}

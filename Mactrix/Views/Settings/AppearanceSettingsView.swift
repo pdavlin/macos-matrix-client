@@ -9,6 +9,9 @@ struct AppearanceSettingsView: View {
     @AppStorage(MusicLinkPreferences.storageKey) var marksMusicLinks = MusicLinkPreferences.defaultValue
     /// MATRIX-194: the bridge-network badge on sidebar chat avatars.
     @AppStorage(NetworkBadgePreferences.storageKey) var showsNetworkBadges = NetworkBadgePreferences.defaultValue
+    /// MATRIX-201: a click on an X or Bluesky post link opens the post in a
+    /// popover. Off, the link opens in the browser.
+    @AppStorage(PostPeekPreferences.storageKey) var peeksPostLinks = PostPeekPreferences.defaultValue
 
     var body: some View {
         Form {
@@ -20,6 +23,7 @@ struct AppearanceSettingsView: View {
             }
             Toggle("Open song and album links on song.link", isOn: $marksMusicLinks)
             Toggle("Show network badges", isOn: $showsNetworkBadges)
+            Toggle("Peek X and Bluesky links", isOn: $peeksPostLinks)
         }
     }
 }

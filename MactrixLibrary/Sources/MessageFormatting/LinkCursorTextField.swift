@@ -23,7 +23,21 @@
     /// While the field editor shows the text (after a click or a selection),
     /// the field does nothing. The field editor is an `NSTextView`, which
     /// shows the pointing hand over links itself.
+    ///
+    /// A plain click on a link goes to `linkClickHandler` first, with the
+    /// clicked link rect (MATRIX-201: the post peek of X and Bluesky links).
+    /// A marked music link has no `.link`, so its clicks never get there.
     public final class LinkCursorTextField: NSTextField {
+        /// Takes a plain click on a link of a body before the browser does
+        /// (MATRIX-201): the link, the field, and the rect of the clicked
+        /// link line in the field's bounds. Returns true if it handled the
+        /// click, and the link then does not open.
+        public typealias LinkClickHandler = @MainActor (_ url: URL, _ field: NSView, _ linkRect: CGRect) -> Bool
+
+        /// The app's handler: the post peek of X and Bluesky links. Nil
+        /// opens every link as before.
+        public static var linkClickHandler: LinkClickHandler?
+
         private var linkArea: NSTrackingArea?
         private var linkRectsCache: (size: CGSize, rects: [CGRect])?
 
@@ -90,6 +104,40 @@
             }
             guard currentEditor() == nil, isHit(by: event) else { return }
             cursor(at: convert(event.locationInWindow, from: nil)).set()
+        }
+
+        // MARK: Link clicks (MATRIX-201)
+
+        /// The field editor (an `NSTextView`, whose delegate is this field)
+        /// asks here before it opens a clicked link. A plain left click in
+        /// this field's window goes to `linkClickHandler`. A click with ⌘,
+        /// ⌥, ⇧ or ⌃, and the context menu's Open Link (its event is not in
+        /// this window), open the link as before.
+        @objc(textView:clickedOnLink:atIndex:)
+        public func textView(_: NSTextView, clickedOnLink link: Any, at _: Int) -> Bool {
+            guard let handler = Self.linkClickHandler, let url = Self.url(of: link),
+                  let event = NSApp.currentEvent, Self.isPlainClick(event, in: window)
+            else { return false }
+            let point = convert(event.locationInWindow, from: nil)
+            let rect = linkRects.first { $0.contains(point) } ?? CGRect(x: point.x, y: point.y, width: 1, height: 1)
+            return handler(url, self, rect)
+        }
+
+        /// The URL of a `.link` value: a `URL`, or a string that parses as
+        /// one.
+        static func url(of link: Any) -> URL? {
+            if let url = link as? URL {
+                return url
+            }
+            return (link as? String).flatMap { URL(string: $0) }
+        }
+
+        /// True for a left mouse click in `window` with no ⌘, ⌥, ⇧ or ⌃.
+        static func isPlainClick(_ event: NSEvent, in window: NSWindow?) -> Bool {
+            guard event.type == .leftMouseDown || event.type == .leftMouseUp,
+                  let window, event.window === window
+            else { return false }
+            return event.modifierFlags.isDisjoint(with: [.command, .option, .shift, .control])
         }
 
         /// True if the field is the view under the pointer: no view above it,
