@@ -45,6 +45,31 @@ public enum ChatListNetwork: String, CaseIterable, Sendable {
         }
     }
 
+    /// The SF Symbol of the avatar badge (MATRIX-194): a letter in a filled
+    /// circle, drawn with palette rendering in the network's tint.
+    ///
+    /// Deliberately not a brand logo. Networks that share a letter (Slack
+    /// and Signal) differ by tint. A custom symbol template can replace a
+    /// default here later; the badge view reads the name from this property
+    /// only.
+    public var badgeSymbolName: String {
+        switch self {
+        case .slack: "s.circle.fill"
+        case .whatsApp: "w.circle.fill"
+        case .signal: "s.circle.fill"
+        case .discord: "d.circle.fill"
+        case .telegram: "t.circle.fill"
+        case .googleChat: "g.circle.fill"
+        case .groupMe: "g.circle.fill"
+        case .meta: "m.circle.fill"
+        case .instagram: "i.circle.fill"
+        case .facebook: "f.circle.fill"
+        case .googleMessages: "m.circle.fill"
+        case .linkedIn: "l.circle.fill"
+        case .twitter: "x.circle.fill"
+        }
+    }
+
     /// Default mautrix puppet localpart prefixes, in match order.
     ///
     /// `meta_` is the mautrix-meta default for both Instagram and Messenger;
@@ -80,5 +105,23 @@ public enum ChatListNetwork: String, CaseIterable, Sendable {
             }
         }
         return nil
+    }
+}
+
+/// The switch for the avatar network badges in the sidebar (MATRIX-194,
+/// Settings > Appearance).
+///
+/// Stored with `@AppStorage` under `storageKey`. The key is a persisted user
+/// setting: do not rename it. A key that was never written reads as the
+/// default, on.
+public enum NetworkBadgePreferences {
+    /// `UserDefaults` key of the switch.
+    public static let storageKey = "showsNetworkBadges"
+    /// The value when the user never changed it.
+    public static let defaultValue = true
+
+    /// The stored value, or the default.
+    public static func isOn(in defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: storageKey) as? Bool ?? defaultValue
     }
 }

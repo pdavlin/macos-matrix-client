@@ -1,3 +1,4 @@
+import Foundation
 @testable import Models
 import Testing
 
@@ -50,5 +51,45 @@ struct ChatListNetworkTests {
     @Test
     func matchIgnoresCase() {
         #expect(ChatListNetwork.detect(heroUserIds: ["@WhatsApp_1:example.org"]) == .whatsApp)
+    }
+
+    // MARK: Badge glyph (MATRIX-194)
+
+    @Test(arguments: [
+        (ChatListNetwork.slack, "s.circle.fill"),
+        (.whatsApp, "w.circle.fill"),
+        (.signal, "s.circle.fill"),
+        (.discord, "d.circle.fill"),
+        (.telegram, "t.circle.fill"),
+        (.googleChat, "g.circle.fill"),
+        (.groupMe, "g.circle.fill"),
+        (.meta, "m.circle.fill"),
+        (.instagram, "i.circle.fill"),
+        (.facebook, "f.circle.fill"),
+        (.googleMessages, "m.circle.fill"),
+        (.linkedIn, "l.circle.fill"),
+        (.twitter, "x.circle.fill"),
+    ])
+    func badgeSymbolIsTheLetterCircle(network: ChatListNetwork, symbol: String) {
+        #expect(network.badgeSymbolName == symbol)
+    }
+
+    /// The table above names every case once.
+    @Test
+    func everyNetworkHasALetterCircleSymbol() {
+        for network in ChatListNetwork.allCases {
+            #expect(network.badgeSymbolName.hasSuffix(".circle.fill"))
+            #expect(network.badgeSymbolName.count == "s.circle.fill".count)
+        }
+    }
+
+    @Test
+    func networkBadgesAreOnByDefault() throws {
+        let defaults = try #require(UserDefaults(suiteName: "NetworkBadgePreferencesTests"))
+        defaults.removePersistentDomain(forName: "NetworkBadgePreferencesTests")
+        #expect(NetworkBadgePreferences.isOn(in: defaults))
+        defaults.set(false, forKey: NetworkBadgePreferences.storageKey)
+        #expect(!NetworkBadgePreferences.isOn(in: defaults))
+        defaults.removePersistentDomain(forName: "NetworkBadgePreferencesTests")
     }
 }

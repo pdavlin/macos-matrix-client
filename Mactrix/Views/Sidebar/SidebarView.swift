@@ -23,6 +23,8 @@ struct SidebarView: View {
     @Environment(AppState.self) var appState
     @Environment(WindowState.self) var windowState
     @Environment(\.appearsActive) private var appearsActive
+    /// MATRIX-194: Settings > Appearance > "Show network badges".
+    @AppStorage(NetworkBadgePreferences.storageKey) private var showsNetworkBadges = NetworkBadgePreferences.defaultValue
 
     /// The column's narrowest width: the chat list plus the label rail.
     private static let minimumWidth: CGFloat = 240 + LabelToken.railWidth
@@ -99,6 +101,7 @@ struct SidebarView: View {
             SidebarLabelRail(labels: labels)
             Divider()
             chatList
+                .environment(\.showsNetworkBadges, showsNetworkBadges)
         }
         .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
         // MATRIX-148: read each room's account once; new rooms as they come.

@@ -7,6 +7,8 @@ struct AppearanceSettingsView: View {
     /// MATRIX-178: a song or album link on a service that is not Apple Music
     /// opens on song.link and shows the music link marker.
     @AppStorage(MusicLinkPreferences.storageKey) var marksMusicLinks = MusicLinkPreferences.defaultValue
+    /// MATRIX-194: the bridge-network badge on sidebar chat avatars.
+    @AppStorage(NetworkBadgePreferences.storageKey) var showsNetworkBadges = NetworkBadgePreferences.defaultValue
 
     var body: some View {
         Form {
@@ -17,6 +19,7 @@ struct AppearanceSettingsView: View {
                 }
             }
             Toggle("Open song and album links on song.link", isOn: $marksMusicLinks)
+            Toggle("Show network badges", isOn: $showsNetworkBadges)
         }
     }
 }

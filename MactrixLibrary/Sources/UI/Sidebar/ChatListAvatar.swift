@@ -4,7 +4,10 @@ import Tokens
 
 /// A room avatar with the bridge-network badge on its bottom-right corner
 /// (MATRIX-67). Shared by `ChatListRow`, `PinnedChatTile`, the quick
-/// switcher, and the label sheet.
+/// switcher, and the label sheet. A native Matrix chat has no badge.
+///
+/// MATRIX-194: a transparent ring is cut around each badge
+/// (`ChatListBadgeCutout`), and `showsNetworkBadges` hides the badges.
 ///
 /// MATRIX-129: the view draws `ChatListRowModel.avatarChoice` and holds no
 /// rule of its own. An image or initials is clipped to a circle; a group's
@@ -40,22 +43,88 @@ struct ChatListAvatar: View {
         }
     }
 
+    /// MATRIX-194: Settings > Appearance > "Show network badges". The sidebar
+    /// sets it; other hosts keep the default, on.
+    @Environment(\.showsNetworkBadges) private var showsNetworkBadges
+
+    /// The badges the avatar draws: the model's badges, or none when the
+    /// setting is off (MATRIX-194).
+    static func visibleBadges(of model: ChatListRowModel, showsNetworkBadges: Bool) -> [ChatBadge] {
+        showsNetworkBadges ? model.badges : []
+    }
+
+    /// Where badge `index` sits relative to the avatar's bottom-right
+    /// corner. The first badge is on the corner; each further badge of a
+    /// merged chat (MATRIX-141) steps toward the leading edge by
+    /// `MergedChatToken.badgeStepRatio` of a badge.
+    private func badgeOffset(index: Int, badgeSize: CGFloat) -> CGSize {
+        CGSize(
+            width: -ChatListToken.networkBadgeOffset - CGFloat(index) * badgeSize * MergedChatToken.badgeStepRatio,
+            height: -ChatListToken.networkBadgeOffset
+        )
+    }
+
     var body: some View {
-        content
-            .frame(width: size, height: size)
-            .overlay(alignment: .bottomTrailing) {
-                let badges = model.badges
-                let badgeSize = ChatListToken.networkBadgeSize(forAvatarSize: size)
-                if badges.count > 1 {
-                    // MATRIX-141: a merged chat's networks and accounts.
-                    ChatListNetworkBadgeStack(badges: badges, size: badgeSize, imageLoader: imageLoader)
-                        .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
-                } else if let badge = badges.first {
-                    ChatListAccountBadge(badge: badge, size: badgeSize, imageLoader: imageLoader)
-                        .offset(x: -ChatListToken.networkBadgeOffset, y: -ChatListToken.networkBadgeOffset)
-                }
+        let badges = Self.visibleBadges(of: model, showsNetworkBadges: showsNetworkBadges)
+        let badgeSize = ChatListToken.networkBadgeSize(forAvatarSize: size)
+        // MATRIX-194: the badges draw back to front, the first badge last,
+        // so it is on top. Before each badge, its ring cuts a transparent
+        // gap (`destinationOut`) through the avatar and the badges behind
+        // it. The compositing group keeps the cut inside the avatar, so the
+        // row background shows through the gap. Offsets do not change the
+        // layout: the avatar stays `size` square and the row keeps its height.
+        ZStack(alignment: .bottomTrailing) {
+            content
+                .frame(width: size, height: size)
+            ForEach(Array(badges.enumerated()).reversed(), id: \.element) { index, badge in
+                let offset = badgeOffset(index: index, badgeSize: badgeSize)
+                ChatListBadgeCutout(badge: badge, size: badgeSize)
+                    .offset(offset)
+                ChatListAccountBadge(badge: badge, size: badgeSize, imageLoader: imageLoader)
+                    .offset(offset)
             }
-            .accessibilityHidden(true)
+        }
+        .frame(width: size, height: size)
+        .compositingGroup()
+        .accessibilityHidden(true)
+    }
+}
+
+/// The ring cut out around one avatar badge (MATRIX-194), so the badge reads
+/// on any avatar image or color.
+///
+/// An opaque shape one ring wider than the badge on each side, centered on
+/// the badge, drawn with `destinationOut`: it erases what the enclosing
+/// compositing group drew before it. A circle for the letter badge, a
+/// squircle for an account icon (MATRIX-148), so the ring has one width all
+/// around.
+struct ChatListBadgeCutout: View {
+    let badge: ChatBadge
+    /// The badge's side in points.
+    let size: CGFloat
+
+    private var ring: CGFloat {
+        NetworkBadgeToken.ringWidth(forBadgeSize: size)
+    }
+
+    private var shape: AnyShape {
+        if badge.account?.avatarUrl != nil {
+            AnyShape(RoundedRectangle(
+                cornerRadius: size * ChatListToken.networkBadgeCornerRadiusRatio + ring,
+                style: .continuous
+            ))
+        } else {
+            AnyShape(Circle())
+        }
+    }
+
+    var body: some View {
+        shape
+            .fill(Color.black)
+            .frame(width: size + 2 * ring, height: size + 2 * ring)
+            .frame(width: size, height: size)
+            .blendMode(.destinationOut)
+            .allowsHitTesting(false)
     }
 }
 
@@ -86,10 +155,12 @@ struct ChatListAvatarPlaceholder: View {
     }
 }
 
-/// A small colored squircle naming the bridged network.
+/// A small colored circle naming the bridged network.
 ///
 /// Deliberately not a brand logo: Beeper's network assets are not ours to
-/// copy, so each network gets a letter on a color from `badgeColor`.
+/// copy. MATRIX-194: the badge is the network's letter-circle SF Symbol
+/// (`ChatListNetwork.badgeSymbolName`) in palette rendering, a white letter
+/// on the network's tint (`badgeTint`).
 ///
 /// MATRIX-129: the badge scales with its avatar
 /// (`ChatListToken.networkBadgeSize(forAvatarSize:)`).
@@ -99,24 +170,21 @@ struct ChatListNetworkBadge: View {
     let size: CGFloat
 
     var body: some View {
-        Text(network.badgeGlyph)
-            .font(.system(size: size * 0.6, weight: .bold, design: .rounded))
-            .minimumScaleFactor(0.5)
-            .lineLimit(1)
-            .foregroundStyle(.white)
+        Image(systemName: network.badgeSymbolName)
+            .resizable()
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(NetworkBadgeToken.glyphColor, network.badgeTint.color)
+            .scaledToFit()
             .frame(width: size, height: size)
-            .background(
-                RoundedRectangle(
-                    cornerRadius: size * ChatListToken.networkBadgeCornerRadiusRatio,
-                    style: .continuous
-                )
-                .fill(network.badgeColor)
-            )
             .help(network.displayName)
     }
 }
 
 public extension EnvironmentValues {
+    /// Whether chat avatars draw their network badges (MATRIX-194). The
+    /// sidebar sets it from `NetworkBadgePreferences`; elsewhere it is on.
+    @Entry var showsNetworkBadges = NetworkBadgePreferences.defaultValue
+
     /// Loads the account icons of badges outside an avatar (MATRIX-148): the
     /// merged timeline's source notes and the composer's target chip. Nil
     /// draws the network letter.
@@ -174,68 +242,24 @@ struct ChatListAccountBadge: View {
     }
 }
 
-/// Several network badges in a row on the avatar's bottom-right corner, for
-/// a merged chat (MATRIX-141).
-///
-/// The first network sits where a single badge sits and draws on top; each
-/// further badge steps toward the leading edge by
-/// `MergedChatToken.badgeStepRatio` of a badge and hides behind the one
-/// after it.
-struct ChatListNetworkBadgeStack: View {
-    /// The badges, first on top. The caller caps the count
-    /// (`ChatListRowModel.badges`).
-    let badges: [ChatBadge]
-    /// Each badge's side in points.
-    let size: CGFloat
-    let imageLoader: ImageLoader?
-
-    var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ForEach(Array(badges.enumerated()), id: \.element) { index, badge in
-                ChatListAccountBadge(badge: badge, size: size, imageLoader: imageLoader)
-                    .offset(x: -CGFloat(index) * size * MergedChatToken.badgeStepRatio)
-                    .zIndex(Double(badges.count - index))
-            }
-        }
-    }
-}
-
 extension ChatListNetwork {
-    /// The letter drawn on the badge.
-    var badgeGlyph: String {
+    /// The badge tint (MATRIX-194). Networks that share a letter differ by
+    /// tint.
+    var badgeTint: NetworkBadgeToken.Tint {
         switch self {
-        case .slack: "S"
-        case .whatsApp: "W"
-        case .signal: "S"
-        case .discord: "D"
-        case .telegram: "T"
-        case .googleChat: "G"
-        case .groupMe: "G"
-        case .meta: "M"
-        case .instagram: "I"
-        case .facebook: "F"
-        case .googleMessages: "M"
-        case .linkedIn: "in"
-        case .twitter: "X"
-        }
-    }
-
-    /// The badge fill. Networks that share a letter differ by color.
-    var badgeColor: Color {
-        switch self {
-        case .slack: Color(red: 0.29, green: 0.08, blue: 0.29)
-        case .whatsApp: Color(red: 0.15, green: 0.70, blue: 0.40)
-        case .signal: Color(red: 0.23, green: 0.46, blue: 0.94)
-        case .discord: Color(red: 0.35, green: 0.40, blue: 0.95)
-        case .telegram: Color(red: 0.15, green: 0.65, blue: 0.89)
-        case .googleChat: Color(red: 0.00, green: 0.51, blue: 0.18)
-        case .groupMe: Color(red: 0.00, green: 0.69, blue: 0.94)
-        case .meta: Color(red: 0.03, green: 0.40, blue: 1.00)
-        case .instagram: Color(red: 0.89, green: 0.25, blue: 0.37)
-        case .facebook: Color(red: 0.00, green: 0.52, blue: 1.00)
-        case .googleMessages: Color(red: 0.10, green: 0.45, blue: 0.91)
-        case .linkedIn: Color(red: 0.04, green: 0.40, blue: 0.76)
-        case .twitter: Color(red: 0.08, green: 0.08, blue: 0.08)
+        case .slack: NetworkBadgeToken.slack
+        case .whatsApp: NetworkBadgeToken.whatsApp
+        case .signal: NetworkBadgeToken.signal
+        case .discord: NetworkBadgeToken.discord
+        case .telegram: NetworkBadgeToken.telegram
+        case .googleChat: NetworkBadgeToken.googleChat
+        case .groupMe: NetworkBadgeToken.groupMe
+        case .meta: NetworkBadgeToken.meta
+        case .instagram: NetworkBadgeToken.instagram
+        case .facebook: NetworkBadgeToken.messenger
+        case .googleMessages: NetworkBadgeToken.googleMessages
+        case .linkedIn: NetworkBadgeToken.linkedIn
+        case .twitter: NetworkBadgeToken.twitter
         }
     }
 }
