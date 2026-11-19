@@ -68,13 +68,14 @@ public struct ChatListRow: View {
         }
     }
 
-    /// The preview, or MATRIX-207's inbox note in its place.
+    /// The preview, or MATRIX-207's inbox note in its place. The note takes
+    /// the preview's secondary style, not the accent color: the accent is
+    /// the selected row's background, so an accent note is not readable.
     private var previewText: Text {
         guard let note = model.inboxNote else {
             return Text(model.preview ?? "")
         }
         return Text("\(Image(systemName: "moon.zzz.fill")) \(note)")
-            .foregroundStyle(Color.accentColor)
     }
 
     private var previewLine: some View {
