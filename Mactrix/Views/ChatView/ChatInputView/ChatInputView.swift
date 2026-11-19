@@ -194,41 +194,18 @@ struct ChatInputView: View {
                     attachments.remove($0)
                 }
             }
-            HStack(alignment: .bottom, spacing: 0) {
-                Button {
-                    attachments.presentOpenPanel()
-                } label: {
-                    Image(systemName: "paperclip")
-                        .padding(.vertical, DynamicTextView.padding.height)
-                        .padding(.leading, DynamicTextView.padding.width)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .disabled(!isDraftLoaded || editSession != nil)
-                .help("Attach files")
-                .accessibilityLabel(Text("Attach files"))
-                ChatTextView(
-                    text: $chatInput,
-                    placeholder: merged?.placeholder ?? "Message \(room.displayName() ?? "room")",
-                    disabled: !isDraftLoaded,
-                    mentions: mentions,
-                    attachments: attachments,
-                    attachmentsEnabled: editSession == nil,
-                    focusSerial: focusSerial,
-                    onEmptyUpArrow: { editLastOwnMessage() },
-                    onEscape: { endEdit() },
-                    onSubmit: { Task { await sendMessage() } }
-                )
-            }
-        }
-        .font(.system(size: .init(fontSize)))
-        // Drops on the chips or the paperclip. The text view takes drops on
-        // itself (`DynamicTextView.performDragOperation`).
-        .dropDestination(for: URL.self) { urls, _ in
-            let fileURLs = urls.filter(\.isFileURL)
-            guard editSession == nil, !fileURLs.isEmpty else { return false }
-            attachments.add(fileURLs: fileURLs)
-            return true
+            ChatTextView(
+                text: $chatInput,
+                placeholder: merged?.placeholder ?? "Message \(room.displayName() ?? "room")",
+                disabled: !isDraftLoaded,
+                mentions: mentions,
+                attachments: attachments,
+                attachmentsEnabled: editSession == nil,
+                focusSerial: focusSerial,
+                onEmptyUpArrow: { editLastOwnMessage() },
+                onEscape: { endEdit() },
+                onSubmit: { Task { await sendMessage() } }
+            )
         }
         .task(id: ObjectIdentifier(timeline)) {
             configureMentions()
@@ -275,32 +252,45 @@ struct ChatInputView: View {
         }
     }
 
-    @available(macOS 26.0, *)
-    var tahoeView: some View {
-        content
-            .glassEffect(in: .rect(cornerRadius: 16.0))
-            .padding(.horizontal)
-            .padding(.bottom, 10)
-    }
-
-    var oldView: some View {
-        content
-            .background(Color(NSColor.textBackgroundColor))
-            .cornerRadius(4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16.0)
-                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-            )
-            .padding(.horizontal)
-            .padding(.bottom, 10)
-    }
-
+    /// The field and its attach, emoji, and send buttons in one glass
+    /// container (MATRIX-195). With Reduce Transparency the field is opaque.
     var body: some View {
-        if #available(macOS 26.0, *), !reduceTransparency {
-            tahoeView
-        } else {
-            oldView
+        UI.ComposerChrome(
+            hasContent: hasContent,
+            canAttach: isDraftLoaded && editSession == nil,
+            canPickEmoji: isDraftLoaded,
+            canSend: isDraftLoaded && hasContent && !isSendingMedia,
+            isEditing: editSession != nil,
+            usesGlass: !reduceTransparency,
+            actions: .init(
+                attach: { attachments.presentOpenPanel() },
+                emoji: { showCharacterPalette() },
+                send: { Task { await sendMessage() } }
+            )
+        ) {
+            content
         }
+        .font(.system(size: .init(fontSize)))
+        // Drops on the chips or the buttons. The text view takes drops on
+        // itself (`DynamicTextView.performDragOperation`).
+        .dropDestination(for: URL.self) { urls, _ in
+            let fileURLs = urls.filter(\.isFileURL)
+            guard editSession == nil, !fileURLs.isEmpty else { return false }
+            attachments.add(fileURLs: fileURLs)
+            return true
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 10)
+    }
+
+    /// The emoji button: the text view takes the focus, and the system
+    /// Character Viewer opens and types into it, as Control-Command-Space
+    /// does (MATRIX-195).
+    private func showCharacterPalette() {
+        if let textView = mentions.textView {
+            unsafe textView.window?.makeFirstResponder(textView)
+        }
+        NSApplication.shared.orderFrontCharacterPalette(nil)
     }
 }
 
