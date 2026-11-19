@@ -20,6 +20,10 @@ struct MessageReactionToggleStyle: ToggleStyle {
 ///
 /// Every change here is a fill, a stroke, or a scale transform, so the chip's
 /// frame (and the timeline row's measured height) never changes with state.
+///
+/// The pointer is the pointing hand over the whole capsule (MATRIX-205).
+/// The thread pill (`MessageThreadSummary`) uses this style too, so it gets
+/// the same pointer.
 struct ReactionChipButtonStyle: ButtonStyle {
     /// True when the account's own user is one of the reaction's senders.
     let isOwn: Bool
@@ -29,7 +33,7 @@ struct ReactionChipButtonStyle: ButtonStyle {
     }
 }
 
-private struct ReactionChip<Label: View>: View {
+struct ReactionChip<Label: View>: View {
     let label: Label
     let isOwn: Bool
     let isPressed: Bool
@@ -67,6 +71,7 @@ private struct ReactionChip<Label: View>: View {
                     .opacity(showsRing ? 1 : 0)
             }
             .contentShape(Capsule())
+            .linkPointerStyle()
             .scaleEffect(isPressed ? MotionToken.pressedScale : 1)
             .animation(MotionToken.animation(pressAnimation, reduceMotion: reduceMotion), value: isPressed)
             .animation(

@@ -170,6 +170,9 @@ public struct ThreadListRow: View {
             .background(Color.accentColor.opacity(isHovered ? AccentToken.hoverBackgroundOpacity : 0))
         }
         .buttonStyle(.plain)
+        // MATRIX-205: the pointing hand over the whole row, as on the
+        // thread pill.
+        .linkPointerStyle()
         .onHover { isHovered = $0 }
         .help("Open Thread")
         .accessibilityElement(children: .combine)
