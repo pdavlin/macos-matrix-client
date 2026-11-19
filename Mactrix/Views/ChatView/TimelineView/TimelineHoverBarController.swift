@@ -75,10 +75,11 @@ extension TimelineViewController {
     func hoverBarPointerMoved(toWindowPoint windowPoint: NSPoint) {
         let clipView = scrollView.contentView
         let clipPoint = clipView.convert(windowPoint, from: nil)
-        // The timeline runs under the toolbar; the pointer over the toolbar
-        // is not over a row.
+        // The timeline runs under the toolbar and the composer; the pointer
+        // over either is not over a row (MATRIX-198 for the composer).
         let openTop = clipView.bounds.maxY - scrollView.safeAreaInsets.top
-        guard clipView.bounds.contains(clipPoint), clipPoint.y <= openTop else {
+        let openBottom = clipView.bounds.minY + scrollView.contentInsets.bottom
+        guard clipView.bounds.contains(clipPoint), clipPoint.y <= openTop, clipPoint.y >= openBottom else {
             hoverBar.isPointerInside = false
             applyHoverBarEvent(.pointerExited)
             return
@@ -271,7 +272,8 @@ extension TimelineViewController {
             rowRect: cellRect,
             bodyTopInset: HoverActionBarGeometry.bodyTopInset(for: fingerprint.grouping),
             in: HoverActionBarGeometry.Viewport(
-                visibleRect: tableView.visibleRect,
+                // The bar stays above the composer (MATRIX-198).
+                visibleRect: unobscuredVisibleRect,
                 topObscuredHeight: scrollView.safeAreaInsets.top,
                 isFlipped: tableView.isFlipped
             )

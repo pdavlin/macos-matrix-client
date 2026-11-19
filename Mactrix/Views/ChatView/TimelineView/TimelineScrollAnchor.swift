@@ -68,13 +68,12 @@ extension TimelineViewController {
 
     private func updateScrollPosition() {
         let currentOffset = scrollView.contentView.bounds.origin.y
-        let timelineHeight = scrollView.contentView.documentRect.height
-        let viewHeight = scrollView.contentView.documentVisibleRect.height
 
-        // The table is not flipped, so y = 0 is the newest (bottom) end.
-        source.setAtBottom(currentOffset <= Self.bottomThreshold)
+        // The table is not flipped, so the newest (bottom) end is at
+        // `newestEndOriginY`: minus the composer's inset (MATRIX-198).
+        source.setAtBottom(distanceFromNewestEnd <= Self.bottomThreshold)
 
-        let distanceFromTop = timelineHeight - viewHeight - currentOffset
+        let distanceFromTop = maximumScrollOriginY - currentOffset
         let threshold: CGFloat = 200.0 // Pixels from the top to trigger load
 
         if distanceFromTop <= threshold, timelineFetchTask == nil {
@@ -160,7 +159,7 @@ extension TimelineViewController {
     /// (or with no rows on screen).
     private func topVisibleRowAnchor() -> ScrollAnchor? {
         let clipView = scrollView.contentView
-        guard clipView.bounds.origin.y > Self.bottomThreshold else { return nil }
+        guard distanceFromNewestEnd > Self.bottomThreshold else { return nil }
 
         let visibleRows = tableView.rows(in: tableView.visibleRect)
         guard visibleRows.length > 0 else { return nil }
@@ -197,10 +196,8 @@ extension TimelineViewController {
             currentOriginY: clipView.bounds.origin.y,
             anchorOriginBefore: anchor.originBefore,
             anchorOriginAfter: originAfter,
-            maximumOriginY: ScrollAnchorMath.maximumOriginY(
-                documentHeight: tableView.frame.height,
-                viewportHeight: clipView.bounds.height
-            )
+            minimumOriginY: newestEndOriginY,
+            maximumOriginY: maximumScrollOriginY
         )
         guard originY != clipView.bounds.origin.y else { return }
 
@@ -222,6 +219,77 @@ extension TimelineViewController {
         isAdjustingScrollAnchor = false
 
         scheduleScrollReport()
+    }
+
+    // MARK: - Composer inset (MATRIX-198)
+
+    /// The bounds origin at the newest end: minus the bottom content inset.
+    ///
+    /// The composer floats over the bottom of the timeline, and the scroll
+    /// view's bottom content inset is the composer's height. The table is
+    /// not flipped, so the newest row starts at y = 0, and the viewport rests
+    /// that inset below it: the newest row sits just above the composer.
+    var newestEndOriginY: CGFloat {
+        -scrollView.contentInsets.bottom
+    }
+
+    /// How far the viewport is from the newest end. 0 when scrolled to the
+    /// bottom.
+    var distanceFromNewestEnd: CGFloat {
+        scrollView.contentView.bounds.origin.y - newestEndOriginY
+    }
+
+    /// The furthest origin toward the oldest end. A document shorter than the
+    /// viewport rests at the newest end.
+    var maximumScrollOriginY: CGFloat {
+        ScrollAnchorMath.maximumOriginY(
+            documentHeight: tableView.frame.height,
+            viewportHeight: scrollView.contentView.bounds.height,
+            minimumOriginY: newestEndOriginY
+        )
+    }
+
+    /// The part of the table that shows and that the composer does not
+    /// cover, in the table's coordinates. The table and the clip view share
+    /// coordinates, so the covered band is the inset above the bounds' bottom.
+    var unobscuredVisibleRect: NSRect {
+        let visible = tableView.visibleRect
+        let openBottom = scrollView.contentView.bounds.minY + scrollView.contentInsets.bottom
+        guard visible.minY < openBottom else { return visible }
+        return NSRect(x: visible.minX, y: openBottom, width: visible.width, height: max(0, visible.maxY - openBottom))
+    }
+
+    /// Sets the bottom content inset to the composer's height (MATRIX-198).
+    ///
+    /// The viewport keeps its distance from the newest end, so the content
+    /// keeps its place above the composer: at the bottom, the newest row stays
+    /// pinned just above it while the composer grows or shrinks. AppKit moves
+    /// the origin this way by itself; the move here makes it explicit, so it
+    /// does not depend on that.
+    ///
+    /// Called from SwiftUI's update pass, so the bounds change is a
+    /// compensation: `viewDidScroll` ignores it and the report waits (S-54).
+    func setBottomContentInset(_ inset: CGFloat) {
+        let inset = max(0, inset)
+        guard scrollView.contentInsets.bottom != inset else { return }
+        let distance = distanceFromNewestEnd
+
+        isAdjustingScrollAnchor = true
+        var insets = scrollView.contentInsets
+        insets.bottom = inset
+        scrollView.contentInsets = insets
+        isAdjustingScrollAnchor = false
+
+        let originY = ScrollAnchorMath.clamped(
+            newestEndOriginY + distance,
+            minimumOriginY: newestEndOriginY,
+            maximumOriginY: maximumScrollOriginY
+        )
+        if originY != scrollView.contentView.bounds.origin.y {
+            moveViewport(toOriginY: originY)
+        } else {
+            scheduleScrollReport()
+        }
     }
 
     // MARK: - Live resize (MATRIX-197)
@@ -264,10 +332,8 @@ extension TimelineViewController {
         let viewportHeight = clipView.bounds.height
         let originY = ScrollAnchorMath.clamped(
             tableView.rect(ofRow: row).maxY + anchor.distanceFromViewportTop - viewportHeight,
-            maximumOriginY: ScrollAnchorMath.maximumOriginY(
-                documentHeight: tableView.frame.height,
-                viewportHeight: viewportHeight
-            )
+            minimumOriginY: newestEndOriginY,
+            maximumOriginY: maximumScrollOriginY
         )
         guard originY != clipView.bounds.origin.y else { return }
         moveViewport(toOriginY: originY)
@@ -367,7 +433,8 @@ extension TimelineViewController {
     /// Only while the window is key: a read receipt says the user saw it.
     func reportNewestVisibleRow() {
         guard unsafe view.window?.isKeyWindow == true else { return }
-        let visible = tableView.rows(in: tableView.visibleRect)
+        // A row under the composer has not been seen (MATRIX-198).
+        let visible = tableView.rows(in: unobscuredVisibleRect)
         guard visible.length > 0 else { return }
         let newest = max(visible.location, leadingDecorationCount)
         let end = min(visible.location + visible.length, timelineRows.count - trailingDecorationCount)

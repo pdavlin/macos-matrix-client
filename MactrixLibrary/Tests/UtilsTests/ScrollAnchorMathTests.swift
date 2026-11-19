@@ -84,4 +84,31 @@ struct ScrollAnchorMathTests {
         #expect(ScrollAnchorMath.clamped(300, maximumOriginY: 900) == 300)
         #expect(ScrollAnchorMath.clamped(300, maximumOriginY: -10) == 0)
     }
+
+    // MATRIX-198: the composer floats over the newest end, so the origin at that end is minus
+    // the bottom content inset.
+
+    @Test func aBottomInsetLowersTheMinimumOrigin() {
+        #expect(ScrollAnchorMath.clamped(-200, minimumOriginY: -72, maximumOriginY: 900) == -72)
+        #expect(ScrollAnchorMath.clamped(-30, minimumOriginY: -72, maximumOriginY: 900) == -30)
+        #expect(ScrollAnchorMath.clamped(1200, minimumOriginY: -72, maximumOriginY: 900) == 900)
+    }
+
+    @Test func aShortDocumentRestsAboveTheBottomInset() {
+        #expect(ScrollAnchorMath.maximumOriginY(documentHeight: 400, viewportHeight: 860, minimumOriginY: -72) == -72)
+        #expect(ScrollAnchorMath.maximumOriginY(documentHeight: 5000, viewportHeight: 860, minimumOriginY: -72) == 4140)
+        #expect(ScrollAnchorMath.clamped(300, minimumOriginY: -72, maximumOriginY: -72) == -72)
+    }
+
+    @Test func compensationStopsAtTheBottomInset() {
+        let origin = ScrollAnchorMath.originRestoringAnchor(
+            currentOriginY: 100,
+            anchorOriginBefore: 900,
+            anchorOriginAfter: 0,
+            minimumOriginY: -72,
+            maximumOriginY: 2000
+        )
+
+        #expect(origin == -72)
+    }
 }

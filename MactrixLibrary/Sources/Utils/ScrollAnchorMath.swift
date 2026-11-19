@@ -16,12 +16,22 @@ import CoreGraphics
 /// part that is easy to get wrong by a sign.
 public enum ScrollAnchorMath {
     /// Furthest the viewport can travel before it runs off the end of the document.
-    public static func maximumOriginY(documentHeight: CGFloat, viewportHeight: CGFloat) -> CGFloat {
-        max(0, documentHeight - viewportHeight)
+    ///
+    /// `minimumOriginY` is the origin at the document's own end: 0, or minus the bottom content
+    /// inset when a bar floats over that end (MATRIX-198). A document shorter than the viewport
+    /// rests at that end.
+    public static func maximumOriginY(
+        documentHeight: CGFloat,
+        viewportHeight: CGFloat,
+        minimumOriginY: CGFloat = 0
+    ) -> CGFloat {
+        max(minimumOriginY, documentHeight - viewportHeight)
     }
 
-    public static func clamped(_ originY: CGFloat, maximumOriginY: CGFloat) -> CGFloat {
-        min(max(0, originY), max(0, maximumOriginY))
+    /// `originY` kept between `minimumOriginY` and `maximumOriginY`. The minimum wins when the
+    /// two cross.
+    public static func clamped(_ originY: CGFloat, minimumOriginY: CGFloat = 0, maximumOriginY: CGFloat) -> CGFloat {
+        min(max(minimumOriginY, originY), max(minimumOriginY, maximumOriginY))
     }
 
     /// Where the viewport must sit for a row that moved from `anchorOriginBefore` to
@@ -38,8 +48,13 @@ public enum ScrollAnchorMath {
         currentOriginY: CGFloat,
         anchorOriginBefore: CGFloat,
         anchorOriginAfter: CGFloat,
+        minimumOriginY: CGFloat = 0,
         maximumOriginY: CGFloat
     ) -> CGFloat {
-        clamped(currentOriginY + (anchorOriginAfter - anchorOriginBefore), maximumOriginY: maximumOriginY)
+        clamped(
+            currentOriginY + (anchorOriginAfter - anchorOriginBefore),
+            minimumOriginY: minimumOriginY,
+            maximumOriginY: maximumOriginY
+        )
     }
 }

@@ -107,19 +107,15 @@ private struct MergedChatScreen: View {
     }
 
     var body: some View {
-        TimelineViewRepresentable(merged: timeline, rows: timeline.rows)
-            .ignoresSafeArea(edges: .top)
-            .overlay(alignment: .bottomTrailing) {
-                if !timeline.isAtBottom {
-                    UI.ScrollToBottomChip(unseenCount: timeline.unseenArrivals) {
-                        timeline.requestScrollToBottom()
-                    }
-                    .padding(.trailing, DensityToken.scrollChipMargin)
-                    .padding(.bottom, DensityToken.scrollChipMargin)
-                    .transition(.opacity)
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 8) {
+        // MATRIX-198: the timeline runs under the floating glass composer.
+        UI.TimelineComposerLayout(
+            isAtBottom: timeline.isAtBottom,
+            unseenCount: timeline.unseenArrivals,
+            scrollToBottom: { timeline.requestScrollToBottom() },
+            timeline: { bottomInset in
+                TimelineViewRepresentable(merged: timeline, rows: timeline.rows, bottomInset: bottomInset)
+            },
+            composer: {
                 if let target = session.composerTimeline {
                     VStack(spacing: 8) {
                         // MATRIX-173: a reply to a thread that was not sent.
@@ -131,70 +127,71 @@ private struct MergedChatScreen: View {
                     }
                 }
             }
-            // Each row acts on its own member timeline, so each member gets
-            // the delete confirmation and the forward sheets.
-            .background {
-                ForEach(session.members, id: \.room.id) { member in
-                    Color.clear.timelineActionSheets(timeline: member)
-                }
+        )
+        // Each row acts on its own member timeline, so each member gets
+        // the delete confirmation and the forward sheets.
+        .background {
+            ForEach(session.members, id: \.room.id) { member in
+                Color.clear.timelineActionSheets(timeline: member)
             }
-            .background(Color(NSColor.controlBackgroundColor))
-            // MATRIX-149: the Edit menu's message commands act on this merged
-            // chat's target (`MessageCommands`).
-            .focusedSceneValue(timeline.messageActionTarget)
-            .navigationTitle(session.merge.name)
-            .navigationSubtitle(subtitle)
-            .frame(minWidth: 250, minHeight: 200)
-            // MATRIX-111: the hover row's quick reactions are the recent
-            // emoji. One SDK read per session.
-            .task {
-                await appState.matrixClient?.loadRecentEmojisIfNeeded()
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+        // MATRIX-149: the Edit menu's message commands act on this merged
+        // chat's target (`MessageCommands`).
+        .focusedSceneValue(timeline.messageActionTarget)
+        .navigationTitle(session.merge.name)
+        .navigationSubtitle(subtitle)
+        .frame(minWidth: 250, minHeight: 200)
+        // MATRIX-111: the hover row's quick reactions are the recent
+        // emoji. One SDK read per session.
+        .task {
+            await appState.matrixClient?.loadRecentEmojisIfNeeded()
+        }
+        // MATRIX-165: each member room draws the own image of its own
+        // workspace. The composer loads the target room only.
+        .task {
+            for member in session.members {
+                appState.matrixClient?.loadOwnServiceAvatar(forRoom: member.room.id)
             }
-            // MATRIX-165: each member room draws the own image of its own
-            // workspace. The composer loads the target room only.
-            .task {
-                for member in session.members {
-                    appState.matrixClient?.loadOwnServiceAvatar(forRoom: member.room.id)
-                }
-            }
-            // The send target moves to the default room 30 minutes after an
-            // own last message, without any new activity.
-            .task {
-                while !Task.isCancelled {
-                    do {
-                        try await Task.sleep(for: .seconds(60))
-                    } catch {
-                        return
-                    }
-                    session.refresh()
-                }
-            }
-            // Read state: while the window is active and the timeline shows
-            // the newest rows, every member room is marked read.
-            .task(
-                id: MergedChatReadKey(rowCount: timeline.rows.count, active: appearsActive, atBottom: timeline.isAtBottom),
-                priority: .background
-            ) {
-                guard appearsActive, timeline.isAtBottom else { return }
+        }
+        // The send target moves to the default room 30 minutes after an
+        // own last message, without any new activity.
+        .task {
+            while !Task.isCancelled {
                 do {
-                    try await Task.sleep(for: .seconds(1))
+                    try await Task.sleep(for: .seconds(60))
                 } catch {
                     return
                 }
-                Logger.viewCycle.debug("Mark merged chat members as read")
-                await timeline.markMembersAsRead(receiptType: .read)
+                session.refresh()
             }
-            // A new time zone moves the day boundaries of the merge.
-            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
-                timeline.recomputeAll()
+        }
+        // Read state: while the window is active and the timeline shows
+        // the newest rows, every member room is marked read.
+        .task(
+            id: MergedChatReadKey(rowCount: timeline.rows.count, active: appearsActive, atBottom: timeline.isAtBottom),
+            priority: .background
+        ) {
+            guard appearsActive, timeline.isAtBottom else { return }
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
             }
-            .onDisappear {
-                session.stopTyping()
-                let timeline = timeline
-                Task {
-                    Logger.viewCycle.info("Leaving merged chat, marking its members as read")
-                    await timeline.markMembersAsRead(receiptType: .fullyRead)
-                }
+            Logger.viewCycle.debug("Mark merged chat members as read")
+            await timeline.markMembersAsRead(receiptType: .read)
+        }
+        // A new time zone moves the day boundaries of the merge.
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+            timeline.recomputeAll()
+        }
+        .onDisappear {
+            session.stopTyping()
+            let timeline = timeline
+            Task {
+                Logger.viewCycle.info("Leaving merged chat, marking its members as read")
+                await timeline.markMembersAsRead(receiptType: .fullyRead)
             }
+        }
     }
 }

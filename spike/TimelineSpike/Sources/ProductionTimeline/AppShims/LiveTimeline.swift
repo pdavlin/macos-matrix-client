@@ -77,7 +77,13 @@ final class LiveTimeline {
         return pendingDisplayChanges
     }
 
-    func setAtBottom(_: Bool) {}
+    /// The container's last report, so a test can read the bottom pin
+    /// (MATRIX-198). Not observed: the harness never reads it.
+    @ObservationIgnored private(set) var isAtBottom = true
+
+    func setAtBottom(_ atBottom: Bool) {
+        isAtBottom = atBottom
+    }
 
     /// The container's own 200pt trigger fired. Routing it back through the
     /// harness keeps the pagination pacing — batch size, minimum interval, the

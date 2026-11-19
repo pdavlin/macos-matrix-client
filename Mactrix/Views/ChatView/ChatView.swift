@@ -50,70 +50,67 @@ struct ChatJoinedRoom: View {
     }
 
     var body: some View {
-        TimelineViewRepresentable(timeline: timeline, items: timeline.timelineItems)
-            .ignoresSafeArea(edges: .top)
-            .overlay(alignment: .bottomTrailing) {
-                if !timeline.isAtBottom {
-                    UI.ScrollToBottomChip(unseenCount: timeline.unseenArrivals) {
-                        timeline.requestScrollToBottom()
-                    }
-                    .padding(.trailing, DensityToken.scrollChipMargin)
-                    .padding(.bottom, DensityToken.scrollChipMargin)
-                    .transition(.opacity)
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 8) {
+        // MATRIX-198: the timeline runs under the floating glass composer.
+        UI.TimelineComposerLayout(
+            isAtBottom: timeline.isAtBottom,
+            unseenCount: timeline.unseenArrivals,
+            scrollToBottom: { timeline.requestScrollToBottom() },
+            timeline: { bottomInset in
+                TimelineViewRepresentable(timeline: timeline, items: timeline.timelineItems, bottomInset: bottomInset)
+            },
+            composer: {
                 VStack(spacing: 8) {
                     // MATRIX-173: a reply to a thread that was not sent.
                     ThreadReplyNoticeBar(timeline: timeline)
                     ChatInputView(room: room.room, timeline: timeline, replyTo: $timeline.sendReplyTo)
                 }
             }
-            // Delete confirmation and forward sheets (MATRIX-110, MATRIX-112).
-            .timelineActionSheets(timeline: timeline)
-            .background(Color(NSColor.controlBackgroundColor))
-            .navigationTitle(room.room.displayName() ?? "Unknown room")
-            .navigationSubtitle(toolbarSubtitle)
-            .frame(minWidth: 250, minHeight: 200)
-            // MATRIX-111: the hover row's quick reactions are the recent
-            // emoji. One SDK read per session; later rooms return at once.
-            .task {
-                await appState.matrixClient?.loadRecentEmojisIfNeeded()
+        )
+        // Delete confirmation and forward sheets (MATRIX-110, MATRIX-112).
+        .timelineActionSheets(timeline: timeline)
+        .background(Color(NSColor.controlBackgroundColor))
+        .navigationTitle(room.room.displayName() ?? "Unknown room")
+        .navigationSubtitle(toolbarSubtitle)
+        .frame(minWidth: 250, minHeight: 200)
+        // MATRIX-111: the hover row's quick reactions are the recent
+        // emoji. One SDK read per session; later rooms return at once.
+        .task {
+            await appState.matrixClient?.loadRecentEmojisIfNeeded()
+        }
+        .task(priority: .background) {
+            do {
+                try await Task.sleep(for: .seconds(2))
+                try await appState.matrixClient?.client.trackRecentlyVisitedRoom(room: timeline.room.id)
+                Logger.viewCycle.debug("marked room as recently visited: \(timeline.room.id)")
+            } catch is CancellationError {
+                /* sleep cancelled */
+            } catch {
+                Logger.viewCycle.error("failed to mark room as recently visited: \(error)")
             }
-            .task(priority: .background) {
+        }
+        .task(id: TimelineReadKey(count: timeline.timelineItems.count, active: appearsActive), priority: .background) {
+            guard appearsActive else { return }
+            do {
+                try await Task.sleep(for: .seconds(1))
+                Logger.viewCycle.debug("Mark room as read")
+                try await timeline.timeline?.markAsRead(receiptType: .read)
+            } catch is CancellationError {
+                /* sleep cancelled */
+            } catch {
+                Logger.viewCycle.error("failed to send timeline read receipt: \(error)")
+            }
+        }
+        .onDisappear {
+            Task {
+                guard let timeline = timeline.timeline else { return }
                 do {
-                    try await Task.sleep(for: .seconds(2))
-                    try await appState.matrixClient?.client.trackRecentlyVisitedRoom(room: timeline.room.id)
-                    Logger.viewCycle.debug("marked room as recently visited: \(timeline.room.id)")
-                } catch is CancellationError {
-                    /* sleep cancelled */
+                    Logger.viewCycle.info("Unfocusing room, marking it as read")
+                    try await timeline.markAsRead(receiptType: .fullyRead)
                 } catch {
-                    Logger.viewCycle.error("failed to mark room as recently visited: \(error)")
+                    Logger.viewCycle.error("Failed to mark room as read: \(error)")
                 }
             }
-            .task(id: TimelineReadKey(count: timeline.timelineItems.count, active: appearsActive), priority: .background) {
-                guard appearsActive else { return }
-                do {
-                    try await Task.sleep(for: .seconds(1))
-                    Logger.viewCycle.debug("Mark room as read")
-                    try await timeline.timeline?.markAsRead(receiptType: .read)
-                } catch is CancellationError {
-                    /* sleep cancelled */
-                } catch {
-                    Logger.viewCycle.error("failed to send timeline read receipt: \(error)")
-                }
-            }
-            .onDisappear {
-                Task {
-                    guard let timeline = timeline.timeline else { return }
-                    do {
-                        Logger.viewCycle.info("Unfocusing room, marking it as read")
-                        try await timeline.markAsRead(receiptType: .fullyRead)
-                    } catch {
-                        Logger.viewCycle.error("Failed to mark room as read: \(error)")
-                    }
-                }
-            }
+        }
     }
 }
 

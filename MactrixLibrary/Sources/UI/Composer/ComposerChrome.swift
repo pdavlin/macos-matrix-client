@@ -6,7 +6,9 @@ import Tokens
 /// rect, and the attach, emoji, and send buttons beside it.
 ///
 /// Glass rules (contract hard rule 2, and the 2026-11-18 §11 row):
-/// - The composer is chrome outside the timeline's scroll view.
+/// - The composer is chrome. It floats over the bottom of the timeline, and
+///   the rows scroll under it: the one glass overlay over the timeline
+///   (MATRIX-198, §11 2026-11-18).
 /// - The field and the buttons are siblings in one `GlassEffectContainer`.
 ///   No glass draws on top of other glass, and the shapes can morph.
 /// - Idle buttons join one capsule through `glassEffectUnion`. The send

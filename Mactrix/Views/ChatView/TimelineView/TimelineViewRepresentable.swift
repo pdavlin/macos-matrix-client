@@ -14,21 +14,26 @@ struct TimelineViewRepresentable: NSViewControllerRepresentable {
     /// The observation dependency of a merged chat (MATRIX-142): the parent
     /// reads `rows` to build it. Empty for a room timeline.
     private let rows: [TimelineRow]
+    /// The height of the composer that floats over the bottom of the
+    /// timeline: the scroll view's bottom content inset (MATRIX-198).
+    private let bottomInset: CGFloat
 
     /// One room's timeline.
-    init(timeline: LiveTimeline, items: [TimelineItem]) {
+    init(timeline: LiveTimeline, items: [TimelineItem], bottomInset: CGFloat = 0) {
         self.source = timeline
         self.items = items
         self.rows = []
+        self.bottomInset = bottomInset
     }
 
     /// A merged chat's timeline (MATRIX-142 Wave 2). Give the view an
     /// identity per `MergedLiveTimeline` instance (`.id`), because the
     /// controller keeps the source it was made with.
-    init(merged: MergedLiveTimeline, rows: [TimelineRow]) {
+    init(merged: MergedLiveTimeline, rows: [TimelineRow], bottomInset: CGFloat = 0) {
         self.source = merged
         self.items = []
         self.rows = rows
+        self.bottomInset = bottomInset
     }
 
     func makeCoordinator() -> Coordinator {
@@ -53,6 +58,7 @@ struct TimelineViewRepresentable: NSViewControllerRepresentable {
     /// here; the controller reads the display order and the change queue
     /// from the source itself, so it never rebuilds from the array (S-34).
     func updateNSViewController(_ timelineViewController: TimelineViewController, context _: Context) {
+        timelineViewController.setBottomContentInset(bottomInset)
         timelineViewController.applyPendingTimelineChanges()
     }
 }

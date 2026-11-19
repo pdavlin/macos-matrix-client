@@ -12,19 +12,9 @@ extension NSTableView {
     func animateRowToVisible(_ index: Int, completion: (@MainActor () -> Void)? = nil) {
         guard index >= 0, index < numberOfRows else { return }
         guard let scrollView = enclosingScrollView else { return }
-
-        let rowRect = rect(ofRow: index)
         let clipView = scrollView.contentView
-        let visibleRect = clipView.bounds
 
-        var targetY = visibleRect.origin.y
-        if rowRect.origin.y < visibleRect.origin.y {
-            // Row is above: Scroll up until the top of the row is at the top
-            targetY = rowRect.origin.y
-        } else if rowRect.maxY > visibleRect.maxY {
-            // Row is below: Scroll down until the bottom of the row is at the bottom
-            targetY = rowRect.maxY - visibleRect.height
-        } else {
+        guard let targetY = originYShowingRow(index) else {
             // Row is already fully visible: Exit
             completion?()
             return
@@ -43,5 +33,32 @@ extension NSTableView {
                 completion?()
             }
         }
+    }
+
+    /// The clip view origin that brings a row into view, or nil when the row
+    /// already shows in full (or there is no such row or scroll view).
+    ///
+    /// The row lands in the part of the clip view that its content insets do
+    /// not cover: above the floating composer of the timeline (MATRIX-198).
+    func originYShowingRow(_ index: Int) -> CGFloat? {
+        guard index >= 0, index < numberOfRows, let scrollView = enclosingScrollView else { return nil }
+
+        let rowRect = rect(ofRow: index)
+        let clipView = scrollView.contentView
+        let bounds = clipView.bounds
+        // The insets at the low-y and the high-y edge of the bounds.
+        let insets = clipView.contentInsets
+        let lowInset = clipView.isFlipped ? insets.top : insets.bottom
+        let highInset = clipView.isFlipped ? insets.bottom : insets.top
+
+        if rowRect.minY < bounds.minY + lowInset {
+            // The row is past the low-y edge: bring its low-y edge to that edge.
+            return rowRect.minY - lowInset
+        }
+        if rowRect.maxY > bounds.maxY - highInset {
+            // The row is past the high-y edge: bring its high-y edge to that edge.
+            return rowRect.maxY - bounds.height + highInset
+        }
+        return nil
     }
 }
