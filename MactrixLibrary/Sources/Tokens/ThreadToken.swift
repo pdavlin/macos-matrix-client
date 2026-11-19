@@ -57,4 +57,33 @@ public enum ThreadToken {
 
     /// Space between the chip and the latest reply after it.
     public static let chipLatestReplySpacing: CGFloat = 8
+
+    // MARK: Thread list (MATRIX-200)
+
+    /// Side of the root sender's avatar in a Threads pane row.
+    public static let listAvatarSize: CGFloat = 28
+
+    /// Space between the avatar and the text of a row.
+    public static let listAvatarTextSpacing: CGFloat = 8
+
+    /// Space between the lines of a row.
+    public static let listLineSpacing: CGFloat = 3
+
+    /// Padding above and below the content of a row.
+    public static let listRowVerticalPadding: CGFloat = 6
+
+    /// Lines of the root excerpt.
+    public static let listRootLineLimit = 2
+
+    /// Font size of the sender name and the time (label size).
+    public static let listMetaFontSize: CGFloat = 11
+
+    /// Font size of the root excerpt.
+    public static let listExcerptFontSize: CGFloat = 13
+
+    /// Font size of the reply count and the latest reply line.
+    public static let listReplyFontSize: CGFloat = 11
+
+    /// How many rows before the end of the list ask for the next page.
+    public static let listPrefetchRows = 5
 }
