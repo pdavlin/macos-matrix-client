@@ -1,5 +1,4 @@
 import AppKit
-import MessageFormatting
 import Models
 import OSLog
 import SwiftUI
@@ -9,10 +8,10 @@ import UI
 /// popover on the link (MATRIX-201). Credit: post-peek by tsvb
 /// (https://github.com/tsvb/post-peek), MIT License.
 ///
-/// The click comes from `LinkCursorTextField.linkClickHandler`, which only
-/// passes a plain left click: ⌘-click and the context menu's Open Link open
-/// the browser as before. With the Settings switch off
-/// (`PostPeekPreferences`), every link opens the browser.
+/// The click comes from the body link router (`BodyLinkRouter`, MATRIX-203),
+/// which gets only a plain left click: ⌘-click and the context menu's Open
+/// Link open the browser as before. With the Settings switch off
+/// (`PostPeekPreferences`), every post link opens the browser.
 ///
 /// The post is read only on the click, from the Mac, over an ephemeral
 /// `URLSession`: no cookies, no cache on disk, no Referer, a short timeout.
@@ -21,13 +20,20 @@ import UI
 /// requests.
 @MainActor
 enum PostPeekPresenter {
-    /// Sets the body link handler. Call it once, when the app starts.
-    static func install() {
-        LinkCursorTextField.linkClickHandler = { url, field, rect in
-            guard PostPeekPreferences.isOn(in: .standard), let link = PostPeekLink(url: url) else { return false }
-            show(link, clickedURL: url, from: field, rect: rect)
-            return true
-        }
+    /// The post peek link of `url`, or nil when it is not an X or Bluesky
+    /// post or the Settings switch is off.
+    static func peekLink(_ url: URL) -> PostPeekLink? {
+        guard PostPeekPreferences.isOn(in: .standard) else { return nil }
+        return PostPeekLink(url: url)
+    }
+
+    /// Opens the post of `url` in a popover on the clicked link.
+    ///
+    /// - Returns: false when `url` is not a post peek link.
+    static func peek(_ url: URL, from field: NSView, rect: CGRect) -> Bool {
+        guard let link = peekLink(url) else { return false }
+        show(link, clickedURL: url, from: field, rect: rect)
+        return true
     }
 
     private static let session: URLSession = {

@@ -42,8 +42,8 @@ struct MainView: View {
                 let newRoom = try await matrixClient.client.createRoom(request: params.asMatrixRequest)
                 windowState.selectedRoomId = newRoom
             })
-        case .newChat(let mode):
-            NewChatContainerView(mode: mode, openRoom: { await openRoom($0, from: .newChat) })
+        case .newChat(let mode, let prefill):
+            NewChatContainerView(mode: mode, prefill: prefill, openRoom: { await openRoom($0, from: .newChat) })
         case .loadMatrixUrl(let matrixUri):
             LoadMatrixUriScreen(matrixUri: matrixUri)
         case .mergedChat(let mergedChatId):

@@ -90,6 +90,7 @@ private struct MergedChatReadKey: Equatable {
 /// The merged chat's timeline, composer, and sheets.
 private struct MergedChatScreen: View {
     @Environment(AppState.self) private var appState
+    @Environment(WindowState.self) private var windowState
     @Environment(\.appearsActive) private var appearsActive
 
     let session: MergedComposerSession
@@ -180,6 +181,12 @@ private struct MergedChatScreen: View {
             }
             Logger.viewCycle.debug("Mark merged chat members as read")
             await timeline.markMembersAsRead(receiptType: .read)
+        }
+        // MATRIX-203: a Matrix link to an event of a member room scrolls
+        // the merged timeline to it.
+        .task(id: windowState.pendingEventFocus) {
+            guard let focus = windowState.takePendingEventFocus(inMergedRooms: session.merge.rooms) else { return }
+            timeline.focusEvent(.eventId(eventId: focus.eventId), inRoom: focus.roomId)
         }
         // A new time zone moves the day boundaries of the merge.
         .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in

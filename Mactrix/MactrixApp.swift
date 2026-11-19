@@ -8,6 +8,8 @@ import Utils
 struct MactrixApp: App {
     @State var appState = AppState()
     @FocusedValue(WindowState.self) private var windowState: WindowState?
+    /// The Matrix link click that waits for the key window (MATRIX-203).
+    @State private var linkInbox = MatrixLinkInbox.shared
 
     init() {
         // MATRIX-122: macOS starts apps at 256 open files, which the SDK's
@@ -18,9 +20,10 @@ struct MactrixApp: App {
         // MATRIX-166 follow-up: tooltips show after 400 ms. Registered here,
         // before AppKit makes its tooltip manager and before any window shows.
         ToolTipDelay.register()
-        // MATRIX-201: a plain click on an X or Bluesky post link in a
-        // message body opens the post in a popover.
-        PostPeekPresenter.install()
+        // MATRIX-201, MATRIX-203: a plain click on a link in a message body
+        // opens a Matrix link in the app and an X or Bluesky post in a
+        // popover.
+        BodyLinkRouter.install()
     }
 
     var body: some Scene {
@@ -40,6 +43,10 @@ struct MactrixApp: App {
         // notification (MATRIX-116).
         .onChange(of: windowState.map(ObjectIdentifier.init), focusNotification)
         .onChange(of: appState.matrixClient?.notifications.selectedRoomId == nil, focusNotification)
+        // MATRIX-203: a Matrix link click opens in the key window; one that a
+        // room window cannot open waits for a main window.
+        .onChange(of: windowState.map(ObjectIdentifier.init), openMatrixLink)
+        .onChange(of: linkInbox.pending?.id, openMatrixLink)
 
         // MATRIX-116 (D-8): one window per room, opened from the room's
         // context menu and with ⌥-Return in ⌘K. Opening a room that has a
@@ -61,6 +68,22 @@ struct MactrixApp: App {
             SettingsView()
         }
         .environment(appState)
+    }
+
+    /// Opens the waiting Matrix link click in the key window (MATRIX-203).
+    /// A room window opens only a link to its own room; for any other link
+    /// a main window comes forward, and this method runs again when it
+    /// becomes key.
+    func openMatrixLink() {
+        guard let windowState, let client = appState.matrixClient, let request = linkInbox.pending else { return }
+        guard MatrixLinkPlan.opens(request.link, inWindowOf: windowState.singleRoomId) else {
+            NSApp.frontmostMainWindow?.makeKeyAndOrderFront(nil)
+            return
+        }
+        linkInbox.pending = nil
+        Task {
+            await client.openMatrixLink(request.link, url: request.url, in: windowState)
+        }
     }
 
     func focusNotification() {

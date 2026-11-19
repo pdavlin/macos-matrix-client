@@ -269,7 +269,10 @@ struct ChatMessageView: View, UI.MessageEventActions {
                     .padding(.bottom, 10)
                 }
 
+                // MATRIX-203: a link of a body drawn with SwiftUI `Text` (a
+                // notice) goes through the body link router too.
                 message
+                    .environment(\.openURL, BodyLinkRouter.openURLAction)
 
                 if case let .sendingFailed(message: failureMessage, isRecoverable: isRecoverable) = event.sendState {
                     UI.MessageSendFailureView(

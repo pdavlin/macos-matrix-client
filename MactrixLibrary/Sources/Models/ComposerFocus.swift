@@ -19,6 +19,8 @@ public enum ChatOpenSource: Equatable, Sendable {
     case notification
     /// A Go-menu command: ⌘1…⌘9, ⇧⌘] or ⇧⌘[.
     case shortcut
+    /// A click on a Matrix link in a message body (MATRIX-203).
+    case link
     /// A chat-list selection change with no known input event.
     case unknown
 
@@ -26,7 +28,7 @@ public enum ChatOpenSource: Equatable, Sendable {
     /// chat's composer.
     public var asksForComposerFocus: Bool {
         switch self {
-        case .click, .returnKey, .quickSwitcher, .newChat, .notification, .shortcut: true
+        case .click, .returnKey, .quickSwitcher, .newChat, .notification, .shortcut, .link: true
         case .listKeyboard, .unknown: false
         }
     }

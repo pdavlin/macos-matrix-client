@@ -25,7 +25,9 @@
     /// shows the pointing hand over links itself.
     ///
     /// A plain click on a link goes to `linkClickHandler` first, with the
-    /// clicked link rect (MATRIX-201: the post peek of X and Bluesky links).
+    /// clicked link rect: the app's body link router (MATRIX-203) opens a
+    /// Matrix link in the app and an X or Bluesky post in the post peek
+    /// (MATRIX-201).
     /// A marked music link has no `.link`, so its clicks never get there.
     public final class LinkCursorTextField: NSTextField {
         /// Takes a plain click on a link of a body before the browser does
@@ -34,8 +36,8 @@
         /// click, and the link then does not open.
         public typealias LinkClickHandler = @MainActor (_ url: URL, _ field: NSView, _ linkRect: CGRect) -> Bool
 
-        /// The app's handler: the post peek of X and Bluesky links. Nil
-        /// opens every link as before.
+        /// The app's handler: the body link router (Matrix links, then the
+        /// post peek). Nil opens every link as before.
         public static var linkClickHandler: LinkClickHandler?
 
         private var linkArea: NSTrackingArea?

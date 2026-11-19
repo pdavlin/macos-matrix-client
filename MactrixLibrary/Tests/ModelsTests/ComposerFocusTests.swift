@@ -17,6 +17,7 @@ struct ComposerFocusTests {
         .newChat,
         .notification,
         .shortcut,
+        .link,
     ])
     func openingPathsAskForFocus(source: ChatOpenSource) {
         #expect(source.asksForComposerFocus)

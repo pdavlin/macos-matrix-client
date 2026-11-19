@@ -28,8 +28,9 @@ public enum SelectedScreen {
     case previewRoom(_ room: MatrixRustSDK.RoomPreview)
     case user(profile: MatrixRustSDK.UserProfile)
     case newRoom
-    /// The Beeper-style new chat draft in the detail pane (MATRIX-75).
-    case newChat(mode: NewChatMode)
+    /// The Beeper-style new chat draft in the detail pane (MATRIX-75). A
+    /// Matrix link prefills it (MATRIX-203).
+    case newChat(mode: NewChatMode, prefill: NewChatPrefill? = nil)
     /// A merged chat (MATRIX-141), by its ID. Phase B shows a placeholder;
     /// the merged timeline replaces it.
     case mergedChat(id: String)
@@ -38,7 +39,18 @@ public enum SelectedScreen {
 
 @MainActor @Observable
 public final class WindowState {
-    public var selectedScreen: SelectedScreen = .none
+    public var selectedScreen: SelectedScreen = .none {
+        didSet { applyPendingEventFocus() }
+    }
+
+    /// The event a Matrix link asked this window to show (MATRIX-203), or
+    /// nil. It waits until the window shows the event's room: the room's
+    /// screen (`selectedScreen`) takes it here, a merged chat's view takes
+    /// it with `takePendingEventFocus(inMergedRooms:)`. A chat opened any
+    /// other way drops it.
+    public var pendingEventFocus: MatrixLinkEventFocus? {
+        didSet { applyPendingEventFocus() }
+    }
 
     /// What the window selects: a room or a merged chat (MATRIX-141). The
     /// one stored value, so a room and a merged chat are never selected at
@@ -154,6 +166,9 @@ public final class WindowState {
     /// (MATRIX-188, `ComposerFocusRule`). A source that does not ask drops
     /// an older request.
     public func open(_ selection: ChatSelection?, from source: ChatOpenSource) {
+        if source != .link {
+            pendingEventFocus = nil
+        }
         if chatSelection != selection {
             chatSelection = selection
         }
@@ -228,6 +243,41 @@ public final class WindowState {
         withAnimation {
             roomTimeline.scrollPosition.scrollTo(id: eventId)
         }
+    }
+
+    /// Shows the pending event (MATRIX-203) if the window shows its room:
+    /// the timeline scrolls to it and flashes it. A thread reply opens the
+    /// thread panel on its root and scrolls there too; the main timeline
+    /// scrolls to the root.
+    ///
+    /// An event that the timeline has not loaded stays a pending scroll of
+    /// the timeline (`LiveTimeline.focusEvent(id:)`), and the room shows its
+    /// newest messages.
+    private func applyPendingEventFocus() {
+        guard let focus = pendingEventFocus,
+              case let .joinedRoom(timeline: roomTimeline) = selectedScreen,
+              roomTimeline.room.id == focus.roomId
+        else { return }
+        pendingEventFocus = nil
+        guard let rootEventId = focus.threadRootId else {
+            roomTimeline.focusEvent(id: .eventId(eventId: focus.eventId))
+            return
+        }
+        roomTimeline.focusEvent(id: .eventId(eventId: rootEventId))
+        focusThread(rootEventId: rootEventId)
+        if case let .focusThread(threadTimeline: thread) = inspectorContent, thread.focusedThreadId == rootEventId {
+            thread.focusEvent(id: .eventId(eventId: focus.eventId))
+        }
+    }
+
+    /// Takes the pending event (MATRIX-203) when its room is one of
+    /// `roomIds`, the member rooms of the merged chat the window shows.
+    ///
+    /// - Returns: the event to show, or nil. The request is then gone.
+    public func takePendingEventFocus(inMergedRooms roomIds: [String]) -> MatrixLinkEventFocus? {
+        guard let focus = pendingEventFocus, roomIds.contains(focus.roomId) else { return nil }
+        pendingEventFocus = nil
+        return focus
     }
 
     public func focusThread(rootEventId: String) {

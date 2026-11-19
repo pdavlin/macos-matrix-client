@@ -13,14 +13,25 @@ struct NewChatContainerView: View {
     @Environment(WindowState.self) var windowState
 
     let mode: NewChatMode
+    /// What a Matrix link put in the draft (MATRIX-203), or nil. A new
+    /// prefill starts a new draft.
+    let prefill: NewChatPrefill?
     /// Shows a room in this window once it is opened, created, or joined.
     let openRoom: (_ roomId: String) async -> Void
 
     private var modeBinding: Binding<NewChatMode> {
         Binding(
             get: { mode },
-            set: { windowState.selectedScreen = .newChat(mode: $0) }
+            set: { windowState.selectedScreen = .newChat(mode: $0, prefill: prefill) }
         )
+    }
+
+    private var draft: NewChatDraft {
+        switch prefill {
+        case let .joinAddress(address): NewChatDraft(joinAddress: address)
+        case let .person(person): NewChatDraft(selected: [person])
+        case nil: NewChatDraft()
+        }
     }
 
     var body: some View {
@@ -41,8 +52,10 @@ struct NewChatContainerView: View {
                         let roomId = try await matrixClient.joinNewChatRoom(address: address)
                         await openRoom(roomId)
                     }
-                )
+                ),
+                draft: draft
             )
+            .id(prefill)
         } else {
             ContentUnavailableView("Not signed in", systemImage: "person.crop.circle.badge.exclamationmark")
         }
