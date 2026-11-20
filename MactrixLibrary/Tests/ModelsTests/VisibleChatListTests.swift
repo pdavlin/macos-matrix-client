@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 /// MATRIX-115: the sidebar's visible rooms and the Go menu's walk over
-/// them (D-7b, D-7c).
+/// them (D-7c, moved to ⌘] and ⌘[ by MATRIX-217).
 struct VisibleChatListTests {
     private struct TestRoom: Identifiable, Equatable {
         let id: String
@@ -68,36 +68,7 @@ struct VisibleChatListTests {
         #expect(list.ordered.map(\.id) == ["!y", "!w", "!z", "!x"])
     }
 
-    // MARK: ⌘1…⌘9
-
-    private func rooms(favourites: Int, others: Int) -> [TestRoom] {
-        (0 ..< favourites).map { TestRoom(id: "!fav\($0)", isFavourite: true) }
-            + (0 ..< others).map { TestRoom(id: "!room\($0)") }
-    }
-
-    @Test
-    func threeFavouritesThenTheList() {
-        // D-7b: ⌘1–⌘3 favourites, ⌘4 the first list row, ⌘5 the second.
-        let ordered = visible(rooms(favourites: 3, others: 10), labels: ChatLabelDocument()).ordered
-        let targets = ChatListNavigation.shortcutTargets(in: ordered).map(\.id)
-        #expect(targets == ["!fav0", "!fav1", "!fav2", "!room0", "!room1", "!room2", "!room3", "!room4", "!room5"])
-    }
-
-    @Test
-    func nineOrMoreFavouritesTakeEveryKey() {
-        let ordered = visible(rooms(favourites: 11, others: 4), labels: ChatLabelDocument()).ordered
-        let targets = ChatListNavigation.shortcutTargets(in: ordered).map(\.id)
-        #expect(targets == (0 ..< 9).map { "!fav\($0)" })
-    }
-
-    @Test
-    func fewerRoomsThanKeysLeavesTheRestEmpty() {
-        let ordered = visible(rooms(favourites: 1, others: 2), labels: ChatLabelDocument()).ordered
-        #expect(ChatListNavigation.shortcutTargets(in: ordered).map(\.id) == ["!fav0", "!room0", "!room1"])
-        #expect(ChatListNavigation.shortcutTargets(in: [TestRoom]()).isEmpty)
-    }
-
-    // MARK: ⇧⌘] and ⇧⌘[
+    // MARK: ⌘] and ⌘[ (MATRIX-217)
 
     private let order = ["!fav", "!a", "!b"]
 

@@ -56,8 +56,8 @@ Each has a shipped default. Answer only where you want a change.
   gets one message; the count typed above 20 chats; Stop has no resume; no
   history. Images are MATRIX-177 (Backlog). Change any of these?
 - [ ] **Space rail (MATRIX-167).** One selection at a time (Inbox, a space,
-  or a label); a second click does not clear a filter; ⌃1 to ⌃9 count the
-  spaces before the labels. Change any of these?
+  or a label); a second click does not clear a filter; ⌘1 to ⌘9 count the
+  spaces before the labels (MATRIX-217). Change any of these?
 - [ ] **Low priority notifications.** Low priority chats no longer count in
   the rail and Dock badges. Must they also give no system notification?
 

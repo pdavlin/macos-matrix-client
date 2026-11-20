@@ -48,9 +48,10 @@ public struct LabelRailActions {
 /// The Inbox is the top item, then one item per space in the order given,
 /// then a divider when there are both spaces and labels, then one item per
 /// label in document order, then a "+" button. Selecting an item filters the
-/// chat list; a click on the selected item keeps it selected. ⌃1…⌃9 select
-/// the first nine items in rail order; ⌘1…⌘9 stay reserved for room pinning
-/// (contract M2).
+/// chat list; a click on the selected item keeps it selected. ⌘1…⌘9 select
+/// the first nine items in rail order (MATRIX-217). The app's Go menu binds
+/// those keys, by `Models.ChatListRailNavigation`, the same order as here;
+/// an item's help text shows its key.
 public struct LabelRail: View {
     let spaces: [ChatListRailSpace]
     let labels: [ChatLabel]
@@ -195,7 +196,8 @@ public struct LabelRailItem<Icon: View>: View {
     let badge: ChatLabelBadge
     let isSelected: Bool
     let isMuted: Bool
-    /// The item's position in the rail; the first nine get ⌃1…⌃9.
+    /// The item's position in the rail; the help text of the first nine
+    /// shows ⌘1…⌘9.
     let shortcutIndex: Int?
     let action: () -> Void
     let icon: Icon
@@ -218,9 +220,11 @@ public struct LabelRailItem<Icon: View>: View {
         self.icon = icon()
     }
 
-    private var shortcut: KeyEquivalent? {
-        guard let shortcutIndex, (0 ..< 9).contains(shortcutIndex) else { return nil }
-        return KeyEquivalent(Character(String(shortcutIndex + 1)))
+    /// The digit of the item's ⌘-digit key, 1…9, or nil past the ninth item.
+    /// The Go menu binds the key (MATRIX-217); the item only shows it.
+    private var shortcutDigit: Int? {
+        guard let shortcutIndex, (0 ..< ChatListRailNavigation.shortcutCount).contains(shortcutIndex) else { return nil }
+        return shortcutIndex + 1
     }
 
     private var helpText: String {
@@ -228,8 +232,8 @@ public struct LabelRailItem<Icon: View>: View {
         if isMuted {
             text += " (muted)"
         }
-        if let shortcutIndex, shortcut != nil {
-            text += "  ⌃\(shortcutIndex + 1)"
+        if let shortcutDigit {
+            text += "  ⌘\(shortcutDigit)"
         }
         return text
     }
@@ -274,7 +278,6 @@ public struct LabelRailItem<Icon: View>: View {
                 .contentShape(RoundedRectangle(cornerRadius: LabelToken.railItemCornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
-        .modifier(OptionalControlShortcut(key: shortcut))
         .help(helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
@@ -294,19 +297,6 @@ public extension LabelRailItem where Icon == LabelIcon {
             action: action,
             icon: { LabelIcon(label: label) }
         )
-    }
-}
-
-/// ⌃-digit shortcut when the item has one.
-private struct OptionalControlShortcut: ViewModifier {
-    let key: KeyEquivalent?
-
-    func body(content: Content) -> some View {
-        if let key {
-            content.keyboardShortcut(key, modifiers: .control)
-        } else {
-            content
-        }
     }
 }
 

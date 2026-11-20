@@ -3,8 +3,8 @@ import Foundation
 /// The rooms the sidebar shows, in the order it shows them (MATRIX-115).
 ///
 /// The sidebar draws `favorites` as the pinned grid and `list` as the chat
-/// list below it. The Go menu walks `ordered` for ⌘1…⌘9 and ⇧⌘] / ⇧⌘[
-/// (D-7b, D-7c). Both build this value with ``visible(rooms:labels:selectedLabelId:isFavourite:)``,
+/// list below it. The Go menu walks `ordered` for ⌘] / ⌘[ (D-7c,
+/// MATRIX-217). Both build this value with ``visible(rooms:labels:selectedLabelId:isFavourite:)``,
 /// so the shortcuts can never disagree with what the sidebar shows.
 public struct VisibleChatList<Room: Identifiable> where Room.ID == String {
     /// The pinned favourites grid, in grid order.
@@ -57,21 +57,10 @@ public struct VisibleChatList<Room: Identifiable> where Room.ID == String {
 }
 
 /// The Go menu's room navigation over a ``VisibleChatList`` order
-/// (MATRIX-115, D-7b and D-7c).
+/// (MATRIX-115, D-7c). MATRIX-217 moved the walk to ⌘] and ⌘[ and gave
+/// ⌘1…⌘9 to the rail (`ChatListRailNavigation`).
 public enum ChatListNavigation {
-    /// ⌘1…⌘9.
-    public static let shortcutCount = 9
-
-    /// The rooms ⌘1…⌘9 open: element `n` is ⌘(n+1).
-    ///
-    /// With F favourites, ⌘1…⌘F are the favourites and the next keys are
-    /// the first list rows, because `ordered` puts the grid first. Fewer
-    /// rooms than keys gives a shorter array; the extra keys open nothing.
-    public static func shortcutTargets<Room>(in ordered: [Room]) -> [Room] {
-        Array(ordered.prefix(shortcutCount))
-    }
-
-    /// The room ⇧⌘] opens: the one after the selected room.
+    /// The room ⌘] opens: the one after the selected room.
     ///
     /// With no room selected, or a selected room the sidebar does not show,
     /// this is the first room. At the last room it is `nil`: the walk stops
@@ -84,7 +73,7 @@ public enum ChatListNavigation {
         return nextIndex < orderedIds.endIndex ? orderedIds[nextIndex] : nil
     }
 
-    /// The room ⇧⌘[ opens: the one before the selected room.
+    /// The room ⌘[ opens: the one before the selected room.
     ///
     /// At the first room it is `nil`: the walk stops and does not wrap. With
     /// no room selected, or a selected room the sidebar does not show, it is

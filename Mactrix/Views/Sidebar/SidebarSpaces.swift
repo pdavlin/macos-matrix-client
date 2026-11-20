@@ -57,6 +57,18 @@ enum SidebarRail {
         )
     }
 
+    /// The rail's space items with no unread marks: the same items, in the
+    /// same order, as `spaces(client:)`. The Go menu's ⌘1…⌘9 and ⇧⌘] / ⇧⌘[
+    /// read them (MATRIX-217).
+    static func spaceItems(client: MatrixClient) -> [ChatListRailSpace] {
+        ChatListRailSpace.items(
+            joined: joinedSpaces(client: client),
+            spaces: client.roomAccounts.spaceMap,
+            chatIds: chatIds(client: client),
+            unread: [:]
+        )
+    }
+
     /// The filter the window shows: its rail selection, or the Inbox when
     /// the selected label or space is not on the rail.
     static func filter(client: MatrixClient?, windowState: WindowState) -> ChatListRailFilter {

@@ -206,7 +206,8 @@ struct MainView: View {
         .focusedSceneValue(\.quickSwitcherPresented, appState.matrixClient == nil ? nil : $showQuickSwitcher)
         // Go > Bookmarks (MATRIX-208), also only when signed in.
         .focusedSceneValue(\.bookmarksPresented, appState.matrixClient == nil ? nil : $showBookmarks)
-        // ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ in the Go menu (MATRIX-115).
+        // ⌘] / ⌘[, ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ in the Go menu (MATRIX-115,
+        // MATRIX-217).
         .modifier(GoNavigationPublisher(windowState: windowState))
         // File > "Broadcast to <filter>…" (MATRIX-168).
         .modifier(BroadcastCommandPublisher(windowState: windowState))

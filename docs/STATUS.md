@@ -115,7 +115,14 @@ Composer and message actions
 
 Mac platform
 
-- File, Edit, View, and Go menus. ⌘K quick switcher. ⌘1 to ⌘9, ⇧⌘] and ⇧⌘[.
+- File, Edit, View, and Go menus. ⌘K quick switcher.
+- Go-menu keys (MATRIX-217):
+  - ⌘1 to ⌘9 select the sidebar rail items in rail order: ⌘1 is the Inbox,
+    then the spaces, then the labels.
+  - ⌘] and ⌘[ open the next and previous chat of the visible chat list, and
+    the composer takes the focus. The walk stops at each end.
+  - ⇧⌘] and ⇧⌘[ select the next and previous rail item. This walk wraps.
+  - No ⌥-digit or ⌥⌘-digit key: AeroSpace takes ⌥1 to ⌥9.
 - A room in its own window, with window and sidebar-width restoration.
 - Settings: Composer and Notifications tabs.
 - Local notifications and a Dock badge that counts chats.
@@ -203,6 +210,7 @@ Tooling
 | MATRIX-186 | Launch and quit after about 90 seconds, then launch again: the rail shows the spaces in the first frame both times, also when the spaces come late |
 | MATRIX-178 | Smoke music links in a Slack chat: a Spotify track link and an album link show a note glyph and the gradient bar of MATRIX-187, and the row does not move; a click opens song.link in the browser, and from there Apple Music opens the song and the album (this also checks the song.link form for an album); a playlist link has no glyph; right-click shows "Open Original Link" and "Copy Original Link"; Copy Text has the original URL; Settings > Appearance turns the glyph off and on with no clipped row |
 | MATRIX-187 | Smoke a Spotify track link in a Slack chat, in light and dark mode: the link text has the color of the message text (not blue) and a violet-to-sky gradient bar in place of the underline, also on each line of a link that wraps; the note glyph is violet; the row does not move; a resize of the window moves the bar with the text; a click on the link text or the glyph opens song.link, the pointer is a hand over it, and a drag from other text still selects |
+| MATRIX-217 | Smoke the Go-menu keys, one time with the composer focused and one time with the chat list focused: ⌘1 selects the Inbox and ⌘2 to ⌘9 the next rail items, with the item names in the Go menu; ⌘] and ⌘[ open the next and previous chat of the selected space and the composer takes the focus; ⇧⌘] and ⇧⌘[ step through the rail items and wrap; ⌥1 to ⌥9 still reach AeroSpace |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |

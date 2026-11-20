@@ -43,7 +43,7 @@ struct SidebarView: View {
     /// The chats a window's sidebar shows: the favourites grid, then the
     /// chat list (MATRIX-115), with merged chats folded in (MATRIX-141).
     ///
-    /// The sidebar draws this and the Go menu's ⌘1…⌘9 and ⇧⌘] / ⇧⌘[ walk it
+    /// The sidebar draws this and the Go menu's ⌘] / ⌘[ walk it (MATRIX-217)
     /// (`GoNavigationPublisher`), so the two cannot disagree. Space rooms
     /// are left out: a space is a rail filter. The rules (filter, then
     /// merge, then split favourites) are in
