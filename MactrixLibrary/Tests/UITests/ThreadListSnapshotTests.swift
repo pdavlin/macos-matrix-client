@@ -11,6 +11,7 @@ import Testing
 /// Same capture as the other snapshots: a fixed 2x scale and a pinned
 /// appearance, at the inspector's ideal width.
 @MainActor
+@Suite(.referenceScaleScreen)
 struct ThreadListSnapshotTests {
     private nonisolated static let appearances: [NSAppearance.Name] = [.aqua, .darkAqua]
 

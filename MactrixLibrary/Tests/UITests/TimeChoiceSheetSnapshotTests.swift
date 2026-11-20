@@ -11,6 +11,7 @@ import Testing
 /// not NSDataDetector, which reads against the system clock. Local gate
 /// only, as the other snapshots (contract R-8).
 @MainActor
+@Suite(.referenceScaleScreen)
 struct TimeChoiceSheetSnapshotTests {
     private static let now = Date(timeIntervalSince1970: 1_795_017_600)
 

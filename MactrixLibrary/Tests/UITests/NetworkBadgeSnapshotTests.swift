@@ -143,8 +143,20 @@ struct NetworkBadgeSnapshotTests {
                 .environment(\.showsNetworkBadges, false)))
         let plain = try #require(pixels(of: ChatListAvatar(model: native, size: 36, imageLoader: nil)))
         let shown = try #require(pixels(of: ChatListAvatar(model: slackModel, size: 36, imageLoader: nil)))
-        #expect(hidden == plain)
-        #expect(shown != plain)
+        #expect(isSameDrawing(hidden, plain))
+        #expect(!isSameDrawing(shown, plain))
+    }
+
+    /// The same pixels, give or take one level per byte (MATRIX-218).
+    ///
+    /// After SwiftUI has drawn the same avatar three times in the process,
+    /// it draws the gradient one level apart in some pixels. The other tests
+    /// draw this avatar too, so, in a parallel run, that change could come
+    /// between two renders of this test, and exact equality failed at
+    /// random. A badge or its cut-out ring changes pixels by much more than
+    /// one level.
+    private func isSameDrawing(_ first: Data, _ second: Data) -> Bool {
+        first.count == second.count && zip(first, second).allSatisfy { abs(Int($0) - Int($1)) <= 1 }
     }
 
     private func pixels(of view: some View) -> Data? {

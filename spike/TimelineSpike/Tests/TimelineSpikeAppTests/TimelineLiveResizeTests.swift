@@ -78,6 +78,47 @@ struct TimelineLiveResizeTests {
             try await Task.sleep(for: .seconds(seconds))
         }
 
+        /// The column's width, the width that fills the clip view, the width
+        /// the controller last measured the rows at, and whether a re-measure
+        /// is queued.
+        var widthState: String {
+            let column = controller.tableView.tableColumns.first?.width ?? -1
+            return "column \(column) of \(fullColumnWidth), measured \(controller.oldWidth ?? -1), "
+                + "queued \(controller.heightRenoteScheduled)"
+        }
+
+        /// The one column fills the clip view, less the intercell spacing.
+        private var fullColumnWidth: CGFloat {
+            clipView.bounds.width - controller.tableView.intercellSpacing.width
+        }
+
+        /// Lays out the table, then waits until the column fills the clip
+        /// view and the controller has measured the rows at that width
+        /// (MATRIX-218).
+        ///
+        /// The rows are first measured at the column's default 100 pt, and
+        /// the re-measure for the real width runs on a delay. A fixed wait
+        /// did not cover it on the CI runner: about half the runs measured
+        /// the history at the default width (712226 pt), and the re-measure
+        /// then moved the scroll. The state must hold for longer than the
+        /// controller's settle delay, so a re-measure queued late counts too.
+        func settleMeasuredWidth() async throws {
+            controller.scrollView.tile()
+            controller.view.layoutSubtreeIfNeeded()
+            let deadline = ContinuousClock.now + .seconds(10)
+            var settledChecks = 0
+            while settledChecks < 4 {
+                guard ContinuousClock.now < deadline else {
+                    Issue.record("the rows were never measured at the column width: \(widthState)")
+                    return
+                }
+                try await settle(0.05)
+                let width = controller.tableView.tableColumns.first?.width
+                let isSettled = width == fullColumnWidth && width == controller.oldWidth && !controller.heightRenoteScheduled
+                settledChecks = isSettled ? settledChecks + 1 : 0
+            }
+        }
+
         /// One frame of the drag: the new frame, its layout, and the
         /// re-measure the controller queues for it.
         func resize(to size: NSSize) async throws {
@@ -124,7 +165,7 @@ struct TimelineLiveResizeTests {
         defer { mounted.close() }
         // The first layout gives the column its width; the re-measure for it
         // waits out the settle delay.
-        try await mounted.settle(0.3)
+        try await mounted.settleMeasuredWidth()
         // AppKit measures rows lazily and estimates the rest of the document.
         // Measure every row and tile, so the middle of the history stays the
         // middle once the scroll measures the rows around it.
@@ -140,7 +181,10 @@ struct TimelineLiveResizeTests {
         try await mounted.scroll(toOriginY: (documentHeight - viewportHeight) / 2)
 
         let scrolledOrigin = mounted.clipView.bounds.origin.y
-        #expect(scrolledOrigin > documentHeight / 4 && scrolledOrigin < documentHeight * 3 / 4, "the anchor must sit mid-history")
+        #expect(
+            scrolledOrigin > documentHeight / 4 && scrolledOrigin < documentHeight * 3 / 4,
+            "the anchor must sit mid-history: \(mounted.widthState)"
+        )
 
         let anchorId = try #require(mounted.topVisibleRowId)
         let offsetBefore = try #require(mounted.distanceFromViewportTop(ofRowId: anchorId))
@@ -165,7 +209,7 @@ struct TimelineLiveResizeTests {
 
         // The rows did take new heights, so the anchor had work to do: taller
         // on the narrow steps, and a shorter history at the wide end.
-        #expect(documentHeights.max() ?? 0 > documentHeight, "the narrow steps must make rows taller")
+        #expect(documentHeights.max() ?? 0 > documentHeight, "the narrow steps must make rows taller: \(mounted.widthState)")
         #expect(tableView.frame.height < documentHeight, "the wide end must make the history shorter")
     }
 

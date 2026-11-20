@@ -30,12 +30,30 @@ struct PostPeekSnapshotTests {
     private static let quoteAvatar = url("https://cdn.bsky.app/img/avatar/plain/did:plc:c/d")
     private static let photo = url("https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:a/e")
 
+    /// A solid image from an sRGB bitmap, in the light variant of `color`.
+    /// Not an image with a drawing handler: AppKit renders that in the main
+    /// display's color space, so the dark photo's pixels changed with the
+    /// attached display (MATRIX-218).
     private static func image(_ color: NSColor) -> NSImage {
-        NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
-            color.setFill()
-            rect.fill()
-            return true
+        var fill: CGColor?
+        NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+            fill = color.usingColorSpace(.sRGB)?.cgColor
         }
+        guard let fill, let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                  data: nil,
+                  width: 8,
+                  height: 8,
+                  bitsPerComponent: 8,
+                  bytesPerRow: 0,
+                  space: space,
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              )
+        else { return NSImage() }
+        context.setFillColor(fill)
+        context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+        guard let cgImage = context.makeImage() else { return NSImage() }
+        return NSImage(cgImage: cgImage, size: NSSize(width: 8, height: 8))
     }
 
     private static func store() -> PostPeekStore {
