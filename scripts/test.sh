@@ -12,7 +12,12 @@
 #      login/discovery integration test against davlin.io. Skips itself
 #      (exit 0) unless MATRIX_DEV_USER / MATRIX_DEV_PASSWORD are present in
 #      its environment; see MactrixIntegrationTests/LoginIntegrationTests.swift
-#      for how to supply them, both from Xcode and headlessly.
+#      for how to supply them, both from Xcode and headlessly. The scheme
+#      builds its app host in the Test configuration, bundle ID
+#      io.davlin.matrixclient.tests (MATRIX-213): the host has its own sandbox
+#      container and keychain items, never the daily app's, and it restores
+#      no saved session unless the test injected the dev account.
+#      TestHostIdentityTests fails if the host gets the daily identity again.
 #   5. `xcodebuild test -scheme MactrixiOS` — the iOS app's unit tests
 #      (MactrixiOSTests) on an iOS Simulator, code signing off. The device
 #      comes from scripts/ios-sim-destination.sh: "iPhone 17" when available,

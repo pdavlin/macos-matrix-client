@@ -25,12 +25,13 @@ import XCTest
 /// This test intentionally calls `login` / `userId` / `logout` directly on
 /// the `unauthenticatedClient` returned by `MatrixClient.loginDetails`,
 /// rather than going through `HomeserverLogin.loginPassword`. That wrapper's
-/// `onSuccessfullLogin` persists the session to the shared app keychain
-/// (service = the host app's bundle identifier), which on a machine that
-/// also runs the real Mactrix app would clobber whatever session — dev or
-/// prod — is already stored there. The lower-level calls used here exercise
-/// the same discovery/login/whoami/logout surface without touching the
-/// keychain at all.
+/// `onSuccessfullLogin` persists the session to the app keychain (service =
+/// the host app's bundle identifier). Before MATRIX-213 the host had the
+/// daily app's identifier, so that write would clobber whatever session —
+/// dev or prod — was stored there. The host now has its own identifier, and
+/// the test still keeps out of the keychain. The lower-level calls used here
+/// exercise the same discovery/login/whoami/logout surface without touching
+/// the keychain at all.
 ///
 /// Providing credentials:
 ///   - In Xcode: Product > Scheme > Edit Scheme > Test > Arguments >

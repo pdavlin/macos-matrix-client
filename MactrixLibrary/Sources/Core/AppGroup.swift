@@ -57,8 +57,9 @@ public enum SessionStorageLocation {
         _ = roots
     }
 
-    /// The store roots, resolved once per process.
-    static let roots: SessionStoreRoots = {
+    /// The store roots, resolved once per process. Public for the test host
+    /// identity check (MATRIX-213).
+    public static let roots: SessionStoreRoots = {
         #if os(iOS)
             let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier)
         #else

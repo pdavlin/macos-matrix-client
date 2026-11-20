@@ -8,7 +8,9 @@ public enum KeychainError: Error {
 }
 
 public struct AppKeychain {
-    private let service: String
+    /// The `kSecAttrService` of the items. On the Mac, the bundle identifier,
+    /// so the test host (MATRIX-213) never finds the daily app's items.
+    public let service: String
     private let accessGroup: String?
     private let platform: StoragePlatform
 

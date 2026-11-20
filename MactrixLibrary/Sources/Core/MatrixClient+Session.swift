@@ -80,7 +80,19 @@ public extension MatrixClient {
     }
 
     static func attemptRestore() async throws -> MatrixClient? {
+        // MATRIX-213: an XCTest host restores no saved session unless the
+        // test injected the dev account. Without dev credentials it does not
+        // read the keychain at all.
+        let policy = SessionRestorePolicy.current
+        if policy == .noSession {
+            Logger.matrixClient.info("XCTest host without dev credentials: no saved session is restored")
+            return nil
+        }
         guard let userSession = try UserSession.loadUserFromKeychain() else { return nil }
+        guard policy.allowsRestore(of: userSession.userID) else {
+            Logger.matrixClient.error("XCTest host: the saved session is not the injected dev account; it is not restored")
+            return nil
+        }
 
         // Probe the store BEFORE building the client. `ClientBuilder` creates
         // the store directory, so once the client exists the directory is
