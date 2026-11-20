@@ -70,7 +70,7 @@ struct ChatInputView: View {
             // MATRIX-169: `Models.ReplyRoute` says if a reply goes into a
             // thread; the timeline sends it through the SDK timeline of
             // that destination.
-            guard try await timeline.send(msg, replyingTo: replyTo) else { return }
+            guard try await timeline.send(msg, replyingTo: replyTo, openThreadRoot: openThreadRoot) else { return }
         } catch {
             // The message never reached the send queue, so no local echo will
             // carry a retry affordance. Keep the input so nothing is lost.
@@ -94,7 +94,7 @@ struct ChatInputView: View {
         defer { isSendingMedia = false }
 
         // MATRIX-169: the same route as a text reply.
-        let route = replyTo.map { timeline.replyRoute(to: $0) }
+        let route = replyTo.map { timeline.replyRoute(to: $0, openThreadRoot: openThreadRoot) }
         let measured = await attachments.measuredAttachments()
         guard let request = MediaSendRequest.make(
             attachments: measured,

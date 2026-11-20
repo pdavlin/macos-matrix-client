@@ -170,8 +170,10 @@ struct ChatMessageActions {
         timeline?.sendReplyTo = event
     }
 
+    /// Opens the thread panel on this message, and its composer takes the
+    /// keyboard focus, so the reply goes into the thread (MATRIX-216).
     func replyInThread() {
-        windowState.focusThread(rootEventId: event.eventOrTransactionId.id)
+        windowState.focusThread(rootEventId: event.eventOrTransactionId.id, focusingComposer: true)
     }
 
     func pin() {

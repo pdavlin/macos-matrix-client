@@ -107,4 +107,81 @@ struct ReplyRouteTests {
         )
         #expect(route.threadRoot == Self.root)
     }
+
+    // MARK: A new thread (MATRIX-216)
+
+    /// "Reply in Thread" on a message with no thread opens the panel on it.
+    /// A reply to that message from the main composer then goes into the
+    /// thread, not to the main timeline as a plain reply.
+    @Test
+    func replyToTheOpenPanelRootFromMainComposerGoesIntoThatThread() {
+        let route = ReplyRoute.route(
+            composerThreadRoot: nil,
+            openThreadRoot: Self.root,
+            targetEventId: Self.root,
+            targetThreadRoot: nil,
+            targetHasThreadSummary: false
+        )
+        #expect(route == .thread(root: Self.root, inReplyTo: nil))
+    }
+
+    @Test
+    func replyToAnotherMessageWhileAPanelIsOpenStaysPlain() {
+        let route = ReplyRoute.route(
+            composerThreadRoot: nil,
+            openThreadRoot: Self.root,
+            targetEventId: Self.plain,
+            targetThreadRoot: nil,
+            targetHasThreadSummary: false
+        )
+        #expect(route == .plain(inReplyTo: Self.plain))
+    }
+
+    @Test
+    func targetThreadWinsOverTheOpenPanel() {
+        let route = ReplyRoute.route(
+            composerThreadRoot: nil,
+            openThreadRoot: "$other",
+            targetEventId: Self.inThread,
+            targetThreadRoot: Self.root,
+            targetHasThreadSummary: false
+        )
+        #expect(route == .thread(root: Self.root, inReplyTo: Self.inThread))
+    }
+
+    /// The first reply in a new thread, from the panel's composer: the
+    /// panel's own timeline sends it, and its focus is the thread.
+    @Test
+    func firstReplyFromThePanelSendsThroughThePanelTimeline() {
+        let route = ReplyRoute.route(
+            composerThreadRoot: Self.root,
+            targetEventId: Self.root,
+            targetThreadRoot: nil,
+            targetHasThreadSummary: false
+        )
+        #expect(ReplyRoute.sendTimeline(for: route, composerThreadRoot: Self.root) == .composer)
+        #expect(ReplyRoute.sendTimeline(for: nil, composerThreadRoot: Self.root) == .composer)
+    }
+
+    // MARK: Send timeline (MATRIX-216)
+
+    /// A thread message from the main composer never goes out through the
+    /// main timeline: there the SDK makes a plain reply to a root.
+    @Test
+    func threadRouteFromMainComposerSendsThroughTheThreadTimeline() {
+        let route = ReplyRoute.thread(root: Self.root, inReplyTo: nil)
+        #expect(ReplyRoute.sendTimeline(for: route, composerThreadRoot: nil) == .thread(root: Self.root))
+    }
+
+    @Test
+    func plainRouteAndNoReplySendThroughTheComposerTimeline() {
+        #expect(ReplyRoute.sendTimeline(for: .plain(inReplyTo: Self.plain), composerThreadRoot: nil) == .composer)
+        #expect(ReplyRoute.sendTimeline(for: nil, composerThreadRoot: nil) == .composer)
+    }
+
+    @Test
+    func threadRouteOfAnotherThreadSendsThroughThatThreadTimeline() {
+        let route = ReplyRoute.thread(root: "$other", inReplyTo: nil)
+        #expect(ReplyRoute.sendTimeline(for: route, composerThreadRoot: Self.root) == .thread(root: "$other"))
+    }
 }

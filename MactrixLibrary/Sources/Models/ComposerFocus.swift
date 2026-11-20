@@ -60,12 +60,17 @@ public enum ListSelectionEvent: Equatable, Sendable {
 public struct ComposerFocusRequest: Equatable, Sendable {
     /// The chat whose composer takes the focus.
     public let chat: ChatSelection
+    /// The thread whose panel composer takes the focus, or nil for the
+    /// chat's main composer (MATRIX-216). A room shows two composers while
+    /// its thread panel is open.
+    public let threadRoot: String?
     /// Tells two requests for the same chat apart, so a second Return on
     /// the same row is a new request.
     public let serial: Int
 
-    public init(chat: ChatSelection, serial: Int) {
+    public init(chat: ChatSelection, threadRoot: String? = nil, serial: Int) {
         self.chat = chat
+        self.threadRoot = threadRoot
         self.serial = serial
     }
 }
@@ -86,6 +91,13 @@ public enum ComposerFocusRule {
         return ComposerFocusRequest(chat: chat, serial: serial)
     }
 
+    /// The request that "Reply in Thread" makes (MATRIX-216): the composer
+    /// of the thread panel on `root` takes the focus, so the reply the user
+    /// types goes into the thread and not into the main composer.
+    public static func request(replyingInThreadOf root: String, inRoom roomId: String, serial: Int) -> ComposerFocusRequest {
+        ComposerFocusRequest(chat: .room(roomId), threadRoot: root, serial: serial)
+    }
+
     /// Whether a chat with this membership can take a message. A left,
     /// invited, knocked, or banned room has no composer to focus.
     public static func canTakeMessage(_ membership: Membership) -> Bool {
@@ -93,17 +105,21 @@ public enum ComposerFocusRule {
     }
 
     /// Whether the composer of `composerChat` takes `request`: the request
-    /// is for this chat, and the chat can take a message. Otherwise the
-    /// focus stays where it is.
+    /// is for this chat and this composer of it, and the chat can take a
+    /// message. Otherwise the focus stays where it is.
     ///
-    /// - Parameter membership: the membership of the room the composer
-    ///   sends to (in a merged chat, the send target).
+    /// - Parameters:
+    ///   - threadRoot: the thread root of the composer's timeline (the
+    ///     thread panel's composer), or nil for the chat's main composer.
+    ///   - membership: the membership of the room the composer sends to (in
+    ///     a merged chat, the send target).
     public static func composer(
         of composerChat: ChatSelection,
+        threadRoot: String? = nil,
         membership: Membership,
         takes request: ComposerFocusRequest?
     ) -> Bool {
-        guard let request, request.chat == composerChat else { return false }
+        guard let request, request.chat == composerChat, request.threadRoot == threadRoot else { return false }
         return canTakeMessage(membership)
     }
 }

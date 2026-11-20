@@ -198,9 +198,21 @@ public final class WindowState {
     /// Takes the focus request if it is for `composerChat` and the chat can
     /// take a message (MATRIX-188). The request is then gone.
     ///
+    /// - Parameter threadRoot: the thread root of the composer's timeline
+    ///   (the thread panel's composer), or nil for the chat's main composer
+    ///   (MATRIX-216).
     /// - Returns: true if the composer should take the keyboard focus.
-    public func takeComposerFocusRequest(composerChat: ChatSelection, membership: Models.Membership) -> Bool {
-        guard ComposerFocusRule.composer(of: composerChat, membership: membership, takes: composerFocusRequest) else {
+    public func takeComposerFocusRequest(
+        composerChat: ChatSelection,
+        threadRoot: String? = nil,
+        membership: Models.Membership
+    ) -> Bool {
+        guard ComposerFocusRule.composer(
+            of: composerChat,
+            threadRoot: threadRoot,
+            membership: membership,
+            takes: composerFocusRequest
+        ) else {
             return false
         }
         composerFocusRequest = nil
@@ -288,16 +300,34 @@ public final class WindowState {
         return focus
     }
 
-    public func focusThread(rootEventId: String) {
+    /// Shows the thread of `rootEventId` in the inspector.
+    ///
+    /// - Parameter focusingComposer: true for "Reply in Thread": the thread
+    ///   panel's composer then takes the keyboard focus (MATRIX-216).
+    ///   Without it the focus stays in the main composer, and a reply typed
+    ///   after the click goes to the main timeline.
+    public func focusThread(rootEventId: String, focusingComposer: Bool = false) {
         guard case let .joinedRoom(timeline: roomTimeline) = selectedScreen else { return }
 
         inspectorVisible = true
         // The panel already holds this thread: keep its timeline, which is
         // loaded and gets each new reply (MATRIX-169).
-        if case let .focusThread(threadTimeline: shown) = inspectorContent {
-            guard shown.room.id != roomTimeline.room.id || shown.focusedThreadId != rootEventId else { return }
+        let isShown = if case let .focusThread(threadTimeline: shown) = inspectorContent {
+            shown.room.id == roomTimeline.room.id && shown.focusedThreadId == rootEventId
+        } else {
+            false
         }
-        inspectorContent = .focusThread(threadTimeline: LiveTimeline(room: roomTimeline.room, focusThread: rootEventId))
+        if !isShown {
+            inspectorContent = .focusThread(threadTimeline: LiveTimeline(room: roomTimeline.room, focusThread: rootEventId))
+        }
+        if focusingComposer {
+            composerFocusSerial += 1
+            composerFocusRequest = ComposerFocusRule.request(
+                replyingInThreadOf: rootEventId,
+                inRoom: roomTimeline.room.id,
+                serial: composerFocusSerial
+            )
+        }
     }
 
     /// The thread the visible inspector shows, or nil (MATRIX-183). The main

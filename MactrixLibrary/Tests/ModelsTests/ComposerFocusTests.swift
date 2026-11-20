@@ -84,4 +84,25 @@ struct ComposerFocusTests {
     func aJoinedRoomCanTakeAMessage() {
         #expect(ComposerFocusRule.canTakeMessage(.joined))
     }
+
+    // MARK: Thread panel (MATRIX-216)
+
+    /// "Reply in Thread": the thread panel's composer takes the focus, and
+    /// the room's main composer leaves it.
+    @Test
+    func theThreadComposerTakesTheReplyInThreadRequest() {
+        let request = ComposerFocusRule.request(replyingInThreadOf: "$root", inRoom: "!r:example.org", serial: 2)
+        #expect(request == ComposerFocusRequest(chat: Self.room, threadRoot: "$root", serial: 2))
+        #expect(ComposerFocusRule.composer(of: Self.room, threadRoot: "$root", membership: .joined, takes: request))
+        #expect(!ComposerFocusRule.composer(of: Self.room, membership: .joined, takes: request))
+        #expect(!ComposerFocusRule.composer(of: Self.room, threadRoot: "$other", membership: .joined, takes: request))
+    }
+
+    /// Opening a chat focuses its main composer, not an open thread panel's.
+    @Test
+    func aThreadComposerLeavesTheChatOpenRequest() {
+        let request = ComposerFocusRule.request(opening: Self.room, from: .click, serial: 1)
+        #expect(!ComposerFocusRule.composer(of: Self.room, threadRoot: "$root", membership: .joined, takes: request))
+        #expect(ComposerFocusRule.composer(of: Self.room, membership: .joined, takes: request))
+    }
 }

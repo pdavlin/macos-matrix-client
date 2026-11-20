@@ -16,20 +16,22 @@ import Models
 ///
 /// So a message for a thread goes out through a timeline with the focus on
 /// that thread. This file selects that timeline and builds no relation.
+///
+/// MATRIX-216: a reply that the main timeline sends to a message with no
+/// thread relation is a plain reply (`m.in_reply_to` only). The route must
+/// send a reply for a new thread through a thread timeline, also before
+/// the thread has its first reply.
 public extension LiveTimeline {
     /// The route of a reply to `target` from this timeline's composer.
-    func replyRoute(to target: MatrixRustSDK.EventTimelineItem) -> ReplyRoute {
-        var threadRoot: String?
-        var hasThreadSummary = false
-        if case let .msgLike(content: content) = target.content {
-            threadRoot = content.threadRoot
-            hasThreadSummary = content.threadSummary != nil
-        }
-        return ReplyRoute.route(
+    ///
+    /// - Parameter openThreadRoot: the root of the thread that the window's
+    ///   thread panel shows in this room, or nil.
+    func replyRoute(to target: MatrixRustSDK.EventTimelineItem, openThreadRoot: String?) -> ReplyRoute {
+        ReplyRoute.route(
             composerThreadRoot: focusedThreadId,
+            openThreadRoot: openThreadRoot,
             targetEventId: target.eventOrTransactionId.id,
-            targetThreadRoot: threadRoot,
-            targetHasThreadSummary: hasThreadSummary
+            targetContent: target.content
         )
     }
 
@@ -38,13 +40,16 @@ public extension LiveTimeline {
     /// - Parameters:
     ///   - msg: the message content.
     ///   - target: the reply target, or nil for a message that is no reply.
+    ///   - openThreadRoot: the root of the thread that the window's thread
+    ///     panel shows in this room, or nil.
     /// - Returns: false if this timeline is not loaded yet, so nothing was
     ///   sent. True if the send queue has the message.
     func send(
         _ msg: RoomMessageEventContentWithoutRelation,
-        replyingTo target: MatrixRustSDK.EventTimelineItem?
+        replyingTo target: MatrixRustSDK.EventTimelineItem?,
+        openThreadRoot: String?
     ) async throws -> Bool {
-        let route = target.map { replyRoute(to: $0) }
+        let route = target.map { replyRoute(to: $0, openThreadRoot: openThreadRoot) }
         guard let sendTimeline = try await sdkTimeline(for: route) else { return false }
         if let inReplyTo = route?.inReplyTo {
             _ = try await sendTimeline.sendReply(msg: msg, eventId: inReplyTo)
@@ -64,10 +69,43 @@ public extension LiveTimeline {
     ///   the main column can show a send that failed (MATRIX-173). Nil if
     ///   this timeline is not loaded yet.
     func sdkTimeline(for route: ReplyRoute?) async throws -> Timeline? {
-        guard let threadRoot = route?.threadRoot, threadRoot != focusedThreadId else {
+        switch ReplyRoute.sendTimeline(for: route, composerThreadRoot: focusedThreadId) {
+        case .composer:
             return timeline
+        case let .thread(root):
+            return try await threadReplies.timeline(forThread: root)
         }
-        return try await threadReplies.timeline(forThread: threadRoot)
+    }
+}
+
+extension ReplyRoute {
+    /// The route of a reply to a timeline item with `targetContent`
+    /// (MATRIX-216).
+    ///
+    /// Only the thread facts of a message-like item count: its thread root,
+    /// and a thread summary with at least one reply (`ThreadRootRule`). The
+    /// kind of message (text, image, any other) does not. The SDK gives a
+    /// summary with no reply to a message whose thread timeline is open
+    /// before its first reply, so that summary alone makes no thread root.
+    static func route(
+        composerThreadRoot: String?,
+        openThreadRoot: String?,
+        targetEventId: String,
+        targetContent: MatrixRustSDK.TimelineItemContent
+    ) -> ReplyRoute {
+        var threadRoot: String?
+        var isThreadRoot = false
+        if case let .msgLike(content: content) = targetContent {
+            threadRoot = content.threadRoot
+            isThreadRoot = ThreadRootRule.isThreadRoot(replyCount: content.threadSummary?.numReplies())
+        }
+        return route(
+            composerThreadRoot: composerThreadRoot,
+            openThreadRoot: openThreadRoot,
+            targetEventId: targetEventId,
+            targetThreadRoot: threadRoot,
+            targetHasThreadSummary: isThreadRoot
+        )
     }
 }
 

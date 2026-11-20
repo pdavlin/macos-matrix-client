@@ -1,5 +1,21 @@
 import Foundation
 
+/// When a message is a thread root that the main column shows as one
+/// (MATRIX-216): its thread summary has at least one reply.
+///
+/// The SDK gives a message a summary with no reply as soon as a thread
+/// timeline opens on it ("Reply in Thread" before the first reply): its
+/// event cache counts the thread replies it holds, and there are none. Such
+/// a message shows no chip, and a reply to it from the main composer is not
+/// a thread reply (`ReplyRoute`).
+public enum ThreadRootRule {
+    /// - Parameter replyCount: the reply count of the message's thread
+    ///   summary, or nil when the message has no summary.
+    public static func isThreadRoot(replyCount: UInt64?) -> Bool {
+        (replyCount ?? 0) > 0
+    }
+}
+
 /// The reply count text of a thread (MATRIX-183): "1 reply", "4 replies".
 /// The panel header, the main-column chip, and the panel's divider row use
 /// it, so the three always say the same.
@@ -66,6 +82,12 @@ public struct OpenThreadPanel: Equatable, Sendable {
     public init(roomId: String, rootEventId: String) {
         self.roomId = roomId
         self.rootEventId = rootEventId
+    }
+
+    /// The thread root if the panel shows a thread of `roomId`, else nil
+    /// (MATRIX-216).
+    public func rootEventId(inRoom roomId: String) -> String? {
+        self.roomId == roomId ? rootEventId : nil
     }
 }
 

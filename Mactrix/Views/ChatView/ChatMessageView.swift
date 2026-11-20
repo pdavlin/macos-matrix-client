@@ -216,6 +216,19 @@ struct ChatMessageView: View, UI.MessageEventActions {
         return threadId == event.eventOrTransactionId.id
     }
 
+    /// The thread summary the row's chip shows, or nil for no chip.
+    /// MATRIX-183: the panel's root shows no chip, because the chip would
+    /// point at the panel it is in. MATRIX-216: a summary with no reply
+    /// shows none either; the SDK gives one to a message as soon as its
+    /// thread opens, before the first reply.
+    var chipThreadSummary: MatrixRustSDK.ThreadSummary? {
+        guard let summary = msg.threadSummary,
+              ThreadRootRule.isThreadRoot(replyCount: summary.numReplies()),
+              !isThreadPanelRoot
+        else { return nil }
+        return summary
+    }
+
     /// Whether this main-column row is the root of the thread the inspector
     /// shows (MATRIX-183). The row then draws the focus background.
     var isOpenThreadRoot: Bool {
@@ -282,9 +295,7 @@ struct ChatMessageView: View, UI.MessageEventActions {
                     )
                 }
 
-                // MATRIX-183: the panel's root shows no chip, because the
-                // chip would point at the panel it is in.
-                if let threadSummary = msg.threadSummary, !isThreadPanelRoot {
+                if let threadSummary = chipThreadSummary {
                     MessageThreadSummary(summary: threadSummary, imageLoader: appState.matrixClient) {
                         windowState.focusThread(rootEventId: event.eventOrTransactionId.id)
                     }

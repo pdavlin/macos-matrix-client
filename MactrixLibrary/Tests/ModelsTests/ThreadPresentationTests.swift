@@ -84,4 +84,23 @@ struct ThreadPresentationTests {
     @Test func noMarkWithoutARoom() {
         #expect(!OpenThreadMark.isMarked(rowEventId: "$root", rowRoomId: nil, rowTimelineIsThread: false, panel: Self.panel))
     }
+
+    @Test func thePanelRootIsForItsRoomOnly() {
+        #expect(Self.panel.rootEventId(inRoom: "!room:example.org") == "$root")
+        #expect(Self.panel.rootEventId(inRoom: "!elsewhere:example.org") == nil)
+    }
+
+    // MARK: Thread root (MATRIX-216)
+
+    /// The SDK gives a message a summary with no reply when its thread
+    /// opens before the first reply. That message shows no chip.
+    @Test func aSummaryWithNoReplyMakesNoThreadRoot() {
+        #expect(!ThreadRootRule.isThreadRoot(replyCount: 0))
+        #expect(!ThreadRootRule.isThreadRoot(replyCount: nil))
+    }
+
+    @Test(arguments: [UInt64(1), 2, 40])
+    func aSummaryWithRepliesMakesAThreadRoot(count: UInt64) {
+        #expect(ThreadRootRule.isThreadRoot(replyCount: count))
+    }
 }

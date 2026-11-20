@@ -61,4 +61,14 @@ struct WindowStateComposerFocusTests {
         #expect(!state.takeComposerFocusRequest(composerChat: Self.room, membership: .left))
         #expect(state.composerFocusRequest?.chat == Self.room)
     }
+
+    /// MATRIX-216: an open thread panel's composer does not take the
+    /// request that opening the chat makes. The main composer does.
+    @Test
+    func aThreadComposerLeavesTheRequestOfAChatOpen() {
+        let state = WindowState()
+        state.open(Self.room, from: .click)
+        #expect(!state.takeComposerFocusRequest(composerChat: Self.room, threadRoot: "$root", membership: .joined))
+        #expect(state.takeComposerFocusRequest(composerChat: Self.room, membership: .joined))
+    }
 }
