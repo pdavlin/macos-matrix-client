@@ -187,4 +187,85 @@ struct LinkCursorTests {
         let rects = try linkRects(in: hosted("<p>no link here</p>").view)
         #expect(rects.isEmpty)
     }
+
+    // MARK: Mouse moves (MATRIX-214)
+
+    /// A selectable field with the one-line link body, in a window that is
+    /// not on screen.
+    private func fieldInWindow() -> (window: NSWindow, field: LinkCursorTextField) {
+        let string = AttributedTextView(attributedString: parseFormattedBody(Self.oneLine, baseFontSize: 13)).attributedString
+        let field = LinkCursorTextField(labelWithAttributedString: string)
+        field.isSelectable = true
+        let window = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: Self.width, height: 40),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        let container = NSView(frame: CGRect(x: 0, y: 0, width: Self.width, height: 40))
+        window.contentView = container
+        field.frame = container.bounds
+        container.addSubview(field)
+        return (window, field)
+    }
+
+    /// A mouseMoved event at `point` in the field's bounds. It has no
+    /// tracking area: AppKit raises if the field reads one.
+    private func mouseMoved(to point: NSPoint, in field: LinkCursorTextField) throws -> NSEvent {
+        try #require(NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: field.convert(point, to: nil),
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: field.window?.windowNumber ?? 0,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        ))
+    }
+
+    /// The field sets the cursor from the location of a mouseMoved event,
+    /// and does not read the event's tracking area: the pointing hand over
+    /// the link, the I-beam over other text.
+    @Test func aMouseMoveSetsTheCursorFromItsLocation() throws {
+        let (window, field) = fieldInWindow()
+        defer { window.close() }
+        let link = try #require(field.linkRects.first)
+
+        try field.mouseMoved(with: mouseMoved(to: NSPoint(x: link.midX, y: link.midY), in: field))
+        #expect(NSCursor.current == NSCursor.pointingHand)
+
+        try field.mouseMoved(with: mouseMoved(to: NSPoint(x: field.bounds.minX + 8, y: link.midY), in: field))
+        #expect(NSCursor.current == NSCursor.iBeam)
+    }
+
+    /// A view over the field, such as the timeline's hover action bar,
+    /// keeps its cursor.
+    @Test func aViewOverTheLinkKeepsTheCursor() throws {
+        let (window, field) = fieldInWindow()
+        defer { window.close() }
+        let link = try #require(field.linkRects.first)
+        let container = try #require(field.superview)
+        container.addSubview(NSView(frame: container.convert(link, from: field)))
+
+        NSCursor.arrow.set()
+        try field.mouseMoved(with: mouseMoved(to: NSPoint(x: link.midX, y: link.midY), in: field))
+        #expect(NSCursor.current == NSCursor.arrow)
+    }
+
+    /// While the field editor shows the text, the field leaves the cursor
+    /// alone.
+    @Test func theFieldEditorKeepsTheCursor() throws {
+        let (window, field) = fieldInWindow()
+        defer { window.close() }
+        let link = try #require(field.linkRects.first)
+        field.selectText(nil)
+        try #require(field.currentEditor() != nil)
+
+        NSCursor.arrow.set()
+        try field.mouseMoved(with: mouseMoved(to: NSPoint(x: link.midX, y: link.midY), in: field))
+        #expect(NSCursor.current == NSCursor.arrow)
+    }
 }

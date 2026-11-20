@@ -99,12 +99,21 @@
             cursor(at: convert(event.locationInWindow, from: nil)).set()
         }
 
+        // AppKit rule: `NSEvent.trackingArea` is valid only for mouseEntered,
+        // mouseExited and cursorUpdate events. On other event types, such as
+        // mouseMoved, AppKit can raise NSInternalInconsistencyException
+        // (MATRIX-214). Do not read it here: use only the field's state and
+        // the event location.
+        //
+        // While the field editor shows the text, the field sends the event
+        // up the responder chain. Else it sets the cursor where it is the
+        // view under the pointer.
         override public func mouseMoved(with event: NSEvent) {
-            guard let linkArea, event.trackingArea === linkArea else {
+            guard currentEditor() == nil else {
                 super.mouseMoved(with: event)
                 return
             }
-            guard currentEditor() == nil, isHit(by: event) else { return }
+            guard isHit(by: event) else { return }
             cursor(at: convert(event.locationInWindow, from: nil)).set()
         }
 
