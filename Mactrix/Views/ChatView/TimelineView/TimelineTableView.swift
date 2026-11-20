@@ -118,10 +118,10 @@ class TimelineViewController: NSViewController {
     let hoverBar = TimelineHoverBarOverlay()
 
     #if canImport(Core)
-        /// The reaction picker popover (MATRIX-138). The behaviour lives in
-        /// `TimelineReactionPicker.swift`. Lazy, so it starts at the requests
-        /// that are current when the view loads and does not replay them.
-        lazy var reactionPicker = TimelineReactionPickerPresenter(startingAt: source.actionTimelines)
+        /// The row popovers (`TimelinePopoverPresenter.swift`): the reaction picker (MATRIX-138) and the edit
+        /// history (MATRIX-209). Lazy, so each starts at the requests that are current when the view loads.
+        lazy var reactionPicker = TimelinePopoverPresenter(requests: \.reactionPickerRequests, startingAt: source.actionTimelines)
+        lazy var editHistory = TimelinePopoverPresenter(requests: \.editHistoryRequests, startingAt: source.actionTimelines)
     #endif
 
     init(coordinator: TimelineViewRepresentable.Coordinator, source: any TimelineRowSource) {
@@ -256,15 +256,15 @@ class TimelineViewController: NSViewController {
         listenForTypingUsers()
         listenForPaginationActivity()
         #if canImport(Core)
-            listenForReactionPickerRequests()
+            listenForPopoverRequests()
         #endif
     }
 
     override func viewWillDisappear() {
         super.viewWillDisappear()
         #if canImport(Core)
-            // The popover points at a row of this view; it must not outlive it.
-            reactionPicker.close()
+            // The popovers point at a row of this view; they must not outlive it.
+            closePopovers()
         #endif
         hoverBarWillDisappear()
     }

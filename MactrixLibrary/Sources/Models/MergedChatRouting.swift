@@ -83,7 +83,8 @@ public enum MergedChatRouting {
             // The selection, or a URL in the body: no room call.
             return .noRoom
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .forward,
-             .copyText, .copyLink, .pin, .unpin, .quickLook, .playInline, .saveToDownloads, .redact, .bookmark, .removeBookmark:
+             .copyText, .copyLink, .pin, .unpin, .quickLook, .playInline, .saveToDownloads, .redact, .bookmark, .removeBookmark,
+             .showEditHistory:
             return rooms.contains(eventRoomId) ? .room(eventRoomId) : .notAMember
         }
     }

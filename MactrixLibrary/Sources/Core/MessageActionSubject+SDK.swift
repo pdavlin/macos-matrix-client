@@ -40,8 +40,16 @@ public extension Models.MessageActionSubject {
             redactPermission: redactPermission,
             isEditable: event.isEditable && MessageEditTarget.editableContent(of: msg.kind) != nil,
             isForwardable: Self.isForwardable(msg.kind),
-            isInMergedChat: isInMergedChat
+            isInMergedChat: isInMergedChat,
+            isEdited: Self.isEdited(msg.kind)
         )
+    }
+
+    /// Whether the SDK reports the message as edited (MATRIX-209): the same
+    /// flag that shows the "(edited)" mark.
+    private static func isEdited(_ kind: MatrixRustSDK.MsgLikeKind) -> Bool {
+        guard case let .message(message) = kind else { return false }
+        return message.isEdited
     }
 
     /// Whether the content forwards (MATRIX-112). The event ID rule is in

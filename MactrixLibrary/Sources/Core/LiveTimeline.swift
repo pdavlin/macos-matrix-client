@@ -65,12 +65,13 @@ public final class LiveTimeline {
     /// are not sent: the main column shows a notice for them (MATRIX-173).
     public let threadReplies: ThreadReplyWatch
 
-    /// Requests to show the reaction picker on a message (MATRIX-138). Rows
-    /// send them through `requestReactionPicker(for:hoverButtonsAfterPicker:)`;
-    /// the Mac timeline controller observes the channel and shows the picker
-    /// as an AppKit popover. A channel, not a plain value, so the same
-    /// message can be requested twice in a row.
+    /// Requests to show a popover on a message: the reaction picker (MATRIX-138,
+    /// `requestReactionPicker(for:hoverButtonsAfterPicker:)`) and the edit history
+    /// (MATRIX-209, `requestEditHistory(forEventId:)`). The Mac timeline controller
+    /// observes the channels and shows each as an AppKit popover. Channels, not
+    /// plain values, so the same message can be requested twice in a row.
     public internal(set) var reactionPickerRequests = NoncedRequestChannel<ReactionPickerRequest>()
+    public internal(set) var editHistoryRequests = NoncedRequestChannel<EditHistoryRequest>()
 
     public private(set) var timelineItems: [TimelineItem] = []
 

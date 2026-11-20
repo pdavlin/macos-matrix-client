@@ -129,10 +129,10 @@ struct ChatMessageView: View, UI.MessageEventActions {
         case let .message(content: content):
             VStack(alignment: .leading, spacing: 2) {
                 messageBody(content)
-                // Display only: the SDK reports the edit, the app never
-                // authors one.
+                // The SDK reports the edit. A click on the mark opens the
+                // edit history (MATRIX-209).
                 if content.isEdited {
-                    UI.EditedMarker()
+                    UI.EditedMarker { rowActions.showEditHistory() }
                 }
             }
         case .sticker(body: let body, info: _, source: _):

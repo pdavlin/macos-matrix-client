@@ -50,7 +50,7 @@ public extension MessageEventActions {
         case let .toggleReaction(key): toggleReaction(key: key)
         case .pin: pin()
         case .openReactionPicker, .edit, .forward, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact,
-             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
+             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark, .showEditHistory:
             break
         }
     }

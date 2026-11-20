@@ -101,6 +101,8 @@ struct ChatMessageActions {
             // The room view opens the room picker, then the confirmation;
             // `MatrixClient.forward(_:to:)` makes the SDK calls (MATRIX-112).
             timeline?.requestForward(of: event)
+        case .showEditHistory:
+            showEditHistory()
         case .copyText:
             copyText()
         case .copyLink:
@@ -205,6 +207,14 @@ struct ChatMessageActions {
     func setBookmarked(_ isBookmarked: Bool) {
         guard case let .eventId(eventId: eventId) = event.eventOrTransactionId, let roomId = timeline?.room.id else { return }
         appState.matrixClient?.bookmarks?.setBookmarked(isBookmarked, roomId: roomId, eventId: eventId)
+    }
+
+    /// Opens the edit history popover on this message (MATRIX-209). The
+    /// timeline controller shows it; the SDK reads the versions by event ID,
+    /// so a local echo has none.
+    func showEditHistory() {
+        guard case let .eventId(eventId: eventId) = event.eventOrTransactionId else { return }
+        timeline?.requestEditHistory(forEventId: eventId)
     }
 
     func focusUser() {

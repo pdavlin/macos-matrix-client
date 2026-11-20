@@ -22,6 +22,8 @@ import Foundation
 ///   other. Section `.modify`.
 /// - B6 `copyMessages`: the message selection, not one message. Section
 ///   `.copy`.
+/// - `showEditHistory`: in (MATRIX-209). Edited messages with an event ID.
+///   Section `.modify`, right-click menu only.
 public enum MessageAction: Hashable, Sendable {
     /// Reply to the message in the composer.
     case reply
@@ -40,6 +42,12 @@ public enum MessageAction: Hashable, Sendable {
     /// quick switcher picks the room, then a sheet confirms. Text and media
     /// messages with an event ID, own or other. Not in the hover row.
     case forward
+    /// Show the versions of an edited message in a popover on its row
+    /// (MATRIX-209). The SDK reads the versions. Right-click menu only: the
+    /// Edit menu keeps one shape, and this item would show disabled for
+    /// almost every message there. A click on the "(edited)" mark runs it
+    /// too.
+    case showEditHistory
     /// Copy the message's plain text body or media caption.
     case copyText
     /// Copy the message's matrix.to permalink.
@@ -89,7 +97,8 @@ public enum MessageAction: Hashable, Sendable {
         case .replyInThread, .pin, .unpin:
             return true
         case .reply, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .quickLook, .playInline,
-             .saveToDownloads, .redact, .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
+             .saveToDownloads, .redact, .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark,
+             .showEditHistory:
             return false
         }
     }
@@ -104,7 +113,7 @@ public enum MessageAction: Hashable, Sendable {
         case .quickLook, .playInline, .saveToDownloads:
             return true
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker, .edit, .forward, .copyText, .copyLink, .pin, .unpin, .redact,
-             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
+             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark, .showEditHistory:
             return false
         }
     }
@@ -125,7 +134,8 @@ public enum MessageActionSurface: Hashable, Sendable, CaseIterable {
 /// The raw value is the display order. `.destructive` (B3) stays last.
 public enum MessageActionSection: Int, Hashable, Sendable, Comparable {
     case respond
-    /// Actions that change the message: edit (B2) and forward (B5).
+    /// Actions that change the message, or show how it changed: edit (B2),
+    /// forward (B5), and edit history (MATRIX-209).
     case modify
     case media
     case copy
@@ -136,128 +146,6 @@ public enum MessageActionSection: Int, Hashable, Sendable, Comparable {
 
     public static func < (lhs: Self, rhs: Self) -> Bool {
         lhs.rawValue < rhs.rawValue
-    }
-}
-
-/// The facts about one message that the action model reads.
-///
-/// Plain values only, so the model needs no SDK types and runs in unit tests.
-/// `Core` builds this from an SDK event (`MessageActionSubject(event:msg:pinnedEventIds:)`).
-public struct MessageActionSubject: Equatable, Sendable {
-    /// What the message shows, as far as the actions care.
-    public enum Content: Equatable, Sendable {
-        /// Text, notice, emote, location, and other text-like bodies.
-        case text
-        case image
-        /// A video. `isPlayingInline` is true while the row plays it, which
-        /// swaps "Play Inline" for "Quick Look" (S-38).
-        case video(isPlayingInline: Bool)
-        case audio
-        case file
-        /// A redacted message. Only Copy Link applies.
-        case redacted
-        /// Stickers, polls, undecryptable messages, custom events.
-        case other
-
-        /// Whether the content is a downloadable media file.
-        public var isMedia: Bool {
-            switch self {
-            case .image, .video, .audio, .file:
-                return true
-            case .text, .redacted, .other:
-                return false
-            }
-        }
-
-        /// Whether Quick Look shows the content now. A video that plays in
-        /// the row offers Quick Look instead of Play Inline (S-38).
-        public var opensInQuickLook: Bool {
-            switch self {
-            case .image, .audio, .file, .video(isPlayingInline: true):
-                return true
-            case .video(isPlayingInline: false), .text, .redacted, .other:
-                return false
-            }
-        }
-    }
-
-    public var content: Content
-    /// Whether the signed-in account sent the message. B2 (edit) and B3
-    /// (redact) read it.
-    public var isOwn: Bool
-    /// The event ID, or nil while the message is a local echo that has only a
-    /// transaction ID. Copy Link and Pin need an event ID.
-    public var eventId: String?
-    /// The SDK's `canBeRepliedTo`. False for a local echo.
-    public var canBeRepliedTo: Bool
-    /// Whether the room's pinned event list holds this event.
-    public var isPinned: Bool
-    /// The text Copy Text puts on the pasteboard: the plain body, or the
-    /// caption of a media message. Nil or empty means there is no text.
-    public var copyableText: String?
-    /// What the signed-in account may redact in this message's room, from the
-    /// room's power levels (MATRIX-110). The rule reads `isOwn` to pick one.
-    public var redactPermission: MessageRedactPermission
-    /// Whether the composer can edit this message (MATRIX-109): the SDK's
-    /// `isEditable`, and content the composer can edit (text, or a media
-    /// caption). The rule reads `isOwn` too.
-    public var isEditable: Bool
-    /// Whether the message's content can forward (MATRIX-112): text or a
-    /// notice with a body, or one media file. `Core` sets it from
-    /// `MessageForwardContent.decide(type:body:media:)`.
-    public var isForwardable: Bool
-    /// Whether the message shows in a merged chat (MATRIX-149), which has no
-    /// thread view and no pin list. False is a room's own timeline.
-    public var isInMergedChat: Bool
-    /// The original target of the body's first music link, when the music
-    /// link marker is on (MATRIX-178), as the sender wrote it. Nil when the
-    /// body has no marked link.
-    public var originalMusicLink: String?
-    /// Whether the account's bookmarks hold this message (MATRIX-208).
-    public var isBookmarked: Bool
-
-    /// - Parameters:
-    ///   - redactPermission: The room's redact permission. It defaults to
-    ///     `.none`, so a caller that does not know the power levels never
-    ///     offers Delete.
-    ///   - isEditable: Whether the composer can edit the message. It
-    ///     defaults to false, so a caller that does not know never offers Edit.
-    ///   - isForwardable: Whether the content can forward. It defaults to
-    ///     false, so a caller that does not know never offers Forward.
-    public init(
-        content: Content,
-        isOwn: Bool,
-        eventId: String?,
-        canBeRepliedTo: Bool,
-        isPinned: Bool,
-        copyableText: String?,
-        redactPermission: MessageRedactPermission = .none,
-        isEditable: Bool = false,
-        isForwardable: Bool = false,
-        isInMergedChat: Bool = false,
-        originalMusicLink: String? = nil,
-        isBookmarked: Bool = false
-    ) {
-        self.content = content
-        self.isOwn = isOwn
-        self.eventId = eventId
-        self.canBeRepliedTo = canBeRepliedTo
-        self.isPinned = isPinned
-        self.copyableText = copyableText
-        self.redactPermission = redactPermission
-        self.isEditable = isEditable
-        self.isForwardable = isForwardable
-        self.isInMergedChat = isInMergedChat
-        self.originalMusicLink = originalMusicLink
-        self.isBookmarked = isBookmarked
-    }
-
-    /// The same subject with other content. A video view uses it to report
-    /// whether it plays inline.
-    public func with(content: Content) -> Self {
-        var copy = self
-        copy.content = content
-        return copy
     }
 }
 
@@ -374,7 +262,17 @@ public enum MessageActionModel {
         if action == .bookmark || action == .removeBookmark {
             return bookmarkAvailability(of: action, for: subject)
         }
+        if action == .showEditHistory {
+            return editHistoryAvailability(for: subject)
+        }
         return messageAvailability(of: action, for: subject)
+    }
+
+    /// Show Edit History (MATRIX-209): an edited message. The SDK reads the
+    /// versions by event ID, so a local echo shows it disabled.
+    private static func editHistoryAvailability(for subject: MessageActionSubject) -> Availability {
+        if subject.content == .redacted || !subject.isEdited { return .notApplicable }
+        return subject.eventId != nil ? .available : .unavailable
     }
 
     /// Bookmark and Remove Bookmark (MATRIX-208). A bookmark names the
@@ -435,11 +333,12 @@ public enum MessageActionModel {
             // eligible. A message the power levels protect gets no item.
             if isRedacted { return .notApplicable }
             return subject.redactPermission.allows(isOwn: subject.isOwn) ? .available : .notApplicable
-        case .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark:
+        case .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark, .showEditHistory:
             // Copy Messages: decided in
             // `items(for:on:quickReactionKeys:hasMessageSelection:)` from the
-            // selection. No message fact makes it apply. The music link and
-            // bookmark actions: decided in `availability(of:for:)`.
+            // selection. No message fact makes it apply. The music link,
+            // bookmark, and edit history actions: decided in
+            // `availability(of:for:)`.
             return .notApplicable
         }
     }
@@ -464,7 +363,7 @@ public enum MessageActionModel {
         switch surface {
         case .contextMenu:
             return [.reply] + reactions + [.openReactionPicker]
-                + [.edit, .forward]
+                + [.edit, .forward, .showEditHistory]
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyMessages, .copyText, .copyLink, .openOriginalLink, .copyOriginalLink]
                 + [.pin, .unpin, .bookmark, .removeBookmark]
@@ -484,7 +383,7 @@ public enum MessageActionModel {
         switch action {
         case .reply, .replyInThread, .toggleReaction, .openReactionPicker:
             return .respond
-        case .edit, .forward:
+        case .edit, .forward, .showEditHistory:
             return .modify
         case .quickLook, .playInline, .saveToDownloads:
             return .media

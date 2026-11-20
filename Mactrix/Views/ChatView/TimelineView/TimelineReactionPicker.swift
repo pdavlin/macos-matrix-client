@@ -11,119 +11,10 @@
     import UI
 
     // MATRIX-138: the reaction picker as an AppKit popover, owned by the
-    // timeline controller.
-    //
-    // A SwiftUI `.popover` on a row in the timeline table did not open (the
-    // cause is not confirmed). The rows now send a request through
+    // timeline controller (`TimelinePopoverPresenter`). The rows send a
+    // request through
     // `LiveTimeline.requestReactionPicker(for:hoverButtonsAfterPicker:)`; the
-    // controller finds the row, scrolls it into view if needed, and shows one
-    // `NSPopover` over the hover row's picker button.
-
-    /// Owns the reaction picker popover of one timeline.
-    ///
-    /// One popover at a time: a new request closes the open one. The
-    /// presenter also remembers which requests it took, so a timeline view
-    /// made again (the user comes back to a room) does not replay an old one.
-    ///
-    /// A merged chat's timeline (MATRIX-142) shows rows of several member
-    /// rooms, and each member `LiveTimeline` has its own request channel, so
-    /// the presenter keeps one cursor per room timeline.
-    @MainActor
-    final class TimelineReactionPickerPresenter: NSObject, NSPopoverDelegate {
-        /// Identifies one request: the room timeline it came from and its
-        /// nonce in that timeline's channel.
-        struct RequestToken: Equatable {
-            let timeline: ObjectIdentifier
-            let nonce: Int
-        }
-
-        /// The requests this view has taken from each room timeline, by the
-        /// timeline's identity.
-        private var cursors: [ObjectIdentifier: NoncedRequestCursor]
-        /// The request taken last. A newer one retires it.
-        private var newestRequest: RequestToken?
-
-        /// The open popover, or nil.
-        private(set) var popover: NSPopover? {
-            didSet {
-                if (oldValue == nil) != (popover == nil) {
-                    onOpenChange?(popover != nil)
-                }
-            }
-        }
-
-        /// Called when the picker opens (true) or closes (false). The
-        /// floating hover bar hides while the picker is open (MATRIX-145).
-        var onOpenChange: (@MainActor (Bool) -> Void)?
-
-        /// - Parameter timelines: The room timelines whose requests the
-        ///   controller serves. Each one's latest request when the controller
-        ///   starts counts as handled.
-        init(startingAt timelines: [LiveTimeline]) {
-            var cursors: [ObjectIdentifier: NoncedRequestCursor] = [:]
-            for timeline in timelines {
-                cursors[ObjectIdentifier(timeline)] = NoncedRequestCursor(startingAt: timeline.reactionPickerRequests.latest)
-            }
-            self.cursors = cursors
-            super.init()
-        }
-
-        /// Takes `timeline`'s latest request if this presenter has not taken
-        /// it yet, and makes it the newest one.
-        ///
-        /// - Returns: The request and its token, or nil for a request already
-        ///   taken.
-        func take(from timeline: LiveTimeline) -> (request: ReactionPickerRequest, token: RequestToken)? {
-            let key = ObjectIdentifier(timeline)
-            var cursor = cursors[key] ?? NoncedRequestCursor(startingAt: nil as NoncedRequest<ReactionPickerRequest>?)
-            guard let request = cursor.take(timeline.reactionPickerRequests.latest) else { return nil }
-            cursors[key] = cursor
-            let token = RequestToken(timeline: key, nonce: cursor.handledNonce)
-            newestRequest = token
-            return (request, token)
-        }
-
-        /// Whether `token` is still the newest request. A row scroll runs
-        /// before the popover shows, and a newer request in that time
-        /// retires the older one.
-        func isCurrent(_ token: RequestToken) -> Bool {
-            newestRequest == token
-        }
-
-        /// Shows `content` in a transient popover that hangs from `rect`.
-        ///
-        /// - Parameters:
-        ///   - content: The picker view.
-        ///   - rect: The anchor, in `view`'s coordinates.
-        ///   - view: The row view the popover points at.
-        ///   - preferredEdge: The edge of `rect` the popover opens from. AppKit
-        ///     uses another edge if the popover does not fit there.
-        func show(_ content: some View, relativeTo rect: CGRect, of view: NSView, preferredEdge: NSRectEdge) {
-            close()
-            let host = NSHostingController(rootView: content)
-            // The popover takes its size from the picker's ideal size.
-            host.sizingOptions = [.preferredContentSize]
-
-            let popover = NSPopover()
-            popover.behavior = .transient
-            popover.contentViewController = host
-            popover.delegate = self
-            self.popover = popover
-            popover.show(relativeTo: rect, of: view, preferredEdge: preferredEdge)
-        }
-
-        /// Closes the open popover at once, if there is one.
-        func close() {
-            guard let popover else { return }
-            self.popover = nil
-            popover.close()
-        }
-
-        func popoverDidClose(_ notification: Notification) {
-            guard let closed = notification.object as? NSPopover, closed === popover else { return }
-            popover = nil
-        }
-    }
+    // controller shows the picker over the hover row's picker button.
 
     /// The picker inside the popover. A view of its own so the recent row
     /// follows the account's list: the list can finish loading after the
@@ -205,13 +96,13 @@
         private func presentReactionPicker(
             _ request: ReactionPickerRequest,
             from timeline: LiveTimeline,
-            token: TimelineReactionPickerPresenter.RequestToken
+            token: TimelinePopoverRequestToken
         ) {
             let barAnchor = hoverBarPickerAnchor(
                 forMessageKey: request.eventId.id,
                 buttonsAfter: request.hoverButtonsAfterPicker
             )
-            reactionPicker.close()
+            closePopovers()
             let event = TimelineEventReference(eventId: request.eventId, roomId: timeline.room.id)
             guard let rowIndex = rowIndex(of: event) else {
                 Logger.timelineTableView.error("reaction picker: no row for \(request.eventId.id)")
@@ -233,7 +124,7 @@
             _ request: ReactionPickerRequest,
             from timeline: LiveTimeline,
             onRowId rowId: String,
-            token: TimelineReactionPickerPresenter.RequestToken,
+            token: TimelinePopoverRequestToken,
             barAnchor: CGRect?
         ) {
             guard reactionPicker.isCurrent(token) else { return }
@@ -275,20 +166,6 @@
                 of: anchorView,
                 preferredEdge: NSRectEdge(HoverActionBarGeometry.topEdge(isFlipped: anchorView.isFlipped))
             )
-        }
-    }
-
-    private extension NSRectEdge {
-        /// The AppKit edge for a Core Graphics edge. The library computes the
-        /// edge as `CGRectEdge` so it stays free of AppKit.
-        init(_ edge: CGRectEdge) {
-            switch edge {
-            case .minXEdge: self = .minX
-            case .minYEdge: self = .minY
-            case .maxXEdge: self = .maxX
-            case .maxYEdge: self = .maxY
-            @unknown default: self = .maxY
-            }
         }
     }
 #endif

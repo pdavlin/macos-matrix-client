@@ -33,12 +33,32 @@ public struct UnableToDecryptView: View {
 
 /// The "(edited)" marker under a message the sender replaced.
 ///
-/// Display only. Edit authoring is out of scope, so nothing here is
-/// interactive.
+/// With `showHistory`, a click on the mark opens the edit history
+/// (MATRIX-209). The button is plain, so the mark keeps its size and the row
+/// height does not change.
 public struct EditedMarker: View {
-    public init() {}
+    let showHistory: (@MainActor () -> Void)?
+
+    /// - Parameter showHistory: Opens the edit history, or nil for a mark
+    ///   that takes no clicks.
+    public init(showHistory: (@MainActor () -> Void)? = nil) {
+        self.showHistory = showHistory
+    }
 
     public var body: some View {
+        if let showHistory {
+            Button(action: showHistory) {
+                label
+            }
+            .buttonStyle(.plain)
+            .linkPointerStyle()
+            .help("Show Edit History")
+        } else {
+            label
+        }
+    }
+
+    private var label: some View {
         Text("(edited)")
             .font(.footnote)
             .foregroundStyle(.tertiary)
