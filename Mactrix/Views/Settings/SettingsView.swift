@@ -1,8 +1,13 @@
+import Core
 import MatrixRustSDK
+import Models
 import SwiftUI
 import UI
 
 struct SettingsView: View {
+    /// MATRIX-215: whether macOS blocks notifications for Mactrix.
+    private let notificationPermission = NotificationPermissionModel.shared
+
     var body: some View {
         TabView {
             Tab("Account", systemImage: "person") {
@@ -15,7 +20,12 @@ struct SettingsView: View {
                 ComposerSettingsView()
             }
             Tab("Notifications", systemImage: "bell.badge") {
-                NotificationSettingsView()
+                NotificationSettingsView(isBlockedBySystem: notificationPermission.permission == .blocked)
+                    .task { await notificationPermission.refresh() }
+                    // Back from System Settings: show the new permission.
+                    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                        Task { await notificationPermission.refresh() }
+                    }
             }
             Tab("Sessions", systemImage: "desktopcomputer.and.macbook") {
                 SessionsSettingsView()

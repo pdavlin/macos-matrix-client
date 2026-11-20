@@ -1,3 +1,6 @@
+#if os(macOS)
+    import AppKit
+#endif
 import MatrixRustSDK
 import Models
 import OSLog
@@ -9,7 +12,17 @@ import UserNotifications
     /// MATRIX-89 Notification Service Extension both set it.
     public nonisolated static let roomIDUserInfoKey = "roomId"
 
+    /// The `userInfo` key that marks a snooze end or a reminder
+    /// (MATRIX-207). It shows even for the chat on screen (MATRIX-215).
+    public nonisolated static let reminderUserInfoKey = "reminder"
+
     public var selectedRoomId: String?
+
+    /// MATRIX-215: the key window's state, or nil when no Mactrix window is
+    /// key. The app sets it when the key window changes. While Mactrix is
+    /// active, a message for the chat that this window shows does not show
+    /// as a notification (`NotificationPresentation`).
+    @ObservationIgnored public weak var keyWindow: WindowState?
 
     /// MATRIX-77: rooms whose every label is muted. Mactrix shows no
     /// notification for them; push rules and other clients are untouched.
@@ -56,6 +69,25 @@ extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
         Logger.notification.info("Notification delegate didReceive: \(roomId ?? "<no room id>")")
         selectedRoomId = roomId
     }
+
+    #if os(macOS)
+        /// MATRIX-215: what macOS shows for a notification that arrives while
+        /// Mactrix is active. Without this method macOS shows nothing.
+        public func userNotificationCenter(
+            _: UNUserNotificationCenter,
+            willPresent notification: UNNotification
+        ) async -> UNNotificationPresentationOptions {
+            let userInfo = notification.request.content.userInfo
+            let shows = NotificationPresentation.shows(
+                roomId: userInfo[Self.roomIDUserInfoKey] as? String,
+                isReminder: userInfo[Self.reminderUserInfoKey] as? Bool ?? false,
+                appIsActive: NSApp.isActive,
+                keyWindowSelection: keyWindow?.chatSelection,
+                document: mergedChats()
+            )
+            return shows ? [.banner, .list, .sound] : []
+        }
+    #endif
 }
 
 extension MatrixNotifications: MatrixRustSDK.SyncNotificationListener {
@@ -82,20 +114,6 @@ public extension MatrixNotifications {
             return
         }
 
-        do {
-            let success = try await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .badge, .sound])
-            guard success else {
-                Logger.notification.warning("user rejected notification request")
-                return
-            }
-        } catch {
-            Logger.notification.error("failed to request notification permissions: \(error)")
-            return
-        }
-
-        Logger.notification.debug("sending notification from room \(roomId)")
-
         let content = UNMutableNotificationContent()
         let remap = mergedRemap(for: notification, roomId: roomId)
         content.title = remap?.title ?? notificationTitle(for: notification)
@@ -104,17 +122,8 @@ public extension MatrixNotifications {
         }
         content.subtitle = notificationBody(for: notification)
         content.sound = playsSound ? UNNotificationSound.default : nil
-        content.interruptionLevel = .timeSensitive
         content.userInfo = [Self.roomIDUserInfoKey: roomId]
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.01, repeats: false)
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-        } catch {
-            Logger.notification.error("failed to schedule notification: \(error)")
-        }
+        await post(content, roomId: roomId)
     }
 
     /// Posts a local notification that no Matrix event carries: a snooze
@@ -126,28 +135,35 @@ public extension MatrixNotifications {
             Logger.notification.debug("skipping local notification for \(roomId): notifications are off in Settings")
             return
         }
-        do {
-            guard try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) else {
-                Logger.notification.warning("user rejected notification request")
-                return
-            }
-        } catch {
-            Logger.notification.error("failed to request notification permissions: \(error)")
-            return
-        }
-
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = playsSound ? UNNotificationSound.default : nil
+        content.userInfo = [Self.roomIDUserInfoKey: roomId, Self.reminderUserInfoKey: true]
+        await post(content, roomId: roomId)
+    }
+
+    /// MATRIX-215: the one path to macOS for every notification, a message
+    /// or a local one. The permission is asked once per launch
+    /// (`NotificationPermissionModel`), not for each notification, and read
+    /// before each one: while macOS blocks notifications, nothing posts and
+    /// nothing logs above debug level.
+    private func post(_ content: UNMutableNotificationContent, roomId: String) async {
+        let permissions = NotificationPermissionModel.shared
+        await permissions.requestAuthorizationOnce()
+        guard await permissions.refresh() == .allowed else {
+            Logger.notification.debug("skipping notification from room \(roomId): macOS does not allow notifications")
+            return
+        }
+
+        Logger.notification.debug("sending notification from room \(roomId)")
         content.interruptionLevel = .timeSensitive
-        content.userInfo = [Self.roomIDUserInfoKey: roomId]
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.01, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
-            Logger.notification.error("failed to schedule local notification: \(error)")
+            Logger.notification.error("failed to schedule notification: \(error)")
         }
     }
 

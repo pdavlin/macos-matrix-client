@@ -31,6 +31,10 @@ public extension MatrixClient {
 
         notificationClient = try await client.notificationClient(processSetup: .singleProcess(syncService: _syncService))
         await client.registerNotificationHandler(listener: notifications)
+        // MATRIX-215: ask for notification permission once per launch, after
+        // a sign-in or a session restore. Not awaited: macOS can show a
+        // prompt, and sync must not wait for the user.
+        Task { await NotificationPermissionModel.shared.requestAuthorizationOnce() }
 
         try await client.getSessionVerificationController().setDelegate(delegate: self)
 

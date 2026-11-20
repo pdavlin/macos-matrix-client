@@ -89,4 +89,16 @@ struct NotificationSettingsSnapshotTests {
         )
         assertPinnedSnapshot(of: NotificationSettingsView(store: defaults))
     }
+
+    /// MATRIX-215: macOS blocks notifications. A row above the switches says
+    /// so and opens System Settings.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func blockedBySystem() throws {
+        let defaults = try isolatedDefaults(
+            suite: "NotificationSettingsSnapshotTests.blockedBySystem",
+            showsNotifications: nil,
+            playsSound: nil
+        )
+        assertPinnedSnapshot(of: NotificationSettingsView(store: defaults, isBlockedBySystem: true))
+    }
 }

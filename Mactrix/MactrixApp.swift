@@ -43,6 +43,10 @@ struct MactrixApp: App {
         // notification (MATRIX-116).
         .onChange(of: windowState.map(ObjectIdentifier.init), focusNotification)
         .onChange(of: appState.matrixClient?.notifications.selectedRoomId == nil, focusNotification)
+        // MATRIX-215: no notification for the chat that the key window
+        // shows. Also on a new client, which starts with no key window.
+        .onChange(of: windowState.map(ObjectIdentifier.init), initial: true, trackKeyWindow)
+        .onChange(of: appState.matrixClient.map(ObjectIdentifier.init), trackKeyWindow)
         // MATRIX-203: a Matrix link click opens in the key window; one that a
         // room window cannot open waits for a main window.
         .onChange(of: windowState.map(ObjectIdentifier.init), openMatrixLink)
@@ -84,6 +88,12 @@ struct MactrixApp: App {
         Task {
             await client.openMatrixLink(request.link, url: request.url, in: windowState)
         }
+    }
+
+    /// Gives the notifications the key window's state (MATRIX-215). While
+    /// Mactrix is active, a message for the chat it shows shows no banner.
+    func trackKeyWindow() {
+        appState.matrixClient?.notifications.keyWindow = windowState
     }
 
     func focusNotification() {

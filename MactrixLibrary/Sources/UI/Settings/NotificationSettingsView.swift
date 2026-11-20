@@ -13,6 +13,10 @@ import SwiftUI
 /// settings. Per-room mute and the MATRIX-77 label mute are not here and
 /// still apply first.
 ///
+/// When macOS blocks notifications for Mactrix (MATRIX-215), a row above the
+/// switches says so and opens System Settings > Notifications: the switches
+/// alone do nothing then.
+///
 /// The view lives in the UI library rather than the app target so its
 /// snapshot test exercises the shipped view.
 public struct NotificationSettingsView: View {
@@ -21,10 +25,16 @@ public struct NotificationSettingsView: View {
     #if os(macOS)
         @AppStorage private var showsDockBadge: Bool
     #endif
+    private let isBlockedBySystem: Bool
+    @Environment(\.openURL) private var openURL
 
-    /// - Parameter store: the defaults store to read and write. `nil` uses
-    ///   `UserDefaults.standard`; tests pass an isolated suite.
-    public init(store: UserDefaults? = nil) {
+    /// - Parameters:
+    ///   - store: the defaults store to read and write. `nil` uses
+    ///     `UserDefaults.standard`; tests pass an isolated suite.
+    ///   - isBlockedBySystem: macOS blocks notifications for Mactrix
+    ///     (`NotificationPermission.blocked`).
+    public init(store: UserDefaults? = nil, isBlockedBySystem: Bool = false) {
+        self.isBlockedBySystem = isBlockedBySystem
         _showsNotifications = AppStorage(
             wrappedValue: NotificationPreferences.defaultShowsNotifications,
             NotificationPreferences.showNotificationsStorageKey,
@@ -46,6 +56,18 @@ public struct NotificationSettingsView: View {
 
     public var body: some View {
         Form {
+            if isBlockedBySystem {
+                HStack {
+                    Label("macOS blocks notifications for Mactrix.", systemImage: "exclamationmark.triangle.fill")
+                        .symbolRenderingMode(.multicolor)
+                    Spacer()
+                    Button("Open System Settings") {
+                        if let url = NotificationPermission.systemSettingsURL {
+                            openURL(url)
+                        }
+                    }
+                }
+            }
             Toggle("Show notifications", isOn: $showsNotifications)
             Toggle("Play sound", isOn: $playsSound)
                 // No notification posts, so there is no sound to play.
