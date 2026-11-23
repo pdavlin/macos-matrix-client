@@ -56,6 +56,21 @@ public extension MatrixClient {
     ///   - roomId: The room the message goes to.
     /// - Throws: `BroadcastSendError`, or the SDK error.
     func sendBroadcast(text: String, toRoom roomId: String) async throws {
+        try await sendText(text, toRoom: roomId, threadRoot: nil)
+        Logger.matrixClient.info("broadcast: queued a message for \(roomId)")
+    }
+
+    /// Puts a typed text message into a room's send queue, by the steps
+    /// above. A broadcast and a notification reply (MATRIX-221) use it.
+    ///
+    /// - Parameters:
+    ///   - text: The message, as typed. Markdown, and `:name:` tokens of the
+    ///     room's image packs.
+    ///   - roomId: The room the message goes to.
+    ///   - threadRoot: The root of the thread the message goes into, or nil
+    ///     for the main timeline.
+    /// - Throws: `BroadcastSendError`, or the SDK error.
+    func sendText(_ text: String, toRoom roomId: String, threadRoot: String?) async throws {
         guard let sdkClient: ClientProtocol = client else { throw BroadcastSendError.clientUnavailable }
         let sidebarRoom: MatrixRustSDK.Room? = rooms.first(where: { $0.id == roomId })?.room
         guard let room = try sidebarRoom ?? sdkClient.getRoom(roomId: roomId) else {
@@ -65,20 +80,28 @@ public extension MatrixClient {
         if BroadcastText.mayHoldEmojiToken(text) {
             packs = await loadedImagePacks(forRoom: roomId)
         }
-        try await Self.sendBroadcast(text: text, to: room, packs: packs)
-        Logger.matrixClient.info("broadcast: queued a message for \(roomId)")
+        try await Self.sendText(text, to: room, packs: packs, threadRoot: threadRoot)
     }
 
     /// Builds the content and puts it into the room's send queue.
+    ///
+    /// A message for a thread goes out through a timeline with the focus on
+    /// that thread: the SDK adds the thread relation only there
+    /// (`LiveTimeline+ReplyRoute`).
     ///
     /// - Parameters:
     ///   - text: The message, as typed.
     ///   - room: The SDK room.
     ///   - packs: The room's image packs, for the `:name:` tokens.
-    static func sendBroadcast(text: String, to room: MatrixRustSDK.Room, packs: [ImagePack]) async throws {
+    ///   - threadRoot: The thread root, or nil for the main timeline.
+    static func sendText(_ text: String, to room: MatrixRustSDK.Room, packs: [ImagePack], threadRoot: String?) async throws {
         let markdown = ComposerEmojiMarkup.resolving(markdown: text, packs: packs)
         let message: RoomMessageEventContentWithoutRelation = messageEventContentFromMarkdown(md: markdown)
-        let timeline: Timeline = try await room.timelineWithConfiguration(configuration: forwardTimelineConfiguration)
+        var configuration = forwardTimelineConfiguration
+        if let threadRoot {
+            configuration.focus = .thread(rootEventId: threadRoot)
+        }
+        let timeline: Timeline = try await room.timelineWithConfiguration(configuration: configuration)
         _ = try await timeline.send(msg: message)
     }
 }

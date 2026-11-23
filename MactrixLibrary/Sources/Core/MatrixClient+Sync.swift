@@ -88,6 +88,9 @@ public extension MatrixClient {
         // recomputes it. After a sign-out `mergedChats` is nil: no merges.
         notifications.mergedChats = { [weak self] in self?.mergedChats?.document ?? MergedChatDocument() }
         dockBadge.mergedChats = { [weak self] in self?.mergedChats?.document ?? MergedChatDocument() }
+        // MATRIX-221: Reply, Mark as Read, and Remind in 1 Hour on a
+        // notification.
+        notifications.actionPerformer = LiveNotificationActions(client: self)
 
         // MATRIX-206: inbox states are read the same way. Archived chats do
         // not count in the Dock badge, and the tracker's unread changes
@@ -162,6 +165,7 @@ public extension MatrixClient {
         roomListServiceState = nil
         showRoomSyncIndicator = nil
         notificationClient = nil
+        notifications.actionPerformer = nil
         labels = nil
         mergedChats = nil
         inbox?.stopDueTimer()

@@ -10,11 +10,11 @@ import UserNotifications
 @MainActor @Observable public final class MatrixNotifications: NSObject {
     /// The `userInfo` key of the room id. The local notifications and the
     /// MATRIX-89 Notification Service Extension both set it.
-    public nonisolated static let roomIDUserInfoKey = "roomId"
+    public nonisolated static let roomIDUserInfoKey = NotificationTarget.roomIdKey
 
     /// The `userInfo` key that marks a snooze end or a reminder
     /// (MATRIX-207). It shows even for the chat on screen (MATRIX-215).
-    public nonisolated static let reminderUserInfoKey = "reminder"
+    public nonisolated static let reminderUserInfoKey = NotificationTarget.reminderKey
 
     public var selectedRoomId: String?
 
@@ -39,6 +39,11 @@ import UserNotifications
     /// integration story sets it to the merged-chats model's document.
     @ObservationIgnored public var mergedChats: @MainActor () -> MergedChatDocument = { MergedChatDocument() }
 
+    /// MATRIX-221: the layer that runs Reply, Mark as Read, and Remind in 1
+    /// Hour. `startSync()` sets it and `reset()` clears it. While it is nil,
+    /// an action does nothing.
+    @ObservationIgnored public var actionPerformer: (any NotificationActionPerformer)?
+
     public typealias NotificationEvent = (item: MatrixRustSDK.NotificationItem, roomId: String)
 
     @ObservationIgnored private let notificationContinuation: AsyncStream<NotificationEvent>.Continuation
@@ -53,6 +58,11 @@ import UserNotifications
 
         super.init()
         UNUserNotificationCenter.current().delegate = self
+        #if os(macOS)
+            // MATRIX-221: the actions of a message notification. The iOS
+            // app and its Notification Service Extension do not use them yet.
+            UNUserNotificationCenter.current().setNotificationCategories([Self.messageCategory])
+        #endif
 
         streamTask = Task { [weak self] in
             for await (notification, roomId) in stream {
@@ -64,10 +74,30 @@ import UserNotifications
 }
 
 extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
+    /// A click opens the chat. Reply, Mark as Read, and Remind in 1 Hour
+    /// (MATRIX-221) run in the background: they open no window, and they
+    /// need no window that shows the chat. macOS waits until this method
+    /// returns, so each action is done or queued by then.
     public func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        let roomId = response.notification.request.content.userInfo[Self.roomIDUserInfoKey] as? String
-        Logger.notification.info("Notification delegate didReceive: \(roomId ?? "<no room id>")")
-        selectedRoomId = roomId
+        let target = NotificationTarget(userInfo: response.notification.request.content.userInfo)
+        let action = NotificationAction(
+            identifier: response.actionIdentifier,
+            defaultIdentifier: UNNotificationDefaultActionIdentifier,
+            userText: (response as? UNTextInputNotificationResponse)?.userText
+        )
+        Logger.notification.info(
+            "Notification delegate didReceive \(response.actionIdentifier, privacy: .public): \(target?.roomId ?? "<no room id>")"
+        )
+        guard let target, let action else { return }
+        if action == .open {
+            selectedRoomId = target.roomId
+            return
+        }
+        guard let actionPerformer else {
+            Logger.notification.error("notification action for \(target.roomId): the account is not ready")
+            return
+        }
+        await NotificationActionRouter.perform(action, on: target, merges: mergedChats(), now: .now, performer: actionPerformer)
     }
 
     #if os(macOS)
@@ -89,6 +119,32 @@ extension MatrixNotifications: @MainActor UNUserNotificationCenterDelegate {
         }
     #endif
 }
+
+#if os(macOS)
+    extension MatrixNotifications {
+        /// MATRIX-221: the category of a message notification. No action
+        /// has the `.foreground` option, so none of them brings Mactrix
+        /// forward.
+        static var messageCategory: UNNotificationCategory {
+            UNNotificationCategory(
+                identifier: NotificationAction.messageCategoryIdentifier,
+                actions: [
+                    UNTextInputNotificationAction(
+                        identifier: NotificationAction.replyIdentifier,
+                        title: "Reply",
+                        options: [],
+                        textInputButtonTitle: "Send",
+                        textInputPlaceholder: "Message"
+                    ),
+                    UNNotificationAction(identifier: NotificationAction.markAsReadIdentifier, title: "Mark as Read", options: []),
+                    UNNotificationAction(identifier: NotificationAction.remindInOneHourIdentifier, title: "Remind in 1 Hour", options: []),
+                ],
+                intentIdentifiers: [],
+                options: []
+            )
+        }
+    }
+#endif
 
 extension MatrixNotifications: MatrixRustSDK.SyncNotificationListener {
     public nonisolated func onNotification(notification: MatrixRustSDK.NotificationItem, roomId: String) {
@@ -122,7 +178,20 @@ public extension MatrixNotifications {
         }
         content.subtitle = notificationBody(for: notification)
         content.sound = playsSound ? UNNotificationSound.default : nil
-        content.userInfo = [Self.roomIDUserInfoKey: roomId]
+        if case let .timeline(event: event) = notification.event {
+            content.userInfo = NotificationTarget(
+                roomId: roomId,
+                eventId: event.eventId(),
+                threadRoot: event.threadRootEventId() ?? notification.threadId
+            ).userInfo
+            #if os(macOS)
+                // MATRIX-221: Reply, Mark as Read, Remind in 1 Hour. An
+                // invite gets none of them.
+                content.categoryIdentifier = NotificationAction.messageCategoryIdentifier
+            #endif
+        } else {
+            content.userInfo = NotificationTarget(roomId: roomId).userInfo
+        }
         await post(content, roomId: roomId)
     }
 
@@ -165,6 +234,19 @@ public extension MatrixNotifications {
         } catch {
             Logger.notification.error("failed to schedule notification: \(error)")
         }
+    }
+
+    /// MATRIX-221: removes the delivered message notifications of
+    /// `roomIds`, for Mark as Read. A snooze end or a reminder stays.
+    func removeDeliveredMessageNotifications(roomIds: [String]) async {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+        let identifiers = NotificationTarget.messageNotificationIdentifiers(
+            in: delivered.map { ($0.request.identifier, $0.request.content.userInfo) },
+            roomIds: Set(roomIds)
+        )
+        guard !identifiers.isEmpty else { return }
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
     func notificationTitle(for notification: NotificationItem) -> String {
