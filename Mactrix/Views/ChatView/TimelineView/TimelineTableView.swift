@@ -75,7 +75,7 @@ class TimelineViewController: NSViewController {
 
     /// Row heights keyed by (row id, width, token set), invalidated by
     /// content revision (S-32). `heightOfRow` consults this; misses measure
-    /// offscreen via `measurementHostingView`.
+    /// offscreen via `rowMeasurer`.
     var heightCache = TimelineRowHeightCache<TimelineTypography>()
     /// Per-row content revision; bumped when the SDK replaces a row's content
     /// (a `.set` diff, arriving as `.update`).
@@ -192,7 +192,7 @@ class TimelineViewController: NSViewController {
                 // manual frame and recursed through
                 // _informContainerThatSubviewsNeedUpdateConstraints until AppKit
                 // threw during layout on a content change (MATRIX-50). Only the
-                // offscreen measurementHostingView self-sizes.
+                // offscreen rowMeasurer self-sizes.
                 hostView.translatesAutoresizingMaskIntoConstraints = true
                 hostView.autoresizingMask = [.width, .height]
                 hostView.sizingOptions = []
@@ -438,11 +438,9 @@ class TimelineViewController: NSViewController {
     /// The column width rows were last measured against; a width change is
     /// judged against this, not against the table frame.
     var oldWidth: CGFloat?
-    let measurementHostingView = {
-        let hostView = NSHostingController(rootView: AnyView(EmptyView()))
-        hostView.sizingOptions = [.preferredContentSize]
-        return hostView
-    }()
+    /// Measures rows offscreen. A measured row runs none of its actions
+    /// (MATRIX-220).
+    let rowMeasurer = OffscreenRowMeasurer()
 }
 
 extension TimelineViewController: NSTableViewDelegate {
@@ -490,10 +488,10 @@ extension TimelineViewController: NSTableViewDelegate {
     private func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
         let started = TimelineStormProfiler.now()
         let rowTimeline = source.timeline(for: row)
-        measurementHostingView.rootView = AnyView(TimelineItemRowView(row: row, timeline: rowTimeline, coordinator: coordinator))
+        let rowView = TimelineItemRowView(row: row, timeline: rowTimeline, coordinator: coordinator)
 
         let proposedSize = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        let height = measurementHostingView.sizeThatFits(in: proposedSize).height
+        let height = rowMeasurer.size(of: rowView, in: proposedSize).height
         TimelineStormProfiler.recordMeasure(TimelineStormProfiler.elapsedMilliseconds(since: started))
         return height
     }

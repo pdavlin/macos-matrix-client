@@ -80,9 +80,10 @@ final class TimelineCollectionController: NSObject {
     /// The anchor a width change holds, restored after the pass.
     var widthChangeAnchor: WidthChangeAnchor?
 
-    /// Offscreen host for measurement. One view type for cells and
-    /// measurement, so a measured height is the drawn height.
-    private let measurementHost = UIHostingController(rootView: AnyView(EmptyView()))
+    /// Offscreen measurement. One view type for cells and measurement, so a
+    /// measured height is the drawn height. A measured row runs none of its
+    /// actions (MATRIX-220).
+    private let rowMeasurer = OffscreenRowMeasurer()
 
     init(feed: TimelineFeed, rowContext: TimelineRowContext) {
         self.feed = feed
@@ -243,8 +244,7 @@ final class TimelineCollectionController: NSObject {
     /// Measures one row offscreen at `width`: the source behind the cache,
     /// called only on a miss.
     func measureRowHeight(_ row: TimelineRow, width: CGFloat) -> CGFloat {
-        measurementHost.rootView = AnyView(rowView(for: row))
-        return measurementHost.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        rowMeasurer.size(of: rowView(for: row), in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
     }
 
     func cellTokens(for row: TimelineRow) -> TimelineCellTokens {
