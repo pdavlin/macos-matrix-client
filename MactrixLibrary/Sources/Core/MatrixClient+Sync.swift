@@ -70,6 +70,18 @@ public extension MatrixClient {
         }
         await bookmarks?.refresh()
 
+        // MATRIX-212: the scheduled messages are read the same way. Their
+        // text stays in a file in this session's data folder.
+        if scheduledMessages == nil {
+            scheduledMessages = ScheduledMessagesModel(
+                transport: LiveScheduledMessageTransport(client: client),
+                previewStore: ScheduledMessagePreviewStore(
+                    file: URL.sessionData(for: storeID).appending(component: "ScheduledMessagePreviews.json")
+                )
+            )
+        }
+        await scheduledMessages?.refresh()
+
         // MATRIX-144 hookup (MATRIX-141 Phase B): notifications and the Dock
         // badge read the merged chats live. The badge reads the observable
         // document inside Observation tracking, so a merge or an unmerge
@@ -155,6 +167,8 @@ public extension MatrixClient {
         inbox?.stopDueTimer()
         inbox = nil
         bookmarks = nil
+        scheduledMessages?.stop()
+        scheduledMessages = nil
 
         try? await client.logout()
         client = nil

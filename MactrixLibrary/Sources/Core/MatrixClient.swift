@@ -154,6 +154,9 @@ public class MatrixClient {
     /// MATRIX-208: the account's bookmarked messages. Created when sync
     /// starts, refreshed on the same triggers as `labels`.
     public var bookmarks: BookmarksModel?
+    /// MATRIX-212: the account's scheduled messages (Send Later). Created
+    /// when sync starts, refreshed on the same triggers as `labels`.
+    public var scheduledMessages: ScheduledMessagesModel?
 
     /// MATRIX-147: the space names that tell merged-chat members apart.
     public let roomAccounts = RoomAccountNames()

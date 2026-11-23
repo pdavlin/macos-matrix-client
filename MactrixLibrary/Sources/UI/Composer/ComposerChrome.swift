@@ -27,11 +27,21 @@ public struct ComposerChrome<Field: View>: View {
         public var attach: () -> Void
         public var emoji: () -> Void
         public var send: () -> Void
+        /// "Send Later…" in the send button's menu (MATRIX-212), or nil
+        /// for a composer with no Send Later (the thread panel's). The
+        /// button then has no menu.
+        public var sendLater: (() -> Void)?
 
-        public init(attach: @escaping () -> Void, emoji: @escaping () -> Void, send: @escaping () -> Void) {
+        public init(
+            attach: @escaping () -> Void,
+            emoji: @escaping () -> Void,
+            send: @escaping () -> Void,
+            sendLater: (() -> Void)? = nil
+        ) {
             self.attach = attach
             self.emoji = emoji
             self.send = send
+            self.sendLater = sendLater
         }
     }
 
@@ -69,6 +79,8 @@ public struct ComposerChrome<Field: View>: View {
     let usesGlass: Bool
     let actions: Actions
     let field: Field
+    /// "Send Later…" is enabled (MATRIX-212).
+    var canSendLater = false
     /// False only in snapshot tests: `NSView.cacheDisplay` draws nothing at
     /// all for a view that holds tinted glass (macOS 27 beta SDK), so the
     /// tests draw the send capsule untinted with an accent symbol.
@@ -151,6 +163,13 @@ public struct ComposerChrome<Field: View>: View {
             : .regular.interactive(canSend)
     }
 
+    /// The same view with "Send Later…" enabled or not (MATRIX-212).
+    public func sendLaterEnabled(_ isEnabled: Bool) -> Self {
+        var copy = self
+        copy.canSendLater = isEnabled
+        return copy
+    }
+
     /// The same view with an untinted send capsule, for snapshot tests.
     func untintedForSnapshot() -> Self {
         var copy = self
@@ -202,6 +221,7 @@ public struct ComposerChrome<Field: View>: View {
         .fontWeight(.semibold)
         .foregroundStyle(sendForeground)
         .disabled(!canSend)
+        .modifier(SendLaterMenu(sendLater: actions.sendLater, isEnabled: canSendLater))
     }
 
     /// White on the accent glass, the accent on untinted glass and on the
@@ -225,6 +245,26 @@ public struct ComposerChrome<Field: View>: View {
         .buttonStyle(.plain)
         .help(label)
         .accessibilityLabel(Text(label))
+    }
+}
+
+/// The send button's menu (MATRIX-212): "Send Later…", with the key the
+/// composer takes for it (Option-Command-Return). The composer's text view
+/// handles the key; the menu shows it.
+private struct SendLaterMenu: ViewModifier {
+    let sendLater: (() -> Void)?
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if let sendLater {
+            content.contextMenu {
+                Button("Send Later…", action: sendLater)
+                    .keyboardShortcut(.return, modifiers: [.command, .option])
+                    .disabled(!isEnabled)
+            }
+        } else {
+            content
+        }
     }
 }
 

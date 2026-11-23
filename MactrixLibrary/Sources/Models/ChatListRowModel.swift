@@ -34,6 +34,8 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     /// MATRIX-207: a note the row shows in place of the preview, for
     /// example "Snoozed until tomorrow 9:00 AM". Nil shows the preview.
     public var inboxNote: String?
+    /// MATRIX-212: the chat has a scheduled message. The row shows a clock.
+    public var hasScheduledMessages = false
 
     public init(
         id: String,
@@ -97,6 +99,9 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
         }
         if hasSendFailure {
             parts.append("message failed to send")
+        }
+        if hasScheduledMessages {
+            parts.append("has scheduled messages")
         }
         return parts.joined(separator: ", ")
     }

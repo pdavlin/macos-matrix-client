@@ -35,6 +35,9 @@ struct ChatTextView: NSViewRepresentable {
     /// Esc when the mention popup and the attachments did not use it.
     /// Returns true if it cancelled edit mode (MATRIX-109).
     var onEscape: () -> Bool = { false }
+    /// Option-Command-Return. Returns true if it opened Send Later
+    /// (MATRIX-212).
+    var onSendLater: () -> Bool = { false }
     let onSubmit: () -> Void
 
     func makeNSView(context: Context) -> DynamicTextView {
@@ -173,6 +176,7 @@ struct ChatTextView: NSViewRepresentable {
     private func configureEditHandlers(of textView: DynamicTextView) {
         textView.emptyUpArrowHandler = onEmptyUpArrow
         textView.escapeHandler = onEscape
+        textView.sendLaterHandler = onSendLater
     }
 
     func makeCoordinator() -> Coordinator {
@@ -249,6 +253,10 @@ class DynamicTextView: NSTextView {
     /// Runs on Esc when the mention popup and the attachments did not use
     /// it. Returns true if it cancelled edit mode (MATRIX-109).
     var escapeHandler: (() -> Bool)?
+
+    /// Runs on Option-Command-Return. Returns true if it opened Send Later
+    /// (MATRIX-212).
+    var sendLaterHandler: (() -> Bool)?
 
     /// Whether the text view takes the keyboard focus as soon as it is in a
     /// window and editable (MATRIX-188). A new chat's composer is neither
@@ -327,7 +335,25 @@ class DynamicTextView: NSTextView {
         )
     }
 
+    /// Whether the event is Send Later's Option-Command-Return (MATRIX-212).
+    private func isSendLaterKey(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return ComposerKeyDecision.isSendLaterKey(
+            isReturnKey: event.specialKey == .enter || event.specialKey == .carriageReturn,
+            hasMarkedText: hasMarkedText(),
+            command: modifiers.contains(.command),
+            option: modifiers.contains(.option),
+            otherModifiers: !modifiers.isDisjoint(with: [.shift, .control])
+        )
+    }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // MATRIX-212: Option-Command-Return opens Send Later. A composer
+        // where Send Later is off lets the key go on.
+        if isSendLaterKey(event), sendLaterHandler?() == true {
+            return true
+        }
+
         // Cmd-enter arrives as a key equivalent, not through keyDown.
         let hasCommand = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command)
         if hasCommand, sendAction(for: event) == .send {

@@ -57,7 +57,7 @@ struct SidebarView: View {
         let merges = client?.mergedChats?.document ?? MergedChatDocument()
         let inbox = client?.inbox?.document ?? InboxStateDocument()
         let placement = windowState.chatListFilter.inboxPlacement
-        let visible = ChatListMerging.visible(
+        let merged = ChatListMerging.visible(
             entries: chatListEntries(client: client, rooms: chatRooms, now: now),
             filter: SidebarRail.filter(client: client, windowState: windowState),
             labels: labels,
@@ -68,6 +68,8 @@ struct SidebarView: View {
             inbox: inbox,
             placement: placement
         )
+        // MATRIX-212: a clock on each chat with a scheduled message.
+        let visible = merged.withScheduledMarks(roomIds: client?.scheduledMessages?.document.roomIds ?? [])
         guard placement == .snoozed else {
             return SidebarChatList(visible: visible, rooms: chatRooms)
         }
@@ -158,6 +160,8 @@ struct SidebarView: View {
             Task { await appState.matrixClient?.inbox?.refresh() }
             // MATRIX-208: nor do bookmarks.
             Task { await appState.matrixClient?.bookmarks?.refresh() }
+            // MATRIX-212: nor do scheduled messages.
+            Task { await appState.matrixClient?.scheduledMessages?.refresh() }
         }
         .sheet(item: $windowState.labelEditor) { request in
             LabelEditorHost(request: request)

@@ -176,13 +176,15 @@ extension MatrixClient: RoomListServiceStateListener {
             // MATRIX-171, MATRIX-186: an empty space graph counts only
             // after a sync (`running`).
             roomAccounts.note(roomListState: evidence)
-            // MATRIX-77, MATRIX-140, MATRIX-208: sync has caught up, so the
-            // labels, merged chats, and bookmarks in the store are current.
+            // MATRIX-77, MATRIX-140, MATRIX-208, MATRIX-212: sync has caught
+            // up, so the labels, merged chats, bookmarks, and scheduled
+            // messages in the store are current.
             if case .running = state {
                 await labels?.refresh()
                 await mergedChats?.refresh()
                 await inbox?.refresh()
                 await bookmarks?.refresh()
+                await scheduledMessages?.refresh()
                 // MATRIX-207: snooze ends and reminders fire once sync has
                 // caught up, so the first arm resolves what came due while
                 // the app was closed against current state. macOS only: the

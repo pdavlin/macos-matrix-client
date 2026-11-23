@@ -55,6 +55,13 @@ public struct ChatListRow: View {
                     .foregroundStyle(secondaryStyle)
             }
 
+            // MATRIX-212: the chat has a scheduled message.
+            if model.hasScheduledMessages {
+                Image(systemName: "clock")
+                    .font(.system(size: ChatListToken.timestampFontSize))
+                    .foregroundStyle(secondaryStyle)
+            }
+
             Spacer(minLength: 4)
 
             if let timestamp = model.timestamp {

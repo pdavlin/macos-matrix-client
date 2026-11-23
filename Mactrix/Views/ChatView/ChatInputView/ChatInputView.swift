@@ -30,8 +30,8 @@ struct ChatInputView: View {
     /// a draft keeps its chips.
     @State var chatInput: String = ""
     @State private var mentions = ComposerMentionController()
-    /// The pending attachments (MATRIX-106).
-    @State private var attachments = ComposerAttachmentController()
+    /// The pending attachments (MATRIX-106). Not private: Send Later reads it.
+    @State var attachments = ComposerAttachmentController()
     /// True while a media send waits for its measurements, so a second
     /// Return does not send the same attachments again.
     @State private var isSendingMedia = false
@@ -42,6 +42,9 @@ struct ChatInputView: View {
     /// value makes the text view take the keyboard focus when it can. Not
     /// private: `ChatInputView+Focus.swift` sets it.
     @State var focusSerial = 0
+    /// MATRIX-212: Send Later's sheet and alert (`ChatInputView+SendLater.swift`).
+    @State var sendLaterSheet: SendLaterSheetRequest?
+    @State var sendLaterAlert: SendLaterAlert?
 
     func sendMessage() async {
         if let editSession {
@@ -210,6 +213,7 @@ struct ChatInputView: View {
                 focusSerial: focusSerial,
                 onEmptyUpArrow: { editLastOwnMessage() },
                 onEscape: { endEdit() },
+                onSendLater: { openSendLater() },
                 onSubmit: { Task { await sendMessage() } }
             )
         }
@@ -261,32 +265,36 @@ struct ChatInputView: View {
     /// The field and its attach, emoji, and send buttons in one glass
     /// container (MATRIX-195). With Reduce Transparency the field is opaque.
     var body: some View {
-        UI.ComposerChrome(
-            hasContent: hasContent,
-            canAttach: isDraftLoaded && editSession == nil,
-            canPickEmoji: isDraftLoaded,
-            canSend: isDraftLoaded && hasContent && !isSendingMedia,
-            isEditing: editSession != nil,
-            usesGlass: !reduceTransparency,
-            actions: .init(
-                attach: { attachments.presentOpenPanel() },
-                emoji: { showCharacterPalette() },
-                send: { Task { await sendMessage() } }
-            )
-        ) {
-            content
-        }
-        .font(.system(size: .init(fontSize)))
-        // Drops on the chips or the buttons. The text view takes drops on
-        // itself (`DynamicTextView.performDragOperation`).
-        .dropDestination(for: URL.self) { urls, _ in
-            let fileURLs = urls.filter(\.isFileURL)
-            guard editSession == nil, !fileURLs.isEmpty else { return false }
-            attachments.add(fileURLs: fileURLs)
-            return true
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 10)
+        // MATRIX-212: with the Scheduled strip above it, and the Send Later
+        // sheets.
+        withSendLater(
+            UI.ComposerChrome(
+                hasContent: hasContent,
+                canAttach: isDraftLoaded && editSession == nil,
+                canPickEmoji: isDraftLoaded,
+                canSend: isDraftLoaded && hasContent && !isSendingMedia,
+                isEditing: editSession != nil,
+                usesGlass: !reduceTransparency,
+                actions: .init(
+                    attach: { attachments.presentOpenPanel() },
+                    emoji: { showCharacterPalette() },
+                    send: { Task { await sendMessage() } },
+                    sendLater: hasSendLater ? { openSendLater() } : nil
+                )
+            ) {
+                content
+            }
+            .sendLaterEnabled(canSendLater)
+            .font(.system(size: .init(fontSize)))
+            // Drops on the chips or the buttons. The text view takes drops on
+            // itself (`DynamicTextView.performDragOperation`).
+            .dropDestination(for: URL.self) { urls, _ in
+                let fileURLs = urls.filter(\.isFileURL)
+                guard editSession == nil, !fileURLs.isEmpty else { return false }
+                attachments.add(fileURLs: fileURLs)
+                return true
+            }
+        )
     }
 
     /// The emoji button: the text view takes the focus, and the system

@@ -71,4 +71,25 @@ public enum ComposerKeyDecision {
             return .passthrough
         }
     }
+
+    /// Whether a key press is Send Later (MATRIX-212): Option-Command-Return,
+    /// in either send mode. `action(...)` passes this key through (Option is
+    /// an "other" modifier), so no send key changes. Shift or Control with
+    /// it, or an IME composition, is not the key.
+    ///
+    /// - Parameters:
+    ///   - isReturnKey: whether the key is Return or keypad Enter.
+    ///   - hasMarkedText: whether an input method holds a composition.
+    ///   - command: Command is held.
+    ///   - option: Option is held.
+    ///   - otherModifiers: Shift or Control is held.
+    public static func isSendLaterKey(
+        isReturnKey: Bool,
+        hasMarkedText: Bool,
+        command: Bool,
+        option: Bool,
+        otherModifiers: Bool
+    ) -> Bool {
+        isReturnKey && !hasMarkedText && command && option && !otherModifiers
+    }
 }

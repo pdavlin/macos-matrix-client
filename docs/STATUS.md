@@ -92,6 +92,18 @@ Composer and message actions
 
 - Enter or Shift-Enter behavior is a setting. Drafts survive relaunch.
 - Replies, edits (Up arrow edits the last own message), redaction.
+- Send Later (MATRIX-212): "Send Later…" in the send button's right-click
+  menu, or ⌥⌘↩. The sheet has "In 1 Hour", "This Evening", "Tomorrow",
+  "Next Week", a typed time, and a date picker, in the local time zone. The
+  server holds the message (MSC4140, `Room.sendDelayedEvent`) and sends it
+  while the Mac sleeps. Plain text only: a mention does not notify, and
+  formatting is removed (the sheet says so). Off in the thread panel, and
+  while a reply, an edit, or an attachment is set. A "2 scheduled" strip
+  above the composer opens the list: Send Now, Edit, Cancel. A chat with a
+  scheduled message has a clock on its chat-list row. The list is in account
+  data (`io.davlin.matrixclient.scheduled`: delay ID, room, time). The text
+  stays in a file on the Mac that scheduled it; other devices show
+  "Scheduled message". Mac only.
 - Reaction picker with SDK recent emoji.
 - The reaction picker shows the Slack workspace's custom emoji as a section,
   and the search finds their shortcodes. This needs the bridge's
