@@ -14,6 +14,10 @@ import SwiftUI
 ///   rail item's name.
 /// - ⇧⌘] and ⇧⌘[ select the next and previous rail item, as Safari's tab
 ///   keys do. This walk wraps, as Safari's does.
+/// - ⌘U opens the next unread chat of the visible list below the open
+///   chat, and wraps to the top (MATRIX-223, Beeper's "Select Next Unread
+///   Chat" key). With no other unread chat the item is off. It keeps no
+///   history (Patrick, 2026-11-23).
 ///
 /// MATRIX-217 removed ⌘1…⌘9 for the favourites and the first chat-list rows
 /// (D-7b), and the rail's own ⌃1…⌃9 (MATRIX-77). The app binds no ⌥-digit
@@ -73,6 +77,13 @@ struct GoCommands: Commands {
             }
             .keyboardShortcut("[", modifiers: [.command])
             .disabled(navigation?.previousChat == nil)
+
+            // MATRIX-223: ⌘U, Beeper's key.
+            Button("Next Unread Chat") {
+                open(navigation?.nextUnreadChat)
+            }
+            .keyboardShortcut("u", modifiers: [.command])
+            .disabled(navigation?.nextUnreadChat == nil)
 
             Divider()
 
@@ -134,6 +145,9 @@ struct GoNavigation: Equatable {
     let nextChat: ChatSelection?
     /// The chat ⌘[ opens, or `nil` at the start or with no selection.
     let previousChat: ChatSelection?
+    /// The chat ⌘U opens (MATRIX-223), or `nil` when no other chat of the
+    /// list is unread.
+    let nextUnreadChat: ChatSelection?
     /// ⌘1…⌘9 in key order: the rail items. Shorter than nine when the rail
     /// has fewer items.
     let railShortcuts: [ChatListRailItem]
@@ -174,6 +188,7 @@ struct GoNavigationPublisher: ViewModifier {
         return GoNavigation(
             nextChat: ChatListNavigation.next(after: selectedItemId, in: orderedIds).flatMap { selectionById[$0] },
             previousChat: ChatListNavigation.previous(before: selectedItemId, in: orderedIds).flatMap { selectionById[$0] },
+            nextUnreadChat: ChatListNavigation.nextUnread(after: selectedItemId, in: ordered),
             railShortcuts: ChatListRailNavigation.shortcutTargets(in: railItems),
             nextRailItem: ChatListRailNavigation.next(after: railSelection, in: railFilters),
             previousRailItem: ChatListRailNavigation.previous(before: railSelection, in: railFilters)

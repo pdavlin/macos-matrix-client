@@ -17,7 +17,7 @@ public enum ChatOpenSource: Equatable, Sendable {
     case newChat
     /// A click on a message notification.
     case notification
-    /// A Go-menu command: ⌘] or ⌘[ (MATRIX-217).
+    /// A Go-menu command: ⌘] or ⌘[ (MATRIX-217), ⌘U (MATRIX-223).
     case shortcut
     /// A click on a Matrix link in a message body (MATRIX-203).
     case link
