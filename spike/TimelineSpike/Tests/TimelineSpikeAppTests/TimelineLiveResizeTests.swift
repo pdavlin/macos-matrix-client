@@ -102,21 +102,34 @@ struct TimelineLiveResizeTests {
         /// the history at the default width (712226 pt), and the re-measure
         /// then moved the scroll. The state must hold for longer than the
         /// controller's settle delay, so a re-measure queued late counts too.
+        ///
+        /// The limit counts checks, not seconds. The other suites run in
+        /// parallel on the same main actor, so on the CI runner one 50 ms
+        /// wait can take a second or more, and a 10 s deadline ran out while
+        /// the state held (e13e65f). The re-measure runs on the main queue
+        /// as well, so the number of checks it needs does not change with
+        /// the load. Unloaded, 200 checks are still 10 s.
         func settleMeasuredWidth() async throws {
             controller.scrollView.tile()
             controller.view.layoutSubtreeIfNeeded()
-            let deadline = ContinuousClock.now + .seconds(10)
+            let start = ContinuousClock.now
+            let checkLimit = 200
             var settledChecks = 0
-            while settledChecks < 4 {
-                guard ContinuousClock.now < deadline else {
-                    Issue.record("the rows were never measured at the column width: \(widthState)")
-                    return
-                }
+            var flips = 0
+            for _ in 0 ..< checkLimit {
                 try await settle(0.05)
                 let width = controller.tableView.tableColumns.first?.width
                 let isSettled = width == fullColumnWidth && width == controller.oldWidth && !controller.heightRenoteScheduled
-                settledChecks = isSettled ? settledChecks + 1 : 0
+                if isSettled {
+                    settledChecks += 1
+                    if settledChecks == 4 { return }
+                } else {
+                    if settledChecks > 0 { flips += 1 }
+                    settledChecks = 0
+                }
             }
+            let history = "\(flips) flips from settled to not settled in \(checkLimit) checks over \(ContinuousClock.now - start)"
+            Issue.record("the rows were never measured at the column width for 4 checks in a row: \(widthState); \(history)")
         }
 
         /// One frame of the drag: the new frame, its layout, and the
