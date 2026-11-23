@@ -34,4 +34,28 @@ struct MotionTokenTests {
         #expect(MotionToken.countTransition(value: 10, reduceMotion: true) == .opacity)
         #expect(MotionToken.countChange == MotionToken.standard())
     }
+
+    /// MATRIX-225: the settle spring is Indigo's house spring, response 0.5
+    /// and damping 0.85, with no blend.
+    @Test
+    func settleIsTheHouseSpring() {
+        #expect(MotionToken.settle == .spring(response: 0.5, dampingFraction: 0.85))
+        #expect(MotionToken.settle != MotionToken.pop)
+    }
+
+    /// MATRIX-225: Reduce Motion turns the settle into a short fade on the
+    /// house curve, not into nothing.
+    @Test
+    func reduceMotionFadesTheSettle() {
+        #expect(MotionToken.settleAnimation(reduceMotion: false) == MotionToken.settle)
+        #expect(MotionToken.settleAnimation(reduceMotion: true) == MotionToken.standard(duration: MotionToken.revealDuration))
+    }
+
+    /// MATRIX-225: the badge pop rises past rest and falls back on the pop
+    /// spring's values.
+    @Test
+    func badgePopRisesAndFallsBack() {
+        #expect(MotionToken.badgePopScale > 1)
+        #expect(MotionToken.badgePopSpring == Spring(response: 0.3, dampingRatio: 0.62))
+    }
 }

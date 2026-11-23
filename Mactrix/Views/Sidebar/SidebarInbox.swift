@@ -168,7 +168,10 @@ struct InboxNoticeOverlay: View {
                 windowState.inboxNotice = nil
             }
             .padding(10)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            // MATRIX-225: the entrance settles it into place; it still
+            // leaves by sliding down and fading.
+            .entranceMotion()
+            .transition(.asymmetric(insertion: .identity, removal: .move(edge: .bottom).combined(with: .opacity)))
             .task(id: notice.id) {
                 try? await Task.sleep(for: InboxNotice.duration)
                 guard !Task.isCancelled, windowState.inboxNotice?.id == notice.id else { return }

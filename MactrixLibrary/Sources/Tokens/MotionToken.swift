@@ -8,9 +8,11 @@ import SwiftUI
 /// - Motion in the timeline never changes a row's height. Animate opacity,
 ///   color, a layer transform, or an overlay only (MATRIX-49 and 50).
 /// - Every animation goes through `animation(_:reduceMotion:)`, so Reduce
-///   Motion turns it into an instant change. The one exception is a count
-///   change (MATRIX-193): Reduce Motion turns its roll into a cross-fade,
-///   through `countTransition(value:reduceMotion:)`.
+///   Motion turns it into an instant change. Two exceptions show a change
+///   that must still be seen: a count change (MATRIX-193), whose roll
+///   becomes a cross-fade through `countTransition(value:reduceMotion:)`,
+///   and chrome that comes into place (MATRIX-225), whose settle becomes a
+///   short fade through `settleAnimation(reduceMotion:)`.
 public enum MotionToken {
     /// Hover color and opacity changes.
     public static let hoverDuration: Double = 0.08
@@ -44,6 +46,46 @@ public enum MotionToken {
 
     /// A short spring with a little overshoot, for pops.
     public static let pop: Animation = .spring(response: 0.3, dampingFraction: 0.62)
+
+    /// The settle spring (MATRIX-225): chrome that moves into place, with no
+    /// visible bounce. Indigo's house spring (41 of its 64 spring sites);
+    /// Mosaic also settles at damping 0.85.
+    public static let settle: Animation = .spring(response: 0.5, dampingFraction: 0.85)
+
+    /// What Reduce Motion shows in place of the settle (MATRIX-225): a short
+    /// fade on the house curve, with no scale and no offset.
+    public static let reducedMotionFade: Animation = standard(duration: revealDuration)
+
+    /// The animation of chrome that comes into place or changes in place
+    /// (MATRIX-225): the settle spring, or the short fade under Reduce
+    /// Motion.
+    public static func settleAnimation(reduceMotion: Bool) -> Animation {
+        reduceMotion ? reducedMotionFade : settle
+    }
+
+    // MARK: Entrance (MATRIX-225)
+
+    /// The scale transient chrome starts its entrance at, from its anchor.
+    public static let entranceScale: CGFloat = 0.96
+
+    /// How far transient chrome starts from its rest place, toward its
+    /// anchor, in points.
+    public static let entranceDistance: CGFloat = 6
+
+    // MARK: Badge pop (MATRIX-225)
+
+    /// The peak scale of an unread badge's pop when its count goes up.
+    public static let badgePopScale: CGFloat = 1.2
+
+    /// The time the pop takes to reach its peak, on an ease curve.
+    public static let badgePopRiseDuration: Double = 0.1
+
+    /// The time the pop takes to fall back to rest, on `badgePopSpring`.
+    public static let badgePopSettleDuration: Double = 0.35
+
+    /// The spring of the pop's fall: the `pop` spring's values, so the
+    /// badge dips a little below rest before it settles.
+    public static let badgePopSpring = Spring(response: 0.3, dampingRatio: 0.62)
 
     /// A count that changes (MATRIX-193): unread badges and reaction tallies.
     /// The house curve at state speed, also under Reduce Motion, where the

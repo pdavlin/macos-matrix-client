@@ -96,7 +96,8 @@ public struct SpaceRailIcon: View {
 }
 
 /// The unread mark on a rail item: Beeper's AccountBadge (MATRIX-77). A
-/// count rolls to its new value (MATRIX-193).
+/// count rolls to its new value (MATRIX-193) and pops when it goes up
+/// (MATRIX-225).
 struct LabelBadgeView: View {
     let badge: ChatLabelBadge
 
@@ -109,7 +110,9 @@ struct LabelBadgeView: View {
     }
 
     var body: some View {
-        mark.rollingCountAnimation(rollValue)
+        mark
+            .rollingCountAnimation(rollValue)
+            .badgePop(count: BadgePopRule.count(of: badge))
     }
 
     @ViewBuilder private var mark: some View {

@@ -306,6 +306,9 @@ struct ChatListUnreadIndicator: View {
             }
         }
         .rollingCountAnimation(UnreadCountCap.rollValue(count))
+        // MATRIX-225: a pulse when the count goes up, on the whole mark, so
+        // the capsule that appears for a first unread pops too.
+        .badgePop(count: BadgePopRule.count(of: unread))
         .accessibilityHidden(true)
     }
 }

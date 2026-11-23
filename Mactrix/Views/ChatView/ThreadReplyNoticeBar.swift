@@ -43,6 +43,8 @@ struct ThreadReplyNoticeBar: View {
                 discard: { Task { await timeline.threadReplies.discard(notice) } }
             )
             .padding(.horizontal)
+            // MATRIX-225: settles into place above the composer.
+            .entranceMotion()
         }
     }
 }

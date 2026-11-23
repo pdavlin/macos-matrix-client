@@ -108,6 +108,8 @@ extension ChatInputView {
                         )
                     )
                 }
+                // MATRIX-225: settles into place above the composer.
+                .entranceMotion()
             }
         }
     }

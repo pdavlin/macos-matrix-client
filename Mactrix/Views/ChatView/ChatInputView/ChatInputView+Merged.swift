@@ -30,15 +30,20 @@ extension ChatInputView {
 
     /// The reply or edit bar, with the target as a plain label beside it in
     /// a merged chat.
+    ///
+    /// MATRIX-225: the bar settles into place when it appears. Only the bar
+    /// moves, not the target picker beside it.
     @ViewBuilder func besideMergedTarget(@ViewBuilder _ bar: () -> some View) -> some View {
         if let merged, let target = merged.composerTarget {
             HStack(alignment: .center, spacing: 0) {
                 targetPicker(merged, target: target)
                     .padding(.leading, DensityToken.rowHorizontalPadding)
                 bar()
+                    .entranceMotion()
             }
         } else {
             bar()
+                .entranceMotion()
         }
     }
 
