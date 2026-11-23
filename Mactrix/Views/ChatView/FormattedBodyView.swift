@@ -22,8 +22,9 @@ struct FormattedBodyView: View {
     /// Loads the custom emoticons of an HTML body (MATRIX-153).
     let imageLoader: (any UI.ImageLoader)?
     /// Takes the custom emoticons of an HTML body when it shows
-    /// (MATRIX-161): the learned emoji of the chat's workspace.
-    let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
+    /// (MATRIX-161): the learned emoji of the chat's workspace. Equatable, so
+    /// an update of the row with the same body skips the parse (MATRIX-182).
+    let onEmoticons: BodyEmoticonHandler?
 
     /// - Parameter bodyGeometry: The body of the row's height fingerprint,
     ///   when the caller has one. It holds the jumbo decision. Without it,
@@ -32,7 +33,7 @@ struct FormattedBodyView: View {
         messageContent: some Core.MessageContent,
         bodyGeometry: Models.MessageBodyGeometry? = nil,
         imageLoader: (any UI.ImageLoader)?,
-        onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil
+        onEmoticons: BodyEmoticonHandler? = nil
     ) {
         self.rawBody = messageContent.body
         self.imageLoader = imageLoader

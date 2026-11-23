@@ -34,3 +34,11 @@ extension Logger {
 
     static let bookmarks = Logger(subsystem: subsystem, category: "bookmarks")
 }
+
+/// Signposts for the timeline measures (MATRIX-182): the member fetch when a
+/// timeline opens, and the diffs that the timeline applies. The category is
+/// "timeline-perf". docs/research/timeline-perf-2026-11.md tells how to
+/// record them.
+extension OSSignposter {
+    static let timeline = OSSignposter(subsystem: applicationID, category: "timeline-perf")
+}

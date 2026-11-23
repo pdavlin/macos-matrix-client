@@ -197,11 +197,15 @@ struct ChatMessageView: View, UI.MessageEventActions {
     /// Records the custom emoticons of the message's body as learned emoji
     /// of the room's workspace (MATRIX-161). The body view reports them from
     /// the parse it makes to load their images. Own messages count too.
-    private var learnEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? {
-        guard let client = appState.matrixClient, let roomId = timeline?.room.id else { return nil }
-        return { [weak client] found in
+    ///
+    /// The handler's id is the room (MATRIX-182). The action reads the
+    /// client when it runs, so two handlers of one room do the same thing,
+    /// and the body view can keep the older one.
+    private var learnEmoticons: BodyEmoticonHandler? {
+        guard appState.matrixClient != nil, let roomId = timeline?.room.id else { return nil }
+        return BodyEmoticonHandler(id: roomId) { [weak appState] found in
             let emoji: [ImagePackEmoji] = found.compactMap { LearnedEmoji.emoji(name: $0.name, url: $0.source) }
-            client?.learnEmoji(emoji, inRoom: roomId)
+            appState?.matrixClient?.learnEmoji(emoji, inRoom: roomId)
         }
     }
 

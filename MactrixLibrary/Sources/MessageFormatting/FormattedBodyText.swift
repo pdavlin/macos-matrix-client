@@ -29,18 +29,13 @@ import UI
 /// `musicLinkTitles` holds one (MATRIX-191). The body reads the store as it
 /// parses, so a title that arrives draws the body again. When the body shows,
 /// a task asks the store to load the titles of its links.
+///
+/// SwiftUI compares the inputs with `==` before it evaluates the body again
+/// (MATRIX-182). A row that SwiftUI builds again with equal inputs skips the
+/// parse. Each arrival of an emoticon image, and each title that arrives in
+/// `musicLinkTitles`, still draws the body again.
 public struct FormattedBodyText: View {
-    let html: String
-    let baseFontSize: CGFloat
-    let isJumbo: Bool
-    let imageLoader: (any ImageLoader)?
-    let onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)?
-    let marksMusicLinks: Bool
-    let musicLinkTitles: MusicLinkTitleStore?
-
-    /// Counts the emoticon images that arrived. `body` reads it, so each
-    /// arrival parses the body again against the cache.
-    @State private var arrivals = 0
+    private let content: FormattedBodyContent
 
     /// - Parameters:
     ///   - html: The formatted body.
@@ -60,9 +55,96 @@ public struct FormattedBodyText: View {
         baseFontSize: CGFloat,
         isJumbo: Bool = false,
         imageLoader: (any ImageLoader)?,
-        onEmoticons: (@MainActor ([BodyEmoticon]) -> Void)? = nil,
+        onEmoticons: BodyEmoticonHandler? = nil,
         marksMusicLinks: Bool = false,
         musicLinkTitles: MusicLinkTitleStore? = .shared
+    ) {
+        content = FormattedBodyContent(
+            html: html,
+            baseFontSize: baseFontSize,
+            isJumbo: isJumbo,
+            imageLoader: imageLoader,
+            onEmoticons: onEmoticons,
+            marksMusicLinks: marksMusicLinks,
+            musicLinkTitles: musicLinkTitles
+        )
+    }
+
+    public var body: some View {
+        content.equatable()
+    }
+}
+
+/// Takes the custom emoticons of a body when it shows (MATRIX-161).
+///
+/// Two handlers are equal when their ids are equal (MATRIX-182). A caller
+/// makes a new closure each time SwiftUI builds its view, and two closures
+/// never compare equal. With a closure as its input, `FormattedBodyText`
+/// parsed its body again on each update of the row. The id names what the
+/// action does, for example the room whose workspace learns the emoticons.
+/// Two handlers with one id must do the same thing, because SwiftUI can keep
+/// the older one.
+public struct BodyEmoticonHandler: Equatable, Sendable {
+    public let id: String
+    private let action: @MainActor @Sendable ([BodyEmoticon]) -> Void
+
+    public init(id: String, action: @escaping @MainActor @Sendable ([BodyEmoticon]) -> Void) {
+        self.id = id
+        self.action = action
+    }
+
+    @MainActor
+    public func callAsFunction(_ emoticons: [BodyEmoticon]) {
+        action(emoticons)
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+/// The body of `FormattedBodyText`. SwiftUI compares two values with `==`
+/// (through `equatable()`) and skips `body` when they are equal.
+struct FormattedBodyContent: View, Equatable {
+    let html: String
+    let baseFontSize: CGFloat
+    let isJumbo: Bool
+    let imageLoader: (any ImageLoader)?
+    let onEmoticons: BodyEmoticonHandler?
+    let marksMusicLinks: Bool
+    let musicLinkTitles: MusicLinkTitleStore?
+
+    /// What `==` compares of `imageLoader`. `init` reads it, so `==` does not
+    /// touch the loader, which is not `Sendable`.
+    private let loaderIdentity: LoaderIdentity
+
+    enum LoaderIdentity: Equatable {
+        case none
+        case object(ObjectIdentifier)
+        /// A loader that is not an object has no identity to compare.
+        case value
+
+        init(_ loader: (any ImageLoader)?) {
+            guard let loader else {
+                self = .none
+                return
+            }
+            self = type(of: loader) is AnyClass ? .object(ObjectIdentifier(loader as AnyObject)) : .value
+        }
+    }
+
+    /// Counts the emoticon images that arrived. `body` reads it, so each
+    /// arrival parses the body again against the cache.
+    @State private var arrivals = 0
+
+    init(
+        html: String,
+        baseFontSize: CGFloat,
+        isJumbo: Bool,
+        imageLoader: (any ImageLoader)?,
+        onEmoticons: BodyEmoticonHandler?,
+        marksMusicLinks: Bool,
+        musicLinkTitles: MusicLinkTitleStore?
     ) {
         self.html = html
         self.baseFontSize = baseFontSize
@@ -71,6 +153,22 @@ public struct FormattedBodyText: View {
         self.onEmoticons = onEmoticons
         self.marksMusicLinks = marksMusicLinks
         self.musicLinkTitles = musicLinkTitles
+        loaderIdentity = LoaderIdentity(imageLoader)
+    }
+
+    /// The state is not an input. A loader that is not an object never
+    /// compares equal, so its body is evaluated again as before. Each value
+    /// holds its loader, so an identity cannot pass to a new loader while
+    /// SwiftUI compares the two values.
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.html == rhs.html
+            && lhs.baseFontSize == rhs.baseFontSize
+            && lhs.isJumbo == rhs.isJumbo
+            && lhs.marksMusicLinks == rhs.marksMusicLinks
+            && lhs.onEmoticons == rhs.onEmoticons
+            && lhs.musicLinkTitles === rhs.musicLinkTitles
+            && lhs.loaderIdentity != .value
+            && lhs.loaderIdentity == rhs.loaderIdentity
     }
 
     private var fontSize: CGFloat {
@@ -100,7 +198,7 @@ public struct FormattedBodyText: View {
         #endif
     }
 
-    public var body: some View {
+    var body: some View {
         let text = AttributedTextView(attributedString: attributedBody(arrivals: arrivals))
         text
             .musicLinkBar(for: text.attributedString)

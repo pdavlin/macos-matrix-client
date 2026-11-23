@@ -122,8 +122,9 @@ enum EmoticonResolver {
             let font = attributes[.font] as? PlatformFont ?? PlatformFont.systemFont(ofSize: baseFontSize)
             let source = sources[index]
 
+            let side = EmoticonAttachment.side(for: font)
             let picture = imageLoader?.cachedImage(matrixUrl: source).flatMap {
-                platformImage(from: $0, side: EmoticonAttachment.side(for: font))
+                renderedImage(of: $0, source: source, side: side)
             }
             let attachment = EmoticonAttachment(source: source, alt: alt, font: font, picture: picture)
             let replacement = NSMutableAttributedString(attachment: attachment)
@@ -159,6 +160,44 @@ enum EmoticonResolver {
             )
         }
         return string
+    }
+
+    /// The emoticon images as the attachments draw them, by side and source
+    /// (MATRIX-182).
+    ///
+    /// A draw through `ImageRenderer` costs 30 to 50 us, and each parse of a
+    /// body drew each of its emoticons again. An `mxc://` source names fixed
+    /// content, and `renderScale` is a constant, so the source and the side
+    /// decide the drawn image. The resolver asks the loader first, so a source
+    /// whose image the loader does not hold still draws its alt text.
+    ///
+    /// The bound is a cost limit of 8 MB, where an image costs its pixel
+    /// bytes (`renderCost(side:)`). That holds approximately 2,300 squares of
+    /// body size (13 pt text, 30 x 30 px) or 230 of jumbo size (40 pt text,
+    /// 94 x 94 px). `NSCache` can remove an image before the limit, and it
+    /// can go above the limit for a short time.
+    static let renderedImages: NSCache<NSString, PlatformImage> = {
+        let cache = NSCache<NSString, PlatformImage>()
+        cache.totalCostLimit = 8 * 1024 * 1024
+        return cache
+    }()
+
+    /// The pixel bytes of an image that `platformImage(from:side:)` draws.
+    static func renderCost(side: CGFloat) -> Int {
+        let pixels = Int((side * renderScale).rounded(.up))
+        return pixels * pixels * 4
+    }
+
+    /// The cached image of `source`, drawn into the square of `side`: from
+    /// `renderedImages`, else drawn now and kept there.
+    private static func renderedImage(of image: Image, source: String, side: CGFloat) -> PlatformImage? {
+        let key = "\(side)\u{0}\(source)" as NSString
+        if let cached = renderedImages.object(forKey: key) {
+            return cached
+        }
+        guard let drawn = platformImage(from: image, side: side) else { return nil }
+        renderedImages.setObject(drawn, forKey: key, cost: renderCost(side: side))
+        return drawn
     }
 
     /// The loader hands out SwiftUI images. This draws one into the square,

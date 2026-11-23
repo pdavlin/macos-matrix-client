@@ -23,7 +23,7 @@ struct RenderedBodyCacheTests {
     /// The resolver edits a copy, so a second parse of an emoticon body still
     /// finds the markers in the cached render.
     @Test func anEmoticonBodyParsesTheSameTwice() {
-        let loader = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .systemGreen])
+        let loader = EmoticonStubLoader(colors: ["mxc://example.org/parrot": .stubGreen])
         let body = "<p>cache \(BodyEmoticonTests.parrot) markers</p>"
         let first = parseFormattedBody(body, baseFontSize: 13, imageLoader: loader)
         let second = parseFormattedBody(body, baseFontSize: 13, imageLoader: loader)

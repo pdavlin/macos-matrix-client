@@ -159,11 +159,112 @@ ZMarkupParser reads no appearance, screen, or clock value. The cache holds immut
 The four local checks passed.
 
 The fix removes the repeated HTML render. It does not remove the repeated body evaluation, the tag rewrite, or the emoticon render.
+MATRIX-182 removed the repeated body evaluation and the repeated emoticon render. See the next section.
+
+## Follow-up: MATRIX-182 (2026-11-23)
+
+### Changes
+
+1. The `onEmoticons` input of `FormattedBodyText` is now a `BodyEmoticonHandler`: an id and an action.
+   Two handlers with the same id are equal. `ChatMessageView` gives the room ID as the id,
+   and the action reads the client when it runs. So two handlers of one room do the same thing.
+2. `FormattedBodyText` puts its body in `FormattedBodyContent`, which is `Equatable`, and shows it through `equatable()`.
+   `==` compares the body, the font size, the jumbo flag, the music link switch, the handler,
+   the title store (by identity), and the image loader (by identity, read in `init`).
+   A loader that is not an object never compares equal, so such a caller gets the old behavior.
+   The `@State` arrival count is not an input: an image that arrives still draws the body again.
+   A title that arrives in the store still draws the body again through observation.
+3. `EmoticonResolver` keeps each drawn emoticon image in an `NSCache`, with the side and the `mxc://` source as the key.
+   The resolver asks the loader first. If the loader does not hold the image, the square shows the alt text, as before.
+   The key does not hold the loader or the image: an `mxc://` source names fixed content.
+   For this reason, a test must give one source the same image in each test (see `EmoticonStubLoader`).
+4. The bound of the emoticon cache is a cost limit: 8 MB, where an image costs its pixel bytes at the render scale.
+   At 13 pt text the side is 15 pt, which is 30 x 30 px and 3,600 bytes: approximately 2,300 images.
+   At the jumbo size (40 pt) the side is 47 pt, which is 94 x 94 px and 35,344 bytes: approximately 230 images.
+   `NSCache` can remove an image before the limit, and it can go above the limit for a short time.
+   Under memory pressure it can remove an image at any time, and the next parse draws it again.
+   One test run on the loaded machine showed this, so the cache test needs a shared image in one of up to five pairs of parses.
+5. Signposts for the member fetch and the timeline diffs. See "fetchMembers signposts" below.
+
+`MactrixLibrary/Tests/UITests/BodyUpdateCacheTests.swift` covers the handler equality, the comparison of each input,
+the row update with an equal handler (no parse in 10 updates) and with a new id (a parse on each update),
+the shared drawn image, the side in the key, the alt text when the loader has no image, and the cost limit.
+No snapshot reference changed.
+
+### Method
+
+The same as above: a scratch test in the `UITests` target (`ZZScratchPerf182.swift`, not committed),
+built with `swift test -c release -Xswiftc -enable-testing`.
+Parse samples: the median of 400 calls after 50 warm-up calls. Row update samples: the median of 300 updates after 30.
+
+- The stub loader returns `Image(nsImage:)` of a stored bitmap for each call, as `MatrixClient.cachedImage` does.
+- The bodies: a paragraph with 1 or 5 emoticons and words between them, and a body of 9 emoticons only, parsed at the jumbo size.
+- "Row update": an `NSHostingController` in a window that is never put on screen. Each update sets a new root view,
+  with a new closure in its handler, then calls `layoutSubtreeIfNeeded()`. The time covers the two steps.
+  Before the change the root view gave a closure. After the change it gives a handler with the same id and a new closure.
+- The parse count comes from the loader: each parse asks it one time for each emoticon.
+- Three passes before the change and three passes after it. For the third "before" pass,
+  the two changed source files were set back to `main` in the same worktree.
+
+### Environment and limits
+
+- The same Mac as above (Mac17,9, Apple M5 Pro, macOS 27.3).
+- Other agents compiled at the same time. The load average was 4.9 to 16.0 at the start of the passes.
+  The "after" passes had a higher load than the "before" passes, and they were faster.
+- The first two "after" passes used a first form of `==`, which read the loader identity when it compared.
+  The third pass used the committed form. The numbers are the same.
+
+### Numbers
+
+Release build. Median, in microseconds. A range gives the lowest and the highest of the three passes.
+
+| Operation | Before | After |
+| --- | --- | --- |
+| Parse, 1 emoticon, image in the image cache | 53 to 65 | 21 |
+| Parse, 1 emoticon, image not in the image cache | 20 to 22 | 20 to 22 |
+| Parse, 5 emoticons, images in the image cache | 269 to 315 | 69 to 75 |
+| Parse, 5 emoticons, images not in the image cache | 68 to 71 | 73 to 89 |
+| Parse, 9 emoticons jumbo, images in the image cache | 436 to 482 | 99 to 127 |
+| Parse, 9 emoticons jumbo, images not in the image cache | 107 to 110 | 98 to 106 |
+| Emoticon render, for each emoticon (hit minus miss, divided by the count) | 33 to 49 | -3 to 3 (noise) |
+| Row update, 1 emoticon | 183 to 198, 1 parse for each update | 8.7 to 9.3, no parse |
+| Row update, 5 emoticons | 507 to 575, 1 parse for each update | 8.5 to 8.8, no parse |
+| Row update, 529-character HTML, no emoticon | 89 to 97 | 8.6 to 8.7 |
+
+- With the images in the image cache, a parse now costs the same as a parse with no image. The `ImageRenderer` step is gone after the first draw of each source and side.
+- A row update with equal content now costs 9 us, where it cost 90 to 575 us. The cost was the parse.
+- In the 1-emoticon row, the loader got one call in the 10 counted updates after the change. That call is the body's task,
+  which reads the cache one time when the view appears. It is not a parse.
+- These bodies are not the bodies of the MATRIX-174 table, so compare the two tables only by their trend.
+
+### fetchMembers signposts
+
+Not measured in this story. `scripts/test.sh` permits only the `MactrixIntegrationTests` path on the dev account.
+Those tests sign in with a password (a new device for each run) and use one scratch room with no other member.
+A member fetch in that room gives no burst of profile diffs, so its number does not tell the cost in a bridged room.
+
+`LiveTimeline` now sends these signposts, subsystem = the bundle ID, category `timeline-perf` (`TimelineSignposts`):
+
+- `fetchMembers`: an interval for each member fetch, with the number of the timeline and its kind (`live` or `thread`).
+- `applyDiffs`: an interval for each batch of timeline diffs on the main actor, with the number of the timeline,
+  the count of diffs, and `fetchingMembers true` when a member fetch of that timeline runs.
+- A number in place of the room ID names each timeline, so a recording holds no room ID.
+
+Method for a later measure (dev account only, with a build and a session that do not restore the prod account):
+
+1. Record: `/usr/bin/log stream --signpost --style ndjson --predicate 'category == "timeline-perf"' > .agent-logs/fetch-members.ndjson`.
+   Instruments with the "Logging" template shows the same intervals.
+2. Select one room with many members, one merged chat, and one thread, one time each. Write down the time of each selection.
+3. The count of calls for each selection: the `fetchMembers` begin events after each selection.
+4. The size of the burst: for each `fetchMembers` interval, the `applyDiffs` intervals of the same timeline number
+   with `fetchingMembers true`. Add their diff counts and their durations.
+   A sync diff can also arrive in that time, so do the step one time with no new messages in the room.
+5. Then decide if one fetch for each room in a session is sufficient (proposed follow-up 6).
 
 ## Not measured
 
 - `fetchMembers` on timeline open. It is an SDK call that needs a homeserver and an account, and this story
-  permits neither. From the code: `LiveTimeline` calls it one time for each new `LiveTimeline`, in a `Task` of
+  permits neither. MATRIX-182 added signposts for a later measure (see above). From the code: `LiveTimeline` calls it one time for each new `LiveTimeline`, in a `Task` of
   utility priority. A new `LiveTimeline` is made on each room selection, for each part of a merged chat, and for each thread.
   The network and store work is in the SDK, off the main thread. The cost that can reach the main thread is the
   burst of timeline diffs when profiles change. Its size is not known.
@@ -178,9 +279,9 @@ The fix removes the repeated HTML render. It does not remove the repeated body e
 1. Record a display-link baseline on a quiet machine: VM stopped, no agent sessions, two runs for each renderer, then commit the dumps and fill the "pending" table in `spike/GATE.md`.
 2. Find the cause of F1: run S2 then S3 ten times on a quiet machine. If it stays, record a time profile of a bad run.
 3. Find where the S4 prepend drift of 0.45 to 0.50 pt comes from (the reference renderer reads 0.000 pt) and remove it, before the gate fails on each run.
-4. Stop the repeated body evaluation: make the `onEmoticons` path stable (for example, an environment action or an `Equatable` body view), so a row update with equal content skips the parse.
-5. Cache the emoticon render by source and side, so a parse does not call `ImageRenderer` again for each cached image.
-6. Measure `fetchMembers` in the app on the dev account with signposts: the count of calls for each selection and the size of the diff burst. Then decide if one call for each room in a session is sufficient.
+4. Stop the repeated body evaluation: make the `onEmoticons` path stable (for example, an environment action or an `Equatable` body view), so a row update with equal content skips the parse. Done in MATRIX-182.
+5. Cache the emoticon render by source and side, so a parse does not call `ImageRenderer` again for each cached image. Done in MATRIX-182.
+6. Measure `fetchMembers` in the app on the dev account with signposts: the count of calls for each selection and the size of the diff burst. Then decide if one call for each room in a session is sufficient. MATRIX-182 added the signposts. The measure is open.
 7. Give the spike a body that uses `FormattedBodyText` with a stub image loader, so the gate can see body regressions.
 
 ## Processes started and stopped

@@ -8,6 +8,10 @@ import UI
 
 /// Serves a solid-color square for each known URL, from the cache, and
 /// records every load it is asked for.
+///
+/// Give a source the same color in every test. The resolver keeps its drawn
+/// emoticon images for the whole process, by source and side (MATRIX-182),
+/// so a second color for a source can draw the first one.
 @MainActor
 final class EmoticonStubLoader: ImageLoader {
     var colors: [String: NSColor]
