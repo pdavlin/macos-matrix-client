@@ -142,6 +142,22 @@ public enum ChatListToken {
     /// where an accent capsule would vanish.
     public static let selectedRowCountOpacity: Double = 0.3
 
+    // MARK: Hover action (MATRIX-222)
+
+    /// Diameter of the Archive button a row shows under the pointer. Less
+    /// than the avatar, so the button floats over the row's trailing edge
+    /// and never changes the row's height.
+    public static let rowActionSize: CGFloat = 24
+
+    /// Size of the button's symbol.
+    public static let rowActionIconSize: CGFloat = 11
+
+    /// Opacity of the button's shadow.
+    public static let rowActionShadowOpacity: Double = 0.12
+
+    /// Blur radius of the button's shadow.
+    public static let rowActionShadowRadius: CGFloat = 2
+
     // MARK: Pinned favourites
 
     /// Avatar diameter in a pinned tile.

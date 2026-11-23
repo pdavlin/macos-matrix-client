@@ -65,6 +65,8 @@ struct MergedChatContextMenu: View {
         Divider()
 
         Button {
+            // MATRIX-222: on the open chat, the next chat opens.
+            SidebarInbox.openNextChat(ifOpenChatIn: memberRoomIds, client: appState.matrixClient, windowState: windowState)
             Task { await appState.matrixClient?.markAsRead(roomIds: memberRoomIds) }
         } label: {
             Text("Mark as Read")

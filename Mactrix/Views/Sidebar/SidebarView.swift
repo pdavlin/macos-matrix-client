@@ -179,12 +179,19 @@ struct SidebarView: View {
         .sheet(item: $windowState.inboxDatePicker) { request in
             InboxDatePickerHost(request: request)
         }
+        // MATRIX-222.
+        .modifier(ArchiveAllReadConfirmation())
     }
 
     private func applyChatListFilter() {
         // `labelRooms` carries a space's chats too: the SDK narrowing is the
         // same for both.
         appState.matrixClient?.setChatListFilter(windowState.chatListFilter, labelRooms: narrowingRoomIds)
+    }
+
+    /// The row's hover button (MATRIX-222).
+    private func rowAction(for item: ChatListItem) -> ChatListRowAction? {
+        SidebarInbox.rowAction(for: item, client: appState.matrixClient, windowState: windowState)
     }
 
     private var listTitle: String {
@@ -281,7 +288,8 @@ struct SidebarView: View {
 
             Section {
                 ForEach(inbox) { item in
-                    ChatListRow(model: item.row, imageLoader: appState.matrixClient)
+                    // MATRIX-222: Archive (Unarchive) under the pointer.
+                    ChatListRow(model: item.row, imageLoader: appState.matrixClient, primaryAction: rowAction(for: item))
                         // The row pads itself to the Beeper geometry. The macOS
                         // sidebar List still insets each row 16 pt on each side
                         // (measured for MATRIX-123), so the row adds no
@@ -338,6 +346,11 @@ struct SidebarView: View {
                 }
             }
             .pickerStyle(.inline)
+
+            Divider()
+
+            // MATRIX-222.
+            ArchiveAllReadButton()
         } label: {
             Label(
                 "Filter Chats",

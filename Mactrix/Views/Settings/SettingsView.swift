@@ -16,6 +16,10 @@ struct SettingsView: View {
             Tab("Appearance", systemImage: "eye") {
                 AppearanceSettingsView()
             }
+            // MATRIX-222.
+            Tab("Inbox", systemImage: "tray") {
+                InboxSettingsView()
+            }
             Tab("Composer", systemImage: "square.and.pencil") {
                 ComposerSettingsView()
             }

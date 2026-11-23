@@ -32,5 +32,8 @@
 
         /// AppKit's `textBackgroundColor`.
         static var textBackgroundColor: UIColor { .systemBackground }
+
+        /// AppKit's `secondaryLabelColor`.
+        static var secondaryLabelColor: UIColor { .secondaryLabel }
     }
 #endif

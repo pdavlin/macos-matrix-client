@@ -21,6 +21,9 @@ public enum ChatOpenSource: Equatable, Sendable {
     case shortcut
     /// A click on a Matrix link in a message body (MATRIX-203).
     case link
+    /// The next chat after Archive, Snooze, or Mark as Read on the open
+    /// chat (MATRIX-222).
+    case inboxFlow
     /// A chat-list selection change with no known input event.
     case unknown
 
@@ -28,7 +31,7 @@ public enum ChatOpenSource: Equatable, Sendable {
     /// chat's composer.
     public var asksForComposerFocus: Bool {
         switch self {
-        case .click, .returnKey, .quickSwitcher, .newChat, .notification, .shortcut, .link: true
+        case .click, .returnKey, .quickSwitcher, .newChat, .notification, .shortcut, .link, .inboxFlow: true
         case .listKeyboard, .unknown: false
         }
     }

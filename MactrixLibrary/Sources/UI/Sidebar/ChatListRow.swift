@@ -12,13 +12,34 @@ import Tokens
 /// MATRIX-123: the unread or send-failure dot sits on the avatar's top-leading
 /// corner, so the avatar starts at the row's leading edge. The title has
 /// layout priority over the timestamp, and the timestamp never truncates.
+///
+/// MATRIX-222: a row with a `primaryAction` shows it as a round button on
+/// its trailing edge while the pointer is over the row, as Beeper's
+/// `primaryThreadAction` (Archive or Unarchive). The button floats over the
+/// timestamp and the unread count, so the row keeps its height.
 public struct ChatListRow: View {
     let model: ChatListRowModel
     let imageLoader: ImageLoader?
+    let primaryAction: ChatListRowAction?
+    /// Draws the button without a pointer, for the snapshot tests.
+    let showsActionWithoutHover: Bool
 
-    public init(model: ChatListRowModel, imageLoader: ImageLoader?) {
+    @State private var isHovering = false
+
+    /// - Parameters:
+    ///   - model: the row's content.
+    ///   - imageLoader: loads the avatar.
+    ///   - primaryAction: the button the row shows under the pointer, or
+    ///     nil for none.
+    public init(model: ChatListRowModel, imageLoader: ImageLoader?, primaryAction: ChatListRowAction? = nil) {
+        self.init(model: model, imageLoader: imageLoader, primaryAction: primaryAction, showsActionWithoutHover: false)
+    }
+
+    init(model: ChatListRowModel, imageLoader: ImageLoader?, primaryAction: ChatListRowAction?, showsActionWithoutHover: Bool) {
         self.model = model
         self.imageLoader = imageLoader
+        self.primaryAction = primaryAction
+        self.showsActionWithoutHover = showsActionWithoutHover
     }
 
     private var secondaryStyle: some ShapeStyle {
@@ -118,10 +139,82 @@ public struct ChatListRow: View {
         .padding(.vertical, ChatListToken.rowVerticalPadding)
         .padding(.horizontal, ChatListToken.rowHorizontalPadding)
         .contentShape(Rectangle())
+        // An overlay, so the button takes no space and the row keeps its
+        // height.
+        .overlay(alignment: .trailing) {
+            if let primaryAction, isHovering || showsActionWithoutHover {
+                ChatListRowActionButton(action: primaryAction)
+            }
+        }
+        .onHover { isHovering = $0 }
         .help(model.helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.accessibilityLabel)
         .accessibilityValue(model.preview ?? "")
+        .modifier(ChatListRowAccessibilityAction(action: primaryAction))
+    }
+}
+
+/// The button a chat-list row shows under the pointer (MATRIX-222): a
+/// title for the tooltip and VoiceOver, a symbol, and what a click does.
+public struct ChatListRowAction {
+    public let title: String
+    public let systemImage: String
+    public let perform: @MainActor () -> Void
+
+    public init(title: String, systemImage: String, perform: @escaping @MainActor () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.perform = perform
+    }
+}
+
+/// The round hover button of a chat-list row (MATRIX-222).
+///
+/// Opaque, with a hairline border and a soft shadow, as the timeline's
+/// hover action bar: the row under it can be the accent-filled selection,
+/// and the list scrolls, so no glass (CLAUDE.md hard rule 2).
+struct ChatListRowActionButton: View {
+    let action: ChatListRowAction
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button {
+            action.perform()
+        } label: {
+            Image(systemName: action.systemImage)
+                .font(.system(size: ChatListToken.rowActionIconSize, weight: .semibold))
+                .foregroundStyle(isHovering ? Color.accentColor : Color(PlatformColor.secondaryLabelColor))
+                .frame(width: ChatListToken.rowActionSize, height: ChatListToken.rowActionSize)
+                .background(
+                    Circle()
+                        .fill(Color(PlatformColor.controlBackgroundColor))
+                        .stroke(Color(PlatformColor.separatorColor), lineWidth: BubbleToken.hoverBorderWidth)
+                        .shadow(color: .black.opacity(ChatListToken.rowActionShadowOpacity), radius: ChatListToken.rowActionShadowRadius)
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(action.title)
+        .accessibilityLabel(action.title)
+        .onHover { isHovering = $0 }
+    }
+}
+
+/// The row's hover action as a VoiceOver action: the row hides its
+/// children from accessibility, so the button cannot be reached on its own.
+private struct ChatListRowAccessibilityAction: ViewModifier {
+    let action: ChatListRowAction?
+
+    func body(content: Content) -> some View {
+        if let action {
+            content.accessibilityAction(named: Text(action.title)) {
+                action.perform()
+            }
+        } else {
+            content
+        }
     }
 }
 

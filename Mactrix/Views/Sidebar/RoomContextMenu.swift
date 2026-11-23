@@ -24,6 +24,11 @@ struct RoomContextMenu: View {
 
         if let roomInfo = room.roomInfo {
             Button {
+                // MATRIX-222: Mark as Read on the open chat opens the next
+                // chat.
+                if roomInfo.isMarkedUnread {
+                    SidebarInbox.openNextChat(ifOpenChatIn: [room.id], client: appState.matrixClient, windowState: windowState)
+                }
                 Task {
                     do {
                         Logger.viewCycle.info("marking room unread/read")

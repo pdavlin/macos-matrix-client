@@ -148,6 +148,10 @@ public final class WindowState {
     /// restored.
     public var inboxDatePicker: InboxDatePickerRequest?
 
+    /// The confirmation of "Archive All Read", if any (MATRIX-222). Not
+    /// restored.
+    public var archiveAllRead: ArchiveAllReadRequest?
+
     /// The one room a single-room window shows (MATRIX-116), or `nil` for a
     /// main window. A single-room window never shows another room, so the
     /// menu commands that change the selection skip it.
