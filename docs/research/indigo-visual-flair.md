@@ -168,3 +168,90 @@ Open:
 - The REA session is stuck in `cleanup_incomplete` with Hopper still running (PIDs 41550, 41600) and runtime dir `/tmp/rea-9q9ZVM`. Close the Hopper document by hand, then restart the REA MCP connection.
 - Where `TimelineView` and `Canvas` are used (Indigo code or a package).
 - Whether `contentTransition(.numericText)` is used on post counts or only in the paywall.
+
+## REA follow-up, 2026-11-23
+
+### Target and evidence
+
+- Indigo updated on 2026-11-23 to version 1.5 (build 531). The binary is now universal (x86_64 and arm64), SHA-256 `2dc96a4f9e67ab890c7f443b90381c3604ddaf2fd19636f75af6405b690afa3c`. The arm64 slice starts at container offset 70205440. `LC_BUILD_VERSION` is still MACCATALYST, minos 26.0, sdk 27.0, Xcode 27.1 (27A9275). The 1.4.2 binary of the first pass is no longer on disk, so the answers below are for 1.5.
+- REA records (session closed after use):
+  - I-R1 `ev_a006e7d1663dc6eb9d8b4b1508ccb58c049147bc8ff50d0624adebeff82efba2`: `inspect_plist` (1.5, 531, `com.soapboxsoftware.indigo`, `LSMinimumSystemVersion` 26.0).
+  - I-R2 `ev_a131bd3657c7c352b2bd694958911d05e96916a4d121bb76c2b1b19d2507175b`: `inspect_macho` of the arm64 slice (complete: 7614 imports, 90 dependencies, 109 load commands, section offsets). Summary view `ev_98f6ca8fc758f42237665130f9d2362cf6caccc9a4172299d920093949633b48`.
+  - I-R3 `ev_9f256d92b4d2d5a9bdca6afa87a56967d0182f6cc97b27565830fb560330d60b`: build metadata view (MACCATALYST 26.0, sdk 27.0).
+  - I-R4 `ev_34beae6b183dab07ffb4a97e03d3e27627cc918a9b869668ac99e6f881be255c`: `demangle_swift` of `glassEffectUnion(id:namespace:)`, `glassEffectTransition(_:)`, `Glass.tint(_:)`, `sensoryFeedback(_:trigger:)`, `numericText(value:)`, `Spring.value(target:initialVelocity:time:)`, `Spring.settlingDuration(target:initialVelocity:epsilon:)`, `Animation.spring(response:dampingFraction:blendDuration:)`.
+- Local static steps on the arm64 slice (extracted with `lipo -thin arm64`, slice SHA-256 `9d5c5504df302f8baabb40debb47d2854d1e3decdbfaab32995618d8c451fe95`), anchored on the I-R2 section offsets. The steps are the same as M-L1 to M-L6 in `docs/research/mosaic-visual-flair.md`:
+  - I-L2 field map from `__swift5_fieldmd` (25,889 rows).
+  - I-L3 conformance witnesses from `__swift5_proto` (exact `body` addresses).
+  - I-L4 `llvm-objdump` of named functions, stub calls named from the indirect symbol table.
+  - I-L5 call-site scan of all of `__text` (340 calls to 20 glass, spring, haptic and transition stubs), with owners from the nearest preceding witness. The owner is INFERRED; an offset of a few hundred bytes is strong, a few KB is weak.
+  - I-L6 spring arguments decoded at each call.
+- Hopper was not used. The REA registration has no `REA_HOPPER_STARTUP_TIMEOUT_MS`, so the timeout is still the 120 s that failed in the first pass, the arm64 code is still 51 MB, and another agent shared the REA server. I-L3 and I-L4 replace the decompiler for the named functions.
+
+### Answers to the open questions
+
+Spring constants (I-L5, I-L6). OBSERVED values. 64 calls to `Animation.spring(response:dampingFraction:blendDuration:)`:
+
+| response, damping, blend | Calls | Owners (INFERRED by proximity) |
+|---|---|---|
+| 0.5, 0.85, 0 | 41 | The house spring: `TabBar`, `TabButton` (4), `TabButton.ButtonLabel`, `CompactTabBar`, `AccountGroupSwitcherButton` (3), `InAppNotificationBannerContainer`, `RefreshableScrollView` (6), `PostTextView` (3), `URLPreview`, `NotificationsFilterMenu`, `SessionExpiryBannerView`, `TimelineQuickFiltersView.QuickFilterToggle`, `GroupedNotificationView.FollowRequestButtons`, `TabBarBlurEdgePeriod` (2), paywall (3), 11 more with weak owners (7 put on `IndigoShortcut`) |
+| 0.15, 0.85, 0.25 | 8 | Gesture tracking (interactive-spring shape): `ZoomableModifier` (2), 6 with a weak owner (`IndigoShortcut`) |
+| 0.5, 1.0, 0 | 6 | Critically damped paging: `BookPoseDivision` (5), `MacView` |
+| 0.35, 1.0, 0 | 3 | `DockedKeyboardAvoidance` (2), `ProfileMenuPreview` |
+| 0.3, 1.0, 0 | 2 | `PinnedAccountsSignInNotice` |
+| 0.1, 0.85, 0 | 2 | `ZoomableModifier` (snap back) |
+| 0.22, 0.85, 0 | 1 | `BlockquoteView` (quote expand and collapse) |
+| 0.9, 0.85, 0 | 1 | `SettingsAboutDeveloperSection` |
+
+- The hand-driven spring of the first pass is `TimelineColumnSlotViewController.TopChrome`: it builds `Spring(duration: 0.35, bounce: 0)` and calls `Spring.value(target:initialVelocity:time:)` frame by frame. OBSERVED (calls and the 0.35 and 0 arguments), INFERRED (frame driver). `ColumnIdentity` calls `Spring.settlingDuration`; its arguments were not resolved.
+- Example check (I-L4): at `0x1002760a8` the code is `mov x8, #0x3333333333333333; movk x8, #0x3feb, lsl #48; fmov d1, x8; fmov d0, #0.5; movi v2, #0; bl Animation.spring`, which is (0.5, 0.85, 0).
+
+Which views own each glass call (I-L5). 28 `glassEffect` calls, 6 `GlassEffectContainer`, 5 `glassEffectID`, 3 `glassEffectUnion`, 3 `glassEffectTransition`, 1 `Glass.tint`:
+
+| Owner (INFERRED by proximity) | Glass use | Confidence |
+|---|---|---|
+| `TabButton` (+0x3bd0 to +0x5024 from its `body`) | `GlassEffectContainer`; 3 x `glassEffect(.regular.interactive())` + `glassEffectID` + `glassEffectTransition`; `sensoryFeedback` | OBSERVED (calls), INFERRED (owner) |
+| `TabButton.ButtonLabel` (+0x40) | `glassEffectUnion(id:namespace:)` + `sensoryFeedback` | OBSERVED, owner strong |
+| `AccountGroupSwitcherButton` | `glassEffectUnion` + `sensoryFeedback` (2) | INFERRED (owner weak, +0x5308) |
+| `TimelineColumnView`, `TimelineColumnToolbar`, `ColumnTitleToolbar`, `FeedsPickerMenu` | `GlassEffectContainer`; `glassEffect(.regular.interactive())` on column toolbar buttons | OBSERVED (calls), INFERRED (owner) |
+| `NetworkFilterChip` (+0x4) | `glassEffect(.regular.tint(color).interactive())`: the only `Glass.tint` call | OBSERVED, owner strong |
+| `FilterChipLabel` (+0x4) | `glassEffect(.regular.interactive())` | OBSERVED, owner strong |
+| `InAppNotificationBannerContainer` (+0x88) | `glassEffect(.regular.interactive())` for the in-app banner | OBSERVED, owner strong |
+| `SearchCapsuleBackground` | `glassEffect(.regular)` and `GlassButtonStyle` | INFERRED (owner weak) |
+| `ComposePostToolbarState` | `GlassEffectContainer`, `glassEffect(.regular)`, `GlassButtonStyle` for the compose toolbar | INFERRED (owner weak) |
+| `GlassComposeView.UnresolvedMentionWarning` | `glassEffect(.regular)` | INFERRED |
+| `OpenPostDialog` | `GlassEffectContainer`, `glassEffect(.regular)` | INFERRED |
+| `PinnedAccountsSignInNotice` | `glassEffect(.regular.interactive())` + `glassEffectID` (2) | INFERRED |
+| `ImageGallery.AltTextView` (+0x224) | `glassEffect(.regular)` + `GlassButtonStyle`: alt text over the image viewer | OBSERVED, owner strong |
+| `GroupProfileColumn` (7), `ProfileMenuPreview`, `ProfileImageCropView` | `glassEffect(.regular.interactive())` buttons on profile headers and the crop view | INFERRED |
+
+- No glass call is attributed to a post cell type (`UIKitTimelinePostCell` and friends) or to `Heart`, `LikeButton`, `RepostButton`. Glass stays on tab bar, toolbars, chips, banners and overlays. This upgrades the first-pass statement "timeline cells carry no glass names" from names to call sites. INFERRED (attribution), with OBSERVED call sites.
+- `glassEffectUnion` and `glassEffectTransition` sit in the tab bar code. This confirms the first-pass reading of a custom glass tab bar whose bubbles merge and morph.
+
+The like animation (I-L2, I-L3, I-L4):
+
+- `Heart.body` (exact witness, `0x100c9f888`) is short: `Image(systemName: isLiked ? "heart.fill" : "heart")` with the foreground `tintColor` when liked, else `Color.secondary`. The two symbol names are built as immediates in the code. There is no scale, no spring and no symbol effect in it. OBSERVED.
+- `LikeButton` fields: `wrapper`, `delegate`, `__haptics` (an `Int` setting), `_postPrefs`, `_appearance`. The action buttons fire `sensoryFeedback(SensoryFeedback.impact, trigger:)` with a trigger kept in state (closure after `Heart`, `0x100c9ff74`, 2 calls; `RepostButton` +0x40, 1 call). OBSERVED (calls), INFERRED (which button owns the closure).
+- No `symbolEffect` import exists in 1.5 either (I-R2). The like is a symbol swap, a tint change and a haptic. Any motion in the UIKit post cell (`PostActionBarUIView`) would use UIKit animation calls through `objc_msgSend` and was not traced. UNKNOWN.
+
+`numericText`: 3 call sites only: `NotificationsFilterMenu` (with the house spring) and `SessionExpiryBannerView` (2). No post cell or action button calls it. Post counts do not roll in 1.5. OBSERVED (call sites), INFERRED (owners).
+
+`TimelineView` and `Canvas`: `TimelineView` is used near `ActivityEntry` and `ActivityStatusToast` (an activity toast, likely an elapsed-time or progress display). `Canvas` is the exact `body` of `Checkerboard` (a transparency checkerboard). OBSERVED (calls), INFERRED (purpose).
+
+### New findings in 1.5
+
+- `TimelineCapsuleView` fields: `showGlass`, `isColumnHeader`, `peeksFeedNameOnAppear`, `feedNamePeekDuration`, `__isPeekingFeedName`, `__feedNameTimer`, `undoDuration`, `__undoTimer`, `menuScale`. The column capsule shows the feed name for a short time when it appears, then collapses, and it carries an undo timer. OBSERVED (fields), INFERRED (behavior), durations UNKNOWN.
+- Toast stack: `ToastManager`, `ToastType`, `ToastButton`, `ToastClearance` and `ToastClearanceModifier` (toasts keep clear of chrome), `InAppNotificationBanner`, `ActivityStatusToast`. OBSERVED (names).
+
+### Status of the ideas above, and two new ones
+
+- Done in Mactrix since 2026-11-18: idea 1 (MATRIX-195), idea 2 (MATRIX-196, sidebar), idea 3 (MATRIX-193), idea 5 (MATRIX-194), idea 7 (MATRIX-197). Open: ideas 4, 6, 8, 9, 10.
+- Idea 10 caution: `NavigationTransition.zoom(sourceID:in:)` is `@available(macOS, unavailable)` in the macOS 27 SDK. On the Mac, a thumbnail-to-viewer zoom needs `matchedGeometryEffect` inside one window or a snapshot animation.
+- Spring note: Mactrix's `MotionToken.pop` is (0.3, 0.62). Indigo never goes below damping 0.85, and Mosaic also settles at 0.85 or 1.0. A "settle" token near (0.25 to 0.5, 0.85) fits chrome that moves into place better than `pop`.
+- New idea 11, active filter chip in tinted glass. When the chat list has a filter other than Inbox (Unread, People, Snoozed) or a label or space is selected, show a chip in the sidebar header with the filter name and a clear button, in `glassEffect(.regular.tint(color).interactive())` with the label or space color, as `NetworkFilterChip` does. Today the only sign is a filled filter icon. Where: sidebar header, not over the list. Fits. Size S.
+- New idea 12, peek the rail item name. After ⌘1 to ⌘9 or ⇧⌘[ and ⇧⌘], show the selected rail item's name in a small capsule for about a second, then collapse it, as `TimelineCapsuleView` peeks the feed name. Rail items show only an icon today. Where: sidebar header or rail. Fits on the navigation layer if it does not float over the scrolling list. Size S.
+
+### Still open
+
+- The keyframes and durations of the capsule peek and undo timers.
+- Motion in the UIKit post cell after a like (objc selector calls, not traced).
+- `RampedBlurView` and `PagingHaptics` were not re-examined in 1.5.
