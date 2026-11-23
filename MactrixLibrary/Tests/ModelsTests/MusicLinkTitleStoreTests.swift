@@ -195,9 +195,12 @@ struct MusicLinkTitleStoreTests {
 
     // MARK: Failures
 
-    @Test func aFailedReadIsKeptForAnHourThenReadAgain() async throws {
+    /// MATRIX-219: a Matrix error of the homeserver, and an answer with no
+    /// preview, as `Core` maps them from the SDK.
+    @Test(arguments: [MusicLinkPreviewFailure.homeserver(errcode: "M_UNKNOWN"), .noPreview])
+    func aFailedReadIsKeptForAnHourThenReadAgain(failure: MusicLinkPreviewFailure) async throws {
         let store = store()
-        let stub = StubPreviews { _ in throw MusicLinkPreviewReader.Failure.status(403) }
+        let stub = StubPreviews { _ in throw failure }
         configure(store, stub)
         let link = try link()
 
@@ -229,9 +232,11 @@ struct MusicLinkTitleStoreTests {
         #expect(store.hasLiveFailure(for: link))
     }
 
-    @Test func aTransportErrorIsKeptForAShorterTime() async throws {
+    /// MATRIX-219: also the SDK's network error, as `Core` maps it.
+    @Test(arguments: [URLError(.notConnectedToInternet), MusicLinkPreviewFailure.transport] as [any Error])
+    func aTransportErrorIsKeptForAShorterTime(error: any Error) async throws {
         let store = store()
-        let stub = StubPreviews { _ in throw URLError(.notConnectedToInternet) }
+        let stub = StubPreviews { _ in throw error }
         configure(store, stub)
         let link = try link()
         await store.load(link)?.value
@@ -245,11 +250,11 @@ struct MusicLinkTitleStoreTests {
         let lines = Lines()
         store.configure(
             cacheFile: nil,
-            fetch: { _ in throw MusicLinkPreviewReader.Failure.status(403) },
+            fetch: { _ in throw MusicLinkPreviewFailure.homeserver(errcode: "M_UNKNOWN") },
             report: { lines.append([$0]) }
         )
         try await store.load(link())?.value
-        #expect(lines.all == ["music link title: status(403)"])
+        #expect(lines.all == [#"music link title: homeserver(errcode: "M_UNKNOWN")"#])
     }
 
     // MARK: Coalescing and limit
@@ -326,7 +331,7 @@ struct MusicLinkTitleStoreTests {
         let file = temporaryFile()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let first = store()
-        let stub = StubPreviews { _ in throw MusicLinkPreviewReader.Failure.status(404) }
+        let stub = StubPreviews { _ in throw MusicLinkPreviewFailure.homeserver(errcode: "M_NOT_FOUND") }
         configure(first, stub, cacheFile: file)
         let link = try link()
         await first.load(link)?.value

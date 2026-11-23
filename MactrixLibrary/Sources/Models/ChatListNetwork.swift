@@ -3,8 +3,10 @@ import Foundation
 /// The chat network a bridged room most likely belongs to (MATRIX-67).
 ///
 /// This is a display heuristic, not a fact about the room. A mautrix bridge
-/// announces itself in the room's `m.bridge` state event, but the FFI has no
-/// API to read arbitrary room state, so the row cannot read it. Instead the
+/// announces itself in the room's `m.bridge` state event, but the FFI's state
+/// read (`Room.stateEvents`) holds only the state that the sliding sync asks
+/// for, and `m.bridge` is not part of it (MATRIX-219), so the row cannot read
+/// it. Instead the
 /// detector matches the localparts of the room's heroes against the default
 /// mautrix puppet prefixes (`whatsapp_…`, `signal_…`). A bridge configured with
 /// a custom username template is not detected, and a native Matrix user whose

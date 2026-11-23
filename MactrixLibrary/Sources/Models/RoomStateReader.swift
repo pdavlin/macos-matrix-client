@@ -4,9 +4,9 @@ import Foundation
 /// packs of a workspace space (MATRIX-155), and for the bridge info of one
 /// direct chat of a workspace (MATRIX-165).
 ///
-/// **This is one of the two Matrix HTTP calls that the app makes outside
-/// matrix-rust-sdk.** (The other is `MusicLinkPreviewReader`, the URL
-/// preview of a Spotify link, contract §11 row of 2026-11-18, MATRIX-191.)
+/// **This is the one Matrix HTTP call that the app makes outside
+/// matrix-rust-sdk.** (The URL preview of a Spotify link, contract §11 row
+/// of 2026-11-18, moved to the SDK's `Client.getUrlPreview` in MATRIX-219.)
 /// It is the bounded exception to hard rule 1 that
 /// `docs/PROJECT_CONTRACT.md` §11 grants in the row of 2026-11-13 (MATRIX-151,
 /// decision b): the pinned SDK (26.04.01) has no read of room state, so the
@@ -16,8 +16,12 @@ import Foundation
 /// request may also read one direct chat per workspace, to take the
 /// receiver from its bridge info (`BridgeInfo`, `OwnServiceAvatarStore`).
 /// The call reads display data only. It never writes, and it does no sync,
-/// crypto, or timeline work. Remove this type when an SDK bump gives a state
-/// read. Do not add a second request here, and do not add a third user
+/// crypto, or timeline work. The SDK 26.11.11 has `Room.stateEvents`, but it
+/// reads only the state that the sliding sync stored, and the sync's
+/// `required_state` has none of the types read here (MATRIX-219, see
+/// `RoomStateTransport` in `Core`). Remove this type when the FFI can add a
+/// type to the sync's `required_state`, or gives a state read from the
+/// server. Do not add a second request here, and do not add a third user
 /// without a contract row.
 ///
 /// The access token goes only into the `Authorization` header of a request to

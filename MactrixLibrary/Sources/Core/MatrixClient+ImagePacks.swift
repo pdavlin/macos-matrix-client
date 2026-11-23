@@ -108,6 +108,18 @@ public extension MatrixClient {
 /// The session is ephemeral, so the room state does not go into a URL cache
 /// on disk, and it has no cookies. A redirect is not followed, so the
 /// `Authorization` header goes only to the homeserver of the SDK session.
+///
+/// MATRIX-219: the pinned SDK (26.11.11) has `Room.stateEvents(eventType:)`,
+/// but it cannot replace this read. It returns only the state that the
+/// sliding sync stored, and the sync asks only for the SDK's fixed
+/// `required_state` list (`DEFAULT_REQUIRED_STATE` in
+/// `matrix-sdk-ui/src/room_list_service/mod.rs` at SDK commit `5e0a2b83`).
+/// That list has none of the types read here: `m.room.image_pack` (the
+/// image packs) and `m.bridge` or `uk.half-shot.bridge` (the bridge info).
+/// The FFI has no call that adds a type to it (`SyncServiceBuilder`,
+/// `RoomListService`, and `ClientBuilder` take no `required_state`). So
+/// `stateEvents` gives an empty list for these types, and this read stays
+/// until the FFI can widen the sync's `required_state`.
 enum RoomStateTransport {
     /// The state of a room, read from the homeserver of the SDK session.
     ///
@@ -131,15 +143,14 @@ enum RoomStateTransport {
         try await session.data(for: request, delegate: RefuseRedirects())
     }
 
-    /// Also the session of `MusicLinkPreviewTransport` (MATRIX-191).
-    static let session: URLSession = {
+    private static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpShouldSetCookies = false
         configuration.timeoutIntervalForRequest = 30
         return URLSession(configuration: configuration)
     }()
 
-    final class RefuseRedirects: NSObject, URLSessionTaskDelegate {
+    private final class RefuseRedirects: NSObject, URLSessionTaskDelegate {
         func urlSession(
             _: URLSession,
             task _: URLSessionTask,

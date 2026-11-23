@@ -15,11 +15,12 @@ import Foundation
 /// - Only Spotify links have a title. The homeserver previews no other host.
 /// - The key of a link is `cacheKey(for:)`: no query, no fragment, no
 ///   trailing slash, a lowercase scheme and host.
-/// - A title lives `titleLifetime` (30 days). A failed read (a status that
-///   is not 200, a preview with no title) lives `failureLifetime` (1 hour),
-///   and a transport error (no network) lives `transportFailureLifetime`.
-///   While a failure lives, `load` makes no read for the link. An expired
-///   entry counts as absent.
+/// - A title lives `titleLifetime` (30 days). A failed read (a Matrix error
+///   from the homeserver, no preview, a preview with no title) lives
+///   `failureLifetime` (1 hour), and a read with no Matrix answer (no
+///   network, `MusicLinkPreviewFailure.isTransient`) lives
+///   `transportFailureLifetime`. While a failure lives, `load` makes no read
+///   for the link. An expired entry counts as absent.
 /// - One read per link at a time: a second `load` while a read is in flight
 ///   does nothing. At most `maxConcurrentReads` reads run at once, the others
 ///   wait in order.
@@ -27,8 +28,8 @@ import Foundation
 ///   dates, at most `capacity` entries. It never holds a token or a response
 ///   body.
 ///
-/// The store has no network of its own: `configure` gives it the read
-/// (`MusicLinkPreviewReader` in `Core`) and the cache file, so tests run from
+/// The store has no network of its own: `configure` gives it the read (the
+/// SDK's URL preview call in `Core`) and the cache file, so tests run from
 /// fixtures.
 @MainActor @Observable
 public final class MusicLinkTitleStore {
@@ -186,10 +187,9 @@ public final class MusicLinkTitleStore {
                 report("music link title: the preview has no title")
             }
         case let .failure(error):
-            let isTransport = !(error is MusicLinkPreviewReader.Failure)
-            let lifetime = isTransport ? Self.transportFailureLifetime : Self.failureLifetime
+            let lifetime = MusicLinkPreviewFailure.isTransient(error) ? Self.transportFailureLifetime : Self.failureLifetime
             failures[key] = date.addingTimeInterval(lifetime)
-            report("music link title: \(MusicLinkPreviewReader.logName(of: error))")
+            report("music link title: \(MusicLinkPreviewFailure.logName(of: error))")
         }
         writeCache()
     }

@@ -2,7 +2,8 @@ import Foundation
 
 /// The title of a Spotify song or album link (MATRIX-191): the artist and
 /// the name of the song or the album, read from the homeserver's URL preview
-/// of the link (`MusicLinkPreviewReader`).
+/// of the link (the SDK's `Client.getUrlPreview`, see
+/// `MusicLinkPreviewFailure`).
 ///
 /// The timeline shows `text` in place of the link's URL.
 public struct MusicLinkTitle: Codable, Equatable, Sendable {

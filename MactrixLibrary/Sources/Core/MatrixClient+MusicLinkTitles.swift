@@ -3,14 +3,13 @@ import MatrixRustSDK
 import Models
 import OSLog
 
-/// The SDK and network side of the music link titles (MATRIX-191).
+/// The SDK side of the music link titles (MATRIX-191).
 ///
 /// The rules live in `Models` (`MusicLinkTitleStore`, `MusicLinkTitle`),
-/// where they are unit-tested. The one HTTP request is
-/// `Models.MusicLinkPreviewReader`, the second read outside the SDK, granted
-/// by the contract §11 row of 2026-11-18. This file gives the shared store
-/// its read, with the session's homeserver URL and access token, and its
-/// cache file in the session's caches.
+/// where they are unit-tested. The read is the SDK's
+/// `Client.getUrlPreview(url:ts:)` (MATRIX-219), which replaced the raw
+/// request that the contract §11 row of 2026-11-18 granted. This file gives
+/// the shared store that read and its cache file in the session's caches.
 extension MatrixClient {
     /// Gives `MusicLinkTitleStore.shared` this session's preview read and
     /// cache file, and loads the file, so the first layout of a row has the
@@ -21,7 +20,7 @@ extension MatrixClient {
         MusicLinkTitleStore.shared.configure(
             cacheFile: URL.sessionCaches(for: storeID).appending(component: "MusicLinkTitles.json"),
             fetch: { url in
-                try await MusicLinkPreviewTransport.preview(of: url, client: sdkClient)
+                try await MusicLinkPreviewRead.preview(of: url, client: sdkClient)
             },
             report: { line in
                 // A 403 (previews off on the server) is an expected answer,
@@ -39,27 +38,54 @@ extension MatrixClient {
     }
 }
 
-/// The `URLSession` behind `MusicLinkPreviewReader`, and the one place that
-/// reads the session's access token for it. It uses the ephemeral session of
-/// `RoomStateTransport`: no URL cache on disk, no cookies, and no redirect,
-/// so the `Authorization` header goes only to the homeserver of the SDK
-/// session.
-enum MusicLinkPreviewTransport {
-    /// The URL preview JSON of `link`, read from the homeserver of the SDK
-    /// session.
-    @MainActor
+/// The preview read of `MusicLinkTitleStore` (MATRIX-219): the SDK's URL
+/// preview call, with its answer and its errors mapped to the JSON body and
+/// `Models.MusicLinkPreviewFailure`. The SDK sends the request with the
+/// session's token to the session's homeserver, so the app holds no token
+/// and no HTTP transport for it.
+enum MusicLinkPreviewRead {
+    /// The URL preview JSON of `link`, an object of Open Graph keys
+    /// (`MusicLinkTitle.parse`).
+    ///
+    /// - Throws: `MusicLinkPreviewFailure` only.
     static func preview(of link: URL, client: ClientProtocol) async throws -> Data {
-        // The token stays in this function: it goes into the request header
-        // and nowhere else.
-        let session: Session = try client.session()
-        return try await reader.preview(
-            of: link,
-            homeserverURL: session.homeserverUrl,
-            accessToken: session.accessToken
-        )
+        let url = try previewURL(of: link)
+        let answer: String?
+        do {
+            // `ts` is deprecated since Matrix 1.11: the SDK says to pass nil.
+            answer = try await client.getUrlPreview(url: url, ts: nil)
+        } catch {
+            throw failure(for: error)
+        }
+        return try json(from: answer)
     }
 
-    private static let reader = MusicLinkPreviewReader { request in
-        try await RoomStateTransport.session.data(for: request, delegate: RoomStateTransport.RefuseRedirects())
+    /// The URL the SDK previews: the link as it is. Only an `https` link
+    /// goes to the homeserver.
+    ///
+    /// - Throws: `MusicLinkPreviewFailure.badLink` for any other link.
+    static func previewURL(of link: URL) throws -> String {
+        guard link.scheme?.lowercased() == "https" else { throw MusicLinkPreviewFailure.badLink }
+        return link.absoluteString
+    }
+
+    /// The JSON body of the SDK's answer.
+    ///
+    /// - Throws: `MusicLinkPreviewFailure.noPreview` if the homeserver gave
+    ///   no preview.
+    static func json(from answer: String?) throws -> Data {
+        guard let answer, !answer.isEmpty else { throw MusicLinkPreviewFailure.noPreview }
+        return Data(answer.utf8)
+    }
+
+    /// The failure for an error of the SDK call: the Matrix error code of an
+    /// answer of the homeserver, else `transport`. A `ClientError.Generic`
+    /// is a network error or an HTTP error with no Matrix error body. Its
+    /// message can hold the URL, so it is not kept.
+    static func failure(for error: Error) -> MusicLinkPreviewFailure {
+        if case let .MatrixApi(_, code, _, _) = error as? ClientError {
+            return .homeserver(errcode: code)
+        }
+        return .transport
     }
 }
