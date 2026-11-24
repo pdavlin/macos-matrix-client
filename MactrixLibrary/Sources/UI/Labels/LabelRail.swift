@@ -51,7 +51,9 @@ public struct LabelRailActions {
 /// chat list; a click on the selected item keeps it selected. ⌘1…⌘9 select
 /// the first nine items in rail order (MATRIX-217). The app's Go menu binds
 /// those keys, by `Models.ChatListRailNavigation`, the same order as here;
-/// an item's help text shows its key.
+/// an item's help text shows its key. Each item reports its place, so the
+/// name of an item a key selected can peek next to the rail (MATRIX-227,
+/// `labelRailNamePeek(_:onExpire:)`).
 public struct LabelRail: View {
     let spaces: [ChatListRailSpace]
     let labels: [ChatLabel]
@@ -104,6 +106,8 @@ public struct LabelRail: View {
                                 }
                         }
                     )
+                    // MATRIX-227: each item's place, for the name peek.
+                    .labelRailItemAnchor(.inbox, title: "Inbox")
 
                     ForEach(Array(spaces.enumerated()), id: \.element.id) { offset, space in
                         LabelRailItem(
@@ -114,6 +118,7 @@ public struct LabelRail: View {
                             action: { actions.select(.space(space.id)) },
                             icon: { SpaceRailIcon(space: space, imageLoader: imageLoader) }
                         )
+                        .labelRailItemAnchor(.space(space.id), title: space.name)
                         .contextMenu {
                             Button("Browse Rooms…") { actions.browseSpace(space) }
                         }
@@ -134,6 +139,7 @@ public struct LabelRail: View {
                         ) {
                             actions.select(.label(label.id))
                         }
+                        .labelRailItemAnchor(.label(label.id), title: label.name)
                         .contextMenu {
                             menu(for: label)
                         }

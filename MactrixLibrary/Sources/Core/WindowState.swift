@@ -127,6 +127,26 @@ public final class WindowState {
         set { railFilter = newValue.map(ChatListRailFilter.label) ?? .inbox }
     }
 
+    /// The rail item name that shows after a Go-menu key selected the item
+    /// (MATRIX-227). Not restored.
+    public var railNamePeek = RailNamePeek()
+
+    /// Selects a rail item from the Go menu (⌘1…⌘9, ⇧⌘[, ⇧⌘]), as a click
+    /// does, and shows its name next to the rail (MATRIX-227).
+    ///
+    /// - Parameter now: the time the peek's second counts from.
+    public func selectRailItemFromGoMenu(_ filter: ChatListRailFilter, now: ContinuousClock.Instant = .now) {
+        railFilter = filter
+        railNamePeek.show(filter, at: now)
+    }
+
+    /// Selects a rail item by a click on the rail. No name shows, and a name
+    /// that shows collapses (MATRIX-227).
+    public func selectRailItemByClick(_ filter: ChatListRailFilter) {
+        railFilter = filter
+        railNamePeek.hide()
+    }
+
     /// The space whose rooms the "Browse Rooms" sheet shows, if any
     /// (MATRIX-167). Not restored.
     public var spaceBrowser: SpaceBrowserRequest?

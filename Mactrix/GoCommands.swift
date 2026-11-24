@@ -125,10 +125,11 @@ struct GoCommands: Commands {
         windowState?.open(selection, from: .shortcut)
     }
 
-    /// Selects a rail item in the key window, as a click on the item does.
+    /// Selects a rail item in the key window, as a click on the item does,
+    /// and peeks its name next to the rail (MATRIX-227).
     private func select(_ filter: ChatListRailFilter?) {
         guard let filter else { return }
-        windowState?.railFilter = filter
+        windowState?.selectRailItemFromGoMenu(filter)
     }
 
     /// ⌘1 for index 0, up to ⌘9 for index 8.

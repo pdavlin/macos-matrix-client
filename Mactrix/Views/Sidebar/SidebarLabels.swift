@@ -34,7 +34,8 @@ struct SidebarLabelRail: View {
 
     private var actions: LabelRailActions {
         LabelRailActions(
-            select: { windowState.railFilter = $0 },
+            // MATRIX-227: a click peeks no name.
+            select: { windowState.selectRailItemByClick($0) },
             browseSpace: { windowState.spaceBrowser = SpaceBrowserRequest(spaceId: $0.id) },
             newLabel: { windowState.labelEditor = .create(preselectedRoomId: nil) },
             edit: { windowState.labelEditor = .edit(labelId: $0.id) },
@@ -53,6 +54,21 @@ struct SidebarLabelRail: View {
                 labels?.mutate { $0.delete(label.id) }
             }
         )
+    }
+}
+
+/// The name of the rail item a Go-menu key selected, next to the rail, for
+/// a second (MATRIX-227).
+///
+/// A modifier, not part of `SidebarView.body`, so a peek change
+/// re-evaluates only this body and not the chat list.
+struct SidebarRailNamePeek: ViewModifier {
+    @Environment(WindowState.self) private var windowState
+
+    func body(content: Content) -> some View {
+        content.labelRailNamePeek(windowState.railNamePeek.item) {
+            windowState.railNamePeek.expire(at: .now)
+        }
     }
 }
 

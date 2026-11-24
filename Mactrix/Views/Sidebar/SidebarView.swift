@@ -121,6 +121,8 @@ struct SidebarView: View {
                     .environment(\.showsNetworkBadges, showsNetworkBadges)
             }
         }
+        // MATRIX-227: a rail item's name after a Go-menu key.
+        .modifier(SidebarRailNamePeek())
         .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
         // MATRIX-148: read each room's account once; new rooms as they come.
         // MATRIX-167: also for the chats the window's filter leaves out, so

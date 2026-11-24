@@ -70,6 +70,21 @@ struct EntranceMotion: ViewModifier {
     }
 }
 
+/// The entrance look as a transition, for chrome that also leaves with
+/// motion: it goes back the way it came (the rail name peek, MATRIX-227).
+/// The animation comes from the transaction.
+struct EntranceTransition: Transition {
+    let anchor: UnitPoint
+    var scale = MotionToken.entranceScale
+    var distance = MotionToken.entranceDistance
+    let reduceMotion: Bool
+
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        let start = EntranceEffect.start(from: anchor, scale: scale, distance: distance, reduceMotion: reduceMotion)
+        content.entranceEffect(phase.isIdentity ? .rest : start, anchor: anchor)
+    }
+}
+
 private extension View {
     func entranceEffect(_ effect: EntranceEffect, anchor: UnitPoint) -> some View {
         opacity(effect.opacity)

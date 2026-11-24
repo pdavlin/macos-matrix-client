@@ -72,6 +72,15 @@ public enum MotionToken {
     /// anchor, in points.
     public static let entranceDistance: CGFloat = 6
 
+    // MARK: Rail name peek (MATRIX-227)
+
+    /// The scale the rail name peek grows from and collapses to, at the
+    /// rail side.
+    public static let railPeekScale: CGFloat = 0.85
+
+    /// How far toward the rail the peek starts and collapses, in points.
+    public static let railPeekDistance: CGFloat = 8
+
     // MARK: Badge pop (MATRIX-225)
 
     /// The peak scale of an unread badge's pop when its count goes up.

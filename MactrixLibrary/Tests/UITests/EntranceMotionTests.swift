@@ -36,6 +36,26 @@ struct EntranceMotionTests {
         #expect(start == EntranceEffect(opacity: 0, scale: 1, offset: .zero))
     }
 
+    /// MATRIX-227: the rail name peek grows out of the rail side and
+    /// collapses back to it; under Reduce Motion it only fades.
+    @Test
+    func railPeekGrowsFromTheRailSide() {
+        let start = EntranceEffect.start(
+            from: .leading,
+            scale: MotionToken.railPeekScale,
+            distance: MotionToken.railPeekDistance,
+            reduceMotion: false
+        )
+        #expect(start == EntranceEffect(opacity: 0, scale: 0.85, offset: CGSize(width: -8, height: 0)))
+        let reduced = EntranceEffect.start(
+            from: .leading,
+            scale: MotionToken.railPeekScale,
+            distance: MotionToken.railPeekDistance,
+            reduceMotion: true
+        )
+        #expect(reduced == EntranceEffect(opacity: 0, scale: 1, offset: .zero))
+    }
+
     /// The settle spring moves it; Reduce Motion fades it.
     @Test
     func animationIsTheSettleOrAShortFade() {
