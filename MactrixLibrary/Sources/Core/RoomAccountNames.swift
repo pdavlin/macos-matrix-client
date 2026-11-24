@@ -336,7 +336,7 @@ public extension SidebarRoom {
     ///   observable, so a view shows the account when it loads.
     func mergedMemberIdentity(accounts: RoomAccountNames?) -> MergedMemberIdentity {
         MergedMemberIdentity(
-            network: chatListPeople.network ?? ChatListNetwork.detect(heroUserIds: roomInfo?.serviceMembers ?? []),
+            network: network,
             parentNames: accounts?.names[id] ?? [],
             peerUserId: roomInfo?.heroes.first?.userId,
             roomName: room.displayName()

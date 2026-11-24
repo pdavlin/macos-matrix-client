@@ -34,6 +34,14 @@ struct HoverActionBarSnapshotTests {
         itemsWithReactions.filter { !$0.action.isQuickReaction }
     }
 
+    /// MATRIX-232: the bar in a Slack room. Reply in Thread takes the place
+    /// of Reply, so the bar has one reply button.
+    private static var itemsInSlackRoom: [MessageActionItem] {
+        var slack = subject
+        slack.repliesInThreads = true
+        return MessageActionModel.items(for: slack, on: .hoverRow)
+    }
+
     private func snapshot(
         of items: [MessageActionItem],
         appearance: NSAppearance.Name = .aqua
@@ -71,13 +79,18 @@ struct HoverActionBarSnapshotTests {
         assertSnapshot(of: snapshot(of: Self.itemsWithoutReactions, appearance: .darkAqua), as: .scaledImage)
     }
 
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
+    func inSlackRoomLight() {
+        assertSnapshot(of: snapshot(of: Self.itemsInSlackRoom), as: .scaledImage)
+    }
+
     // MARK: - Layout facts the floating bar's placement reads
 
     /// The floating bar's host is sized from `HoverActionBarGeometry.barSize`,
     /// not by layout. The token size must be the laid-out size.
     @Test func theTokenSizeIsTheLaidOutSize() {
         let reactionsOnly = Self.itemsWithReactions.filter(\.action.isQuickReaction)
-        for items in [Self.itemsWithReactions, Self.itemsWithoutReactions, reactionsOnly] {
+        for items in [Self.itemsWithReactions, Self.itemsWithoutReactions, reactionsOnly, Self.itemsInSlackRoom] {
             let host = NSHostingView(rootView: HoverActionBarContent(items: items, perform: { _ in }))
             #expect(host.fittingSize == HoverActionBarGeometry.barSize(for: items))
         }

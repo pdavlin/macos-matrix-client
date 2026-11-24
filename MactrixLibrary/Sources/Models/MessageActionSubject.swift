@@ -79,6 +79,11 @@ public struct MessageActionSubject: Equatable, Sendable {
     /// Whether the SDK reports the message as edited, which shows the
     /// "(edited)" mark (MATRIX-209).
     public var isEdited: Bool
+    /// Whether every reply in the message's room belongs in a thread
+    /// (MATRIX-232, `ThreadedReplyRule`): Reply in Thread then takes the
+    /// place of Reply on every surface. In a merged chat it is the room that
+    /// holds the message, not the merged chat.
+    public var repliesInThreads: Bool
 
     /// - Parameters:
     ///   - redactPermission: The room's redact permission. It defaults to
@@ -101,7 +106,8 @@ public struct MessageActionSubject: Equatable, Sendable {
         isInMergedChat: Bool = false,
         originalMusicLink: String? = nil,
         isBookmarked: Bool = false,
-        isEdited: Bool = false
+        isEdited: Bool = false,
+        repliesInThreads: Bool = false
     ) {
         self.content = content
         self.isOwn = isOwn
@@ -116,6 +122,7 @@ public struct MessageActionSubject: Equatable, Sendable {
         self.originalMusicLink = originalMusicLink
         self.isBookmarked = isBookmarked
         self.isEdited = isEdited
+        self.repliesInThreads = repliesInThreads
     }
 
     /// The same subject with other content. A video view uses it to report

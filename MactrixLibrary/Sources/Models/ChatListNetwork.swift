@@ -10,9 +10,10 @@ import Foundation
 /// detector matches the localparts of the room's heroes against the default
 /// mautrix puppet prefixes (`whatsapp_…`, `signal_…`). A bridge configured with
 /// a custom username template is not detected, and a native Matrix user whose
-/// localpart happens to start with a prefix is misdetected. The result only
-/// picks a badge; nothing groups or routes on it (contract D-4 still defers
-/// bridge-network grouping).
+/// localpart happens to start with a prefix is misdetected. The result picks
+/// a badge, and the reply style of the room (MATRIX-232,
+/// `ThreadedReplyRule`): a Slack room puts every reply in a thread. Nothing
+/// groups on it (contract D-4 still defers bridge-network grouping).
 public enum ChatListNetwork: String, CaseIterable, Sendable {
     case slack
     case whatsApp

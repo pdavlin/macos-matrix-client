@@ -268,6 +268,14 @@ public extension SidebarRoom {
             members: memberCluster
         )
     }
+
+    /// The room's bridged network: the network of the chat-list badge, else
+    /// the network of a service member, the bridge bot of a room with a name
+    /// (MATRIX-147). The merged chat's source label and the reply rule
+    /// (MATRIX-232, `ThreadedReplyRule`) read it, so they agree on the room.
+    var network: ChatListNetwork? {
+        chatListPeople.network ?? ChatListNetwork.detect(heroUserIds: roomInfo?.serviceMembers ?? [])
+    }
 }
 
 extension MatrixRustSDK.RoomInfo {

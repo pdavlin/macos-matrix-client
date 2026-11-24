@@ -8,7 +8,9 @@
 /// A reply to a message with no thread stays a plain reply; "Reply in
 /// Thread" starts a thread. One exception (MATRIX-216): while the window's
 /// thread panel shows the thread of the target, the user started that thread,
-/// and a reply to the target goes into it.
+/// and a reply to the target goes into it. A second one (MATRIX-232): in a
+/// room whose network puts every reply in a thread (`ThreadedReplyRule`),
+/// no reply is plain, so the other client shows it in the same place.
 public enum ReplyRoute: Equatable, Sendable {
     /// A plain reply (`m.in_reply_to`) in the main timeline.
     case plain(inReplyTo: String)
@@ -31,12 +33,15 @@ public enum ReplyRoute: Equatable, Sendable {
     ///     the target is not in a thread.
     ///   - targetHasThreadSummary: true if the reply target is a thread root
     ///     that shows a thread chip (`ThreadRootRule`).
+    ///   - repliesInThreads: true if every reply in the composer's room
+    ///     belongs in a thread (MATRIX-232, `ThreadedReplyRule`).
     public static func route(
         composerThreadRoot: String?,
         openThreadRoot: String? = nil,
         targetEventId: String,
         targetThreadRoot: String?,
-        targetHasThreadSummary: Bool
+        targetHasThreadSummary: Bool,
+        repliesInThreads: Bool = false
     ) -> ReplyRoute {
         // The thread panel: every send goes into its thread.
         if let composerThreadRoot {
@@ -48,8 +53,9 @@ public enum ReplyRoute: Equatable, Sendable {
         }
         // A thread root, or the root of the thread the panel shows (also
         // before its first reply): the reply is the next message of its
-        // thread.
-        if targetHasThreadSummary || targetEventId == openThreadRoot {
+        // thread. In a room that puts every reply in a thread, any other
+        // target starts its thread too.
+        if targetHasThreadSummary || targetEventId == openThreadRoot || repliesInThreads {
             return .thread(root: targetEventId, inReplyTo: nil)
         }
         return .plain(inReplyTo: targetEventId)

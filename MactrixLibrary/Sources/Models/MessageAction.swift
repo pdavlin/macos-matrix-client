@@ -27,8 +27,11 @@ import Foundation
 public enum MessageAction: Hashable, Sendable {
     /// Reply to the message in the composer.
     case reply
-    /// Open the message's thread. Hover row only: thread work is deferred
-    /// (contract §11), so this keeps its pre-M2 reach and gets no new surface.
+    /// Reply in the message's thread: the thread panel opens on the thread
+    /// root, and its composer takes the focus (MATRIX-216). In most rooms
+    /// only the hover row offers it. In a room whose network puts every
+    /// reply in a thread (MATRIX-232, `ThreadedReplyRule`), it takes the
+    /// place of Reply on every surface.
     case replyInThread
     /// Toggle one of the quick reactions. Menus group these in a React submenu.
     case toggleReaction(key: String)
@@ -252,8 +255,15 @@ public enum MessageActionModel {
     /// The rule for one action on one message. Each B-story adds its case here.
     /// First, for every surface (MATRIX-149): an action that needs the room's
     /// thread view or pin list does not apply in a merged chat.
+    ///
+    /// MATRIX-232: a merged chat keeps Reply in Thread for a message of a
+    /// room that puts every reply in a thread. The merged chat has no thread
+    /// panel, so the merged composer replies, and `ReplyRoute` sends the
+    /// reply into the thread.
     static func availability(of action: MessageAction, for subject: MessageActionSubject) -> Availability {
-        if subject.isInMergedChat, action.needsRoomView { return .notApplicable }
+        if subject.isInMergedChat, action.needsRoomView, !(action == .replyInThread && subject.repliesInThreads) {
+            return .notApplicable
+        }
         if action == .openOriginalLink || action == .copyOriginalLink {
             // Only a text body with a marked music link has one; a redacted
             // message has no body.
@@ -360,22 +370,39 @@ public enum MessageActionModel {
         hasMessageSelection: Bool = false
     ) -> [MessageAction] {
         let reactions: [MessageAction] = keys.map { MessageAction.toggleReaction(key: $0) }
+        let replies = replyActions(on: surface, for: subject)
         switch surface {
         case .contextMenu:
-            return [.reply] + reactions + [.openReactionPicker]
+            return replies + reactions + [.openReactionPicker]
                 + [.edit, .forward, .showEditHistory]
                 + [.quickLook, .playInline, .saveToDownloads]
                 + [.copyMessages, .copyText, .copyLink, .openOriginalLink, .copyOriginalLink]
                 + [.pin, .unpin, .bookmark, .removeBookmark]
                 + [.redact]
         case .hoverRow:
-            return reactions + [.openReactionPicker, .reply, .replyInThread, .edit, .pin, .unpin]
+            return reactions + [.openReactionPicker] + replies + [.edit, .pin, .unpin]
         case .editMenu:
             let pinAction: MessageAction = subject?.isPinned == true ? .unpin : .pin
             let bookmarkAction: MessageAction = subject?.isBookmarked == true ? .removeBookmark : .bookmark
             let copySelection: [MessageAction] = hasMessageSelection ? [.copyMessages] : []
-            return [.reply] + reactions + [.openReactionPicker] + [.edit, .forward]
+            return replies + reactions + [.openReactionPicker] + [.edit, .forward]
                 + copySelection + [.copyText, .copyLink, pinAction, bookmarkAction, .redact]
+        }
+    }
+
+    /// The reply actions of `surface` (MATRIX-232).
+    ///
+    /// In a room whose network puts every reply in a thread, Reply in Thread
+    /// takes the place of Reply: no surface offers an inline reply there,
+    /// and no surface shows a reply item twice. Elsewhere the menus offer
+    /// Reply, and the hover row offers Reply and Reply in Thread.
+    static func replyActions(on surface: MessageActionSurface, for subject: MessageActionSubject?) -> [MessageAction] {
+        if subject?.repliesInThreads == true { return [.replyInThread] }
+        switch surface {
+        case .contextMenu, .editMenu:
+            return [.reply]
+        case .hoverRow:
+            return [.reply, .replyInThread]
         }
     }
 

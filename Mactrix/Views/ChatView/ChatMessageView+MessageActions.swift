@@ -36,6 +36,8 @@ struct ChatMessageActions {
         )
         subject.originalMusicLink = originalMusicLink
         subject.isBookmarked = isBookmarked
+        // MATRIX-232: the room that holds the message, also in a merged chat.
+        subject.repliesInThreads = timeline?.repliesInThreads ?? false
         return subject
     }
 
@@ -170,10 +172,28 @@ struct ChatMessageActions {
         timeline?.sendReplyTo = event
     }
 
-    /// Opens the thread panel on this message, and its composer takes the
-    /// keyboard focus, so the reply goes into the thread (MATRIX-216).
+    /// Opens the thread panel on this message's thread, and its composer
+    /// takes the keyboard focus, so the reply goes into the thread
+    /// (MATRIX-216). In a room whose network puts every reply in a thread,
+    /// every Reply entry point comes here (MATRIX-232).
+    ///
+    /// The thread is the one that holds the message, else the message's
+    /// own. A message inside a thread gets a reply to it inside that thread
+    /// (`ThreadReplyStart`). In the thread panel the row's timeline is that
+    /// thread.
+    ///
+    /// A merged chat has no thread panel (MATRIX-149). There the merged
+    /// composer replies, and `ReplyRoute` sends the reply into the thread.
     func replyInThread() {
-        windowState.focusThread(rootEventId: event.eventOrTransactionId.id, focusingComposer: true)
+        if timeline?.isMergedChatMember == true {
+            reply()
+            return
+        }
+        let start = ThreadReplyStart.of(
+            eventId: event.eventOrTransactionId.id,
+            threadRoot: timeline?.focusedThreadId ?? msg.threadRoot
+        )
+        windowState.replyInThread(start, to: event)
     }
 
     func pin() {

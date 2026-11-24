@@ -31,8 +31,17 @@ public extension LiveTimeline {
             composerThreadRoot: focusedThreadId,
             openThreadRoot: openThreadRoot,
             targetEventId: target.eventOrTransactionId.id,
-            targetContent: target.content
+            targetContent: target.content,
+            repliesInThreads: repliesInThreads
         )
+    }
+
+    /// Whether every reply in this timeline's room belongs in a thread
+    /// (MATRIX-232): `ThreadedReplyRule` for the room's network, which the
+    /// network badge and the merged chat's source label read too
+    /// (`SidebarRoom.network`). In a merged chat this is the member room.
+    var repliesInThreads: Bool {
+        ThreadedReplyRule.repliesInThreads(on: room.sidebarRoom.network)
     }
 
     /// Sends a text message from this timeline's composer.
@@ -91,7 +100,8 @@ extension ReplyRoute {
         composerThreadRoot: String?,
         openThreadRoot: String?,
         targetEventId: String,
-        targetContent: MatrixRustSDK.TimelineItemContent
+        targetContent: MatrixRustSDK.TimelineItemContent,
+        repliesInThreads: Bool = false
     ) -> ReplyRoute {
         var threadRoot: String?
         var isThreadRoot = false
@@ -104,7 +114,8 @@ extension ReplyRoute {
             openThreadRoot: openThreadRoot,
             targetEventId: targetEventId,
             targetThreadRoot: threadRoot,
-            targetHasThreadSummary: isThreadRoot
+            targetHasThreadSummary: isThreadRoot,
+            repliesInThreads: repliesInThreads
         )
     }
 }
