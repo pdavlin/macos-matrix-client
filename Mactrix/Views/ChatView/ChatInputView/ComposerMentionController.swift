@@ -13,7 +13,8 @@ import UI
 /// The custom emoji list (MATRIX-156) uses the same controller, the same
 /// keys, and the same text view hook: `ComposerEmojiTrigger` finds the open
 /// ":" query, and `ComposerEmojiCompletion` gives the rows. One popup is open
-/// at a time.
+/// at a time. A pick of the emoji button's picker (MATRIX-234) goes in
+/// through the same insert as a completion pick.
 ///
 /// `ChatInputView` owns one controller per composer. `ChatTextView` gives it
 /// the text view and calls `refresh()` on each text or selection change.
@@ -183,16 +184,31 @@ final class ComposerMentionController {
     /// - Parameter emoji: the row the user picked.
     func pick(_ emoji: ImagePackEmoji) {
         guard let textView, let emojiState else { return }
-        let range = emojiState.trigger.range
+        let edit = ComposerEmojiCompletion.edit(for: emoji, replacing: emojiState.trigger)
         dismissedEmojiLocation = nil
         self.emojiState = nil
         emojiTrigger = nil
-        guard NSMaxRange(range) <= (textView.string as NSString).length else { return }
-        let insertion = NSAttributedString(
-            string: ComposerEmojiCompletion.insertion(for: emoji),
-            attributes: textView.baseTextAttributes
-        )
-        textView.insertText(insertion, replacementRange: range)
+        apply(edit, to: textView)
+    }
+
+    /// Puts a pick of the emoji picker in place of the selection
+    /// (MATRIX-234). A custom emoji goes in as the `:name:` token of a
+    /// completion pick, through the same `apply`, so the send makes the same
+    /// emoticon tag. The caret goes after the new text.
+    ///
+    /// - Parameter pick: the emoji the user picked.
+    func insert(_ pick: ComposerEmojiPick) {
+        guard let textView else { return }
+        apply(pick.edit(in: textView.string, selection: textView.selectedRange()), to: textView)
+    }
+
+    /// Puts an emoji edit into the text view as plain text, through
+    /// `insertText`, so undo, the delegate, and the draft binding see a
+    /// normal edit.
+    private func apply(_ edit: ComposerTextEdit, to textView: DynamicTextView) {
+        guard NSMaxRange(edit.range) <= (textView.string as NSString).length else { return }
+        let insertion = NSAttributedString(string: edit.text, attributes: textView.baseTextAttributes)
+        textView.insertText(insertion, replacementRange: edit.range)
     }
 
     /// Replaces the open "@" query with a chip for `candidate` and a space.

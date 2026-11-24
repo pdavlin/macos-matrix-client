@@ -152,9 +152,60 @@ struct ReactionPickerImagePackSnapshotTests {
         let entry = try #require(picker.gridContent.entries.first)
         #expect(entry.name == "shipit")
 
-        picker.pick(entry.value)
+        picker.pick(entry)
 
         #expect(picked == ["mxc://example.org/10"])
+    }
+}
+
+/// MATRIX-234: the composer's emoji button shows the same picker. Its pick
+/// keeps a custom emoji's shortcode, so the composer can put in the
+/// `:name:` token of the ":" completion list.
+@MainActor
+struct ComposerEmojiPickerTests {
+    /// Two shortcodes with one image, as a Slack alias imports.
+    private static let pack = ImagePack(key: "acme", displayName: "Acme emojis", emoji: [
+        ImagePackEmoji(shortcode: "shipit", url: "mxc://example.org/ship"),
+        ImagePackEmoji(shortcode: "squirrel", url: "mxc://example.org/ship"),
+    ])
+
+    private func picker(
+        onClose: @escaping @MainActor () -> Void = {},
+        onPick: @escaping @MainActor (ComposerEmojiPick) -> Void
+    ) -> ReactionPickerView {
+        ReactionPickerView.composer(
+            catalog: .bundled,
+            recents: [],
+            packs: [Self.pack],
+            onClose: onClose,
+            onPick: onPick
+        )
+    }
+
+    @Test func aPickOfAPackEmojiKeepsItsShortcode() throws {
+        var picked: [ComposerEmojiPick] = []
+        let picker = picker { picked.append($0) }
+        let squirrel = try #require(picker.gridContent.entries.first { $0.name == "squirrel" })
+
+        picker.pick(squirrel)
+
+        #expect(picked == [.custom(ImagePackEmoji(shortcode: "squirrel", url: "mxc://example.org/ship"))])
+    }
+
+    @Test func aPickOfAUnicodeEmojiGivesTheEmoji() throws {
+        var calls: [String] = []
+        let picker = picker(onClose: { calls.append("close") }, onPick: { calls.append("pick \($0.key)") })
+        let thumbsUp = try #require(EmojiCatalog.bundled.entry(for: "👍"))
+
+        picker.pick(thumbsUp)
+
+        #expect(calls == ["pick 👍", "close"])
+    }
+
+    @Test func theComposerPickerHasTheReactionPickerContent() {
+        let composer = picker { _ in }
+        let reaction = ReactionPickerView(catalog: .bundled, recents: [], packs: [Self.pack]) { _ in }
+        #expect(composer.gridContent.entries.map(\.id) == reaction.gridContent.entries.map(\.id))
     }
 }
 
@@ -202,7 +253,7 @@ struct ReactionPickerCloseTests {
             onPick: { calls.append("pick \($0)") }
         )
 
-        picker.pick("👍")
+        picker.pick(EmojiCatalog.Entry(value: "👍", name: "thumbs up", group: "", subgroup: ""))
 
         #expect(calls == ["pick 👍", "close"])
     }

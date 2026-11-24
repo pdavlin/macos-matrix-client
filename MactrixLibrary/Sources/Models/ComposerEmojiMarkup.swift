@@ -91,6 +91,14 @@ public enum ComposerEmojiMarkup {
 
     // MARK: - Substitution
 
+    /// Whether a token can open after `character`. A ":" after a letter or a
+    /// digit is text, so "a:b:c" stays text. The composer's emoji picker
+    /// (MATRIX-234) puts a space before a token where this rule keeps the
+    /// token as text.
+    public static func tokenCanFollow(_ character: Character) -> Bool {
+        !character.isLetter && !character.isNumber
+    }
+
     /// The message markdown with each resolved `:name:` as an emoticon tag.
     ///
     /// - Parameters:
@@ -358,10 +366,7 @@ private extension ComposerEmojiMarkup {
         ///
         /// - Returns: false if the ":" is text.
         private mutating func substituteToken() -> Bool {
-            if index > 0 {
-                let previous = characters[index - 1]
-                if previous.isLetter || previous.isNumber { return false }
-            }
+            if index > 0, !ComposerEmojiMarkup.tokenCanFollow(characters[index - 1]) { return false }
             var close = index + 1
             while close < characters.count, close - index - 1 <= longestShortcode {
                 let character = characters[close]

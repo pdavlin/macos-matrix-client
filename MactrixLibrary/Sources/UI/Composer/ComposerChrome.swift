@@ -81,6 +81,9 @@ public struct ComposerChrome<Field: View>: View {
     let field: Field
     /// "Send Later…" is enabled (MATRIX-212).
     var canSendLater = false
+    /// The emoji button's popover (MATRIX-234), or nil for a button with
+    /// no popover.
+    var emojiPopover: EmojiPopover?
     /// False only in snapshot tests: `NSView.cacheDisplay` draws nothing at
     /// all for a view that holds tinted glass (macOS 27 beta SDK), so the
     /// tests draw the send capsule untinted with an accent symbol.
@@ -170,6 +173,18 @@ public struct ComposerChrome<Field: View>: View {
         return copy
     }
 
+    /// The same view with a popover on the emoji button (MATRIX-234). The
+    /// composer shows the app's emoji picker in it, and the emoji action
+    /// sets `isPresented`. A popover is chrome, so it has the system glass.
+    public func emojiPopover(
+        isPresented: Binding<Bool>,
+        @ViewBuilder content: @escaping () -> some View
+    ) -> Self {
+        var copy = self
+        copy.emojiPopover = EmojiPopover(isPresented: isPresented) { AnyView(content()) }
+        return copy
+    }
+
     /// The same view with an untinted send capsule, for snapshot tests.
     func untintedForSnapshot() -> Self {
         var copy = self
@@ -207,9 +222,10 @@ public struct ComposerChrome<Field: View>: View {
     }
 
     private var emojiButton: some View {
-        symbolButton("face.smiling", label: "Emoji & Symbols", action: actions.emoji)
+        symbolButton("face.smiling", label: "Emoji", action: actions.emoji)
             .foregroundStyle(.secondary)
             .disabled(!canPickEmoji)
+            .modifier(EmojiPopoverModifier(popover: emojiPopover))
     }
 
     private var sendButton: some View {
@@ -262,6 +278,25 @@ private struct SendLaterMenu: ViewModifier {
                     .keyboardShortcut(.return, modifiers: [.command, .option])
                     .disabled(!isEnabled)
             }
+        } else {
+            content
+        }
+    }
+}
+
+/// The emoji button's popover (MATRIX-234): shown while `isPresented` is
+/// true, above the button when there is space.
+struct EmojiPopover {
+    let isPresented: Binding<Bool>
+    let content: () -> AnyView
+}
+
+private struct EmojiPopoverModifier: ViewModifier {
+    let popover: EmojiPopover?
+
+    func body(content: Content) -> some View {
+        if let popover {
+            content.popover(isPresented: popover.isPresented, arrowEdge: .top, content: popover.content)
         } else {
             content
         }

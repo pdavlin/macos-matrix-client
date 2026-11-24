@@ -45,6 +45,11 @@ public extension EmojiCatalog {
 /// M2. The search and the arrow-key rules live in `Models.EmojiCatalog` and
 /// `Models.EmojiPickerContent`.
 ///
+/// The composer's emoji button shows the same picker (MATRIX-234), made with
+/// `composer(catalog:recents:packs:imageLoader:packRefresh:onClose:onPick:)`.
+/// Its pick is a `Models.ComposerEmojiPick`, which keeps a custom emoji's
+/// shortcode: two shortcodes can share one image URL.
+///
 /// Usage:
 /// ```swift
 /// .popover(isPresented: $isPicking) {
@@ -73,7 +78,8 @@ public struct ReactionPickerView: View {
     let packs: [ImagePackSection]
     let imageLoader: ImageLoader?
     let packRefresh: ImagePackRefreshControl?
-    let onPick: @MainActor (String) -> Void
+    /// Gets the picked cell. The reaction init passes on its value.
+    let onPick: @MainActor (EmojiCatalog.Entry) -> Void
     let onClose: (@MainActor () -> Void)?
 
     @State var query: String
@@ -109,13 +115,62 @@ public struct ReactionPickerView: View {
         onClose: (@MainActor () -> Void)? = nil,
         onPick: @escaping @MainActor (String) -> Void
     ) {
+        self.init(
+            catalog: catalog,
+            recents: recents,
+            packs: packs,
+            imageLoader: imageLoader,
+            packRefresh: packRefresh,
+            query: query,
+            onClose: onClose,
+            onPickEntry: { onPick($0.value) }
+        )
+    }
+
+    /// The picker of the composer's emoji button (MATRIX-234): the same view
+    /// and keys as the reaction picker. A pick gives the composer the emoji
+    /// as a `ComposerEmojiPick`, so a custom emoji keeps its shortcode for
+    /// the `:name:` token. The parameters are the ones of the reaction init.
+    public static func composer(
+        catalog: EmojiCatalog,
+        recents: [String],
+        packs: [ImagePack] = [],
+        imageLoader: ImageLoader? = nil,
+        packRefresh: ImagePackRefreshControl? = nil,
+        onClose: (@MainActor () -> Void)? = nil,
+        onPick: @escaping @MainActor (ComposerEmojiPick) -> Void
+    ) -> ReactionPickerView {
+        ReactionPickerView(
+            catalog: catalog,
+            recents: recents,
+            packs: packs,
+            imageLoader: imageLoader,
+            packRefresh: packRefresh,
+            query: "",
+            onClose: onClose,
+            onPickEntry: { onPick(ComposerEmojiPick(entry: $0)) }
+        )
+    }
+
+    /// No default values, so a call with a trailing closure always finds
+    /// the public init.
+    private init(
+        catalog: EmojiCatalog,
+        recents: [String],
+        packs: [ImagePack],
+        imageLoader: ImageLoader?,
+        packRefresh: ImagePackRefreshControl?,
+        query: String,
+        onClose: (@MainActor () -> Void)?,
+        onPickEntry: @escaping @MainActor (EmojiCatalog.Entry) -> Void
+    ) {
         self.catalog = catalog
         self.recents = recents
         self.packs = packs.map(ImagePackSection.init)
         self.imageLoader = imageLoader
         self.packRefresh = packRefresh
         self.onClose = onClose
-        self.onPick = onPick
+        self.onPick = onPickEntry
         self._query = State(initialValue: query)
     }
 
@@ -276,7 +331,7 @@ public struct ReactionPickerView: View {
     func cell(_ entry: EmojiCatalog.Entry, isSelected: Bool) -> some View {
         let label: String = entry.name.isEmpty ? entry.value : entry.name
         return Button {
-            pick(entry.value)
+            pick(entry)
         } label: {
             ReactionPickerGlyph(entry: entry, fontSize: Self.emojiFontSize, imageLoader: imageLoader)
                 .frame(width: Self.cellSize, height: Self.cellSize)
@@ -316,8 +371,8 @@ extension ReactionPickerView {
         }
     }
 
-    func pick(_ value: String) {
-        onPick(value)
+    func pick(_ entry: EmojiCatalog.Entry) {
+        onPick(entry)
         close()
     }
 
@@ -326,7 +381,7 @@ extension ReactionPickerView {
     func pickSelection() {
         let visible: EmojiPickerContent = gridContent
         guard let index = visible.effectiveSelection(selection) else { return }
-        pick(visible.entries[index].value)
+        pick(visible.entries[index])
     }
 
     func move(_ move: EmojiPickerContent.Move) -> KeyPress.Result {

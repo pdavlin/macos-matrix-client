@@ -29,7 +29,8 @@ struct ChatInputView: View {
     /// pill links (`MentionMarkdown`). The saved draft uses the same text, so
     /// a draft keeps its chips.
     @State var chatInput: String = ""
-    @State private var mentions = ComposerMentionController()
+    /// Not private: `ChatInputView+EmojiPicker.swift` inserts through it.
+    @State var mentions = ComposerMentionController()
     /// The pending attachments (MATRIX-106). Not private: Send Later reads it.
     @State var attachments = ComposerAttachmentController()
     /// True while a media send waits for its measurements, so a second
@@ -45,6 +46,9 @@ struct ChatInputView: View {
     /// MATRIX-212: Send Later's sheet and alert (`ChatInputView+SendLater.swift`).
     @State var sendLaterSheet: SendLaterSheetRequest?
     @State var sendLaterAlert: SendLaterAlert?
+    /// MATRIX-234: the emoji button's picker is open
+    /// (`ChatInputView+EmojiPicker.swift`).
+    @State var isEmojiPickerShown = false
 
     func sendMessage() async {
         if let editSession {
@@ -277,7 +281,7 @@ struct ChatInputView: View {
                 usesGlass: !reduceTransparency,
                 actions: .init(
                     attach: { attachments.presentOpenPanel() },
-                    emoji: { showCharacterPalette() },
+                    emoji: { showEmojiPicker() },
                     send: { Task { await sendMessage() } },
                     sendLater: hasSendLater ? { openSendLater() } : nil
                 )
@@ -285,6 +289,8 @@ struct ChatInputView: View {
                 content
             }
             .sendLaterEnabled(canSendLater)
+            .emojiPopover(isPresented: $isEmojiPickerShown) { emojiPicker }
+            .onChange(of: isEmojiPickerShown) { emojiPickerShownDidChange() }
             .font(.system(size: .init(fontSize)))
             // Drops on the chips or the buttons. The text view takes drops on
             // itself (`DynamicTextView.performDragOperation`).
@@ -295,16 +301,6 @@ struct ChatInputView: View {
                 return true
             }
         )
-    }
-
-    /// The emoji button: the text view takes the focus, and the system
-    /// Character Viewer opens and types into it, as Control-Command-Space
-    /// does (MATRIX-195).
-    private func showCharacterPalette() {
-        if let textView = mentions.textView {
-            unsafe textView.window?.makeFirstResponder(textView)
-        }
-        NSApplication.shared.orderFrontCharacterPalette(nil)
     }
 }
 
