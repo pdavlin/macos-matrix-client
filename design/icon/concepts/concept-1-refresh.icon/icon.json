@@ -1,0 +1,81 @@
+{
+  "fill" : {
+    "automatic-gradient" : "srgb:0.38039,0.69020,1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "mark.svg",
+          "name" : "mark"
+        }
+      ],
+      "name" : "Mark",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.4
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "screen.svg",
+          "name" : "screen"
+        }
+      ],
+      "name" : "Screen",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.4
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.91765,0.86275,0.74510,1.00000"
+              }
+            }
+          ],
+          "image-name" : "body.svg",
+          "name" : "body"
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.76471,0.68235,0.50196,1.00000"
+              }
+            }
+          ],
+          "image-name" : "foot.svg",
+          "name" : "foot"
+        }
+      ],
+      "name" : "Body",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

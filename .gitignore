@@ -24,3 +24,6 @@ timeline-spike-*.json
 
 # Agent build and test logs (reads under build/ are denied to agents)
 .agent-logs/
+
+# Icon renders (design/icon/render.sh makes them again)
+design/icon/renders/
