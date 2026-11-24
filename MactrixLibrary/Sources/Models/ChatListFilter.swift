@@ -55,6 +55,34 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
         }
     }
 
+    /// The rooms the SDK list is narrowed to for this filter: the rail
+    /// filter's rooms, and for a filter that `narrowsByRoomIds` only its
+    /// rooms among them. Sorted, so the value changes only when the set
+    /// changes. Nil when nothing narrows the list.
+    ///
+    /// - Parameters:
+    ///   - rail: the rail filter's rooms, or nil for the Inbox.
+    ///   - placementRoomIds: the rooms that show in an inbox placement
+    ///     (MATRIX-206, MATRIX-207). Read only for Archived and Snoozed.
+    ///   - draftRoomIds: the rooms with a draft (MATRIX-224). Read only for
+    ///     Drafts.
+    public func narrowingRoomIds(
+        rail: [String]?,
+        placementRoomIds: (InboxPlacement) -> Set<String>,
+        draftRoomIds: () -> Set<String>
+    ) -> [String]? {
+        let kept: Set<String>
+        if self == .drafts {
+            kept = draftRoomIds()
+        } else if inboxPlacement != .inbox {
+            kept = placementRoomIds(inboxPlacement)
+        } else {
+            return rail
+        }
+        guard let rail else { return kept.sorted() }
+        return rail.filter(kept.contains).sorted()
+    }
+
     public var title: String {
         switch self {
         case .inbox: "Inbox"

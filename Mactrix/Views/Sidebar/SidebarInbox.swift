@@ -112,6 +112,19 @@ enum SidebarInbox {
         }
     }
 
+    /// The chat File > Archive Chat acts on in the window now: the selected
+    /// chat of a main window, while the inbox states can be written.
+    static func commandTarget(client: MatrixClient?, windowState: WindowState) -> InboxCommand.Target? {
+        guard !windowState.isSingleRoomWindow,
+              let selection = windowState.chatSelection,
+              client?.inbox?.isEditable == true
+        else { return nil }
+        let roomIds = roomIds(of: selection, client: client)
+        guard !roomIds.isEmpty else { return nil }
+        let isArchived = placement(of: roomIds, client: client) == .archived
+        return InboxCommand.Target(selection: selection, roomIds: roomIds, isArchived: isArchived)
+    }
+
     /// Opens the next chat of the visible list when the window's open chat
     /// is among `roomIds` (MATRIX-222): the row below, at the end of the
     /// list the row above, with no other row nothing
@@ -202,21 +215,17 @@ enum SidebarInbox {
     /// so the value changes only when the set changes.
     ///
     /// MATRIX-224: for the Drafts list filter, only the rooms with a draft
-    /// (and the members of a merged chat with a draft).
+    /// (and the members of a merged chat with a draft). The rule is
+    /// `ChatListFilter.narrowingRoomIds(rail:placementRoomIds:draftRoomIds:)`.
     static func narrowingRoomIds(client: MatrixClient?, windowState: WindowState) -> [String]? {
-        let rail = SidebarRail.narrowingRoomIds(client: client, windowState: windowState)
-        let filter = windowState.chatListFilter
-        let kept: Set<String>
-        if filter == .drafts {
-            let merges = client?.mergedChats?.document ?? MergedChatDocument()
-            kept = client?.composerDrafts.drafts.roomIds(merges: merges) ?? []
-        } else if filter.inboxPlacement != .inbox {
-            kept = client?.inbox?.roomIds(in: filter.inboxPlacement) ?? []
-        } else {
-            return rail
-        }
-        guard let rail else { return kept.sorted() }
-        return rail.filter(kept.contains).sorted()
+        windowState.chatListFilter.narrowingRoomIds(
+            rail: SidebarRail.narrowingRoomIds(client: client, windowState: windowState),
+            placementRoomIds: { client?.inbox?.roomIds(in: $0) ?? [] },
+            draftRoomIds: {
+                let merges = client?.mergedChats?.document ?? MergedChatDocument()
+                return client?.composerDrafts.drafts.roomIds(merges: merges) ?? []
+            }
+        )
     }
 }
 
@@ -329,19 +338,6 @@ struct InboxNoticeOverlay: View {
     }
 }
 
-/// The key window's Archive command, for the File menu (⌘E).
-struct InboxCommand: Equatable {
-    /// The selected chat is archived: the item reads "Unarchive Chat".
-    let isArchived: Bool
-    /// Archives or unarchives the selected chat.
-    let toggle: @MainActor () -> Void
-
-    /// The menu rebuilds only when the title changes.
-    static func == (lhs: InboxCommand, rhs: InboxCommand) -> Bool {
-        lhs.isArchived == rhs.isArchived
-    }
-}
-
 extension FocusedValues {
     /// The key window's Archive command, published by
     /// `InboxCommandPublisher`. Nil when no chat is selected or the inbox
@@ -350,6 +346,10 @@ extension FocusedValues {
 }
 
 /// Publishes the window's `InboxCommand` for the File menu.
+///
+/// MATRIX-235: the closures get the window when they run and hold only
+/// `appState`, so the command reads the live selection, rooms, and client.
+/// The menu can keep an older command of the window (`InboxCommand`).
 struct InboxCommandPublisher: ViewModifier {
     @Environment(AppState.self) private var appState
     let windowState: WindowState
@@ -359,17 +359,16 @@ struct InboxCommandPublisher: ViewModifier {
     }
 
     private var command: InboxCommand? {
-        let client = appState.matrixClient
-        guard !windowState.isSingleRoomWindow,
-              let selection = windowState.chatSelection,
-              client?.inbox?.isEditable == true
-        else { return nil }
-        let roomIds = SidebarInbox.roomIds(of: selection, client: client)
-        guard !roomIds.isEmpty else { return nil }
-        let isArchived = SidebarInbox.placement(of: roomIds, client: client) == .archived
-        return InboxCommand(isArchived: isArchived) { [windowState] in
-            let name = SidebarInbox.name(of: selection, client: client)
-            SidebarInbox.toggleArchive(roomIds: roomIds, name: name, client: client, windowState: windowState)
-        }
+        InboxCommand(
+            windowState: windowState,
+            target: { [appState] windowState in
+                SidebarInbox.commandTarget(client: appState.matrixClient, windowState: windowState)
+            },
+            perform: { [appState] target, windowState in
+                let client = appState.matrixClient
+                let name = SidebarInbox.name(of: target.selection, client: client)
+                SidebarInbox.toggleArchive(roomIds: target.roomIds, name: name, client: client, windowState: windowState)
+            }
+        )
     }
 }

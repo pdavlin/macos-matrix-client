@@ -62,13 +62,17 @@ enum SidebarBroadcast {
 struct BroadcastCommand: Equatable {
     /// The label's or the space's name, for the item title.
     let filterName: String
+    /// The window the sheet opens in.
+    let windowState: WindowState
     /// Opens the sheet in the window.
     let open: @MainActor () -> Void
 
-    /// The menu rebuilds only when the title changes. `open` reads the
-    /// window's state when it runs.
+    /// The menu rebuilds only when the title or the window changes. `open`
+    /// reads the window's state and the client when it runs, because
+    /// SwiftUI keeps the old command while each new one is equal to it
+    /// (MATRIX-235).
     static func == (lhs: BroadcastCommand, rhs: BroadcastCommand) -> Bool {
-        lhs.filterName == rhs.filterName
+        lhs.filterName == rhs.filterName && lhs.windowState === rhs.windowState
     }
 }
 
@@ -91,10 +95,9 @@ struct BroadcastCommandPublisher: ViewModifier {
     }
 
     private var command: BroadcastCommand? {
-        let client = appState.matrixClient
-        guard let name = SidebarBroadcast.filterName(client: client, windowState: windowState) else { return nil }
-        return BroadcastCommand(filterName: name) { [windowState] in
-            windowState.broadcast = SidebarBroadcast.request(client: client, windowState: windowState)
+        guard let name = SidebarBroadcast.filterName(client: appState.matrixClient, windowState: windowState) else { return nil }
+        return BroadcastCommand(filterName: name, windowState: windowState) { [appState, windowState] in
+            windowState.broadcast = SidebarBroadcast.request(client: appState.matrixClient, windowState: windowState)
         }
     }
 }
