@@ -400,7 +400,7 @@ private extension SidebarView {
                         client: appState.matrixClient, windowState: windowState
                     )
                 } label: {
-                    Label("Broadcast…", systemImage: "megaphone")
+                    Label("Broadcast", systemImage: "megaphone")
                 }
                 .buttonStyle(.borderless)
                 .help("Send one message to the chats of \(broadcastName)")
