@@ -276,6 +276,9 @@ struct ChatMessageView: View, UI.MessageEventActions {
             imageLoader: appState.matrixClient,
             roomMembers: timeline?.room.members ?? []
         ) {
+            // MATRIX-230: the stack's spacing is the whole gap between the
+            // quote and the body. A padding under the quote doubled it to
+            // 20pt, which read as an empty line.
             VStack(alignment: .leading, spacing: 10) {
                 if let replyTo = msg.inReplyTo {
                     let eventId = replyTo.eventId()
@@ -283,7 +286,6 @@ struct ChatMessageView: View, UI.MessageEventActions {
                     EmbeddedMessageView(embeddedEvent: embeddedEvent) {
                         timeline?.focusEvent(id: .eventId(eventId: eventId))
                     }
-                    .padding(.bottom, 10)
                 }
 
                 // MATRIX-203: a link of a body drawn with SwiftUI `Text` (a

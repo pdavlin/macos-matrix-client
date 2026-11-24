@@ -91,6 +91,8 @@ public final class LiveTimeline {
     /// `timelineItems`/`displayItems` instead.
     @ObservationIgnored private var pendingDisplayChanges: [TimelineDisplayUpdate] = []
 
+    /// Replied-to events this timeline loaded itself, by event ID. Each load
+    /// posts `replyDetailsDidLoad` (MATRIX-230).
     public private(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
 
     /// What the thread panel shows of a thread timeline (MATRIX-183): the
@@ -484,6 +486,7 @@ extension LiveTimeline {
                 do {
                     let details = try await sdkTimeline.loadReplyDetails(eventIdStr: eventId)
                     self.loadedReplyDetails[eventId] = details
+                    self.postReplyDetailsDidLoad(eventId: eventId)
                 } catch {
                     Logger.liveTimeline.error("loadPendingReplyDetails: failed \(eventId): \(error)")
                 }

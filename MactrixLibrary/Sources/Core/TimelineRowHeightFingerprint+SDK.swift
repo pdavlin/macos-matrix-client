@@ -20,13 +20,17 @@ extension MatrixRustSDK.MsgLikeContent {
     ///
     /// Cheap on purpose — it runs for every mapped item, including a 10k-row
     /// reset. Everything it reads is a stored property or a short SDK accessor;
-    /// the one allocation is the pill array.
+    /// the one allocation is the pill array. A reply row pays one FFI call,
+    /// for its quote; `LiveTimeline` already reads the same details of every
+    /// reply on each diff batch.
     public func heightFingerprint(event: MatrixRustSDK.EventTimelineItem) -> Models.TimelineRowHeightFingerprint {
         Models.TimelineRowHeightFingerprint(
             body: bodyGeometry,
-            // Presence, not the target's id: `eventId()` is an FFI call per
-            // mapped row, and a reply relation does not move under an edit.
-            hasReplyPreview: inReplyTo != nil,
+            // The quote, not only its presence (MATRIX-230): the SDK replaces
+            // an unavailable quote with the loaded one through a row update,
+            // and the two differ by lines. Not the target's id: a reply
+            // relation does not move under an edit.
+            replyQuote: inReplyTo?.event().replyQuote,
             // Presence only: the summary draws a fixed one-line label, so a new
             // reply changes its text and not its height. A summary with no
             // reply draws no chip (MATRIX-216).
@@ -123,6 +127,41 @@ public extension MatrixRustSDK.MessageContent {
         case let .other(msgtype: msgtype, body: body):
             return .init(variant: "other-msgtype.\(msgtype)", text: body, isEdited: isEdited)
         }
+    }
+}
+
+public extension MatrixRustSDK.EmbeddedEventDetails {
+    /// The quote a reply draws for these details (MATRIX-230). The row's height
+    /// fingerprint and `UI.ReplyQuoteView` both read it.
+    var replyQuote: Models.ReplyQuoteGeometry {
+        switch self {
+        case .unavailable, .pending:
+            return .placeholder
+        case let .ready(content: content, sender: sender, senderProfile: senderProfile, timestamp: _, eventOrTransactionId: _):
+            guard case let .ready(displayName: displayName, displayNameAmbiguous: _, avatarUrl: _, status: _, call: _) = senderProfile,
+                  let displayName
+            else {
+                return .quote(sender: sender, text: content.description)
+            }
+            return .quote(sender: displayName, text: content.description)
+        case let .error(message: message):
+            return .failed(message: message)
+        }
+    }
+}
+
+public extension Models.TimelineRow {
+    /// The event a reply row quotes, or nil for a row that quotes nothing
+    /// (MATRIX-230). One FFI call for a reply row, none for any other row.
+    var quotedEventId: String? {
+        guard heightFingerprint?.replyQuote != nil,
+              case let .message(_, event, _, _) = self,
+              let event = event as? MatrixRustSDK.EventTimelineItem,
+              case let .msgLike(content: content) = event.content
+        else {
+            return nil
+        }
+        return content.inReplyTo?.eventId()
     }
 }
 

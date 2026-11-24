@@ -3,30 +3,14 @@ import MatrixRustSDK
 import SwiftUI
 import UI
 
+/// The quote of a replied-to event, in a timeline row and in the composer's
+/// reply bar. The details resolve to the same value the row's height
+/// fingerprint holds (MATRIX-230).
 struct EmbeddedMessageView: View {
     let embeddedEvent: MatrixRustSDK.EmbeddedEventDetails
     let action: () -> Void
 
     var body: some View {
-        switch embeddedEvent {
-        case .unavailable, .pending:
-            UI.MessageReplyView(
-                username: "loading@username.org",
-                message: "Phasellus sit amet purus ac enim semper convallis. Nullam a gravida libero.",
-                action: action
-            )
-            .redacted(reason: .placeholder)
-        case let .ready(content, sender, senderProfile, _, _):
-            UI.MessageReplyView(
-                username: {
-                    if case let .ready(name, _, _, _, _) = senderProfile, let name { return name }
-                    return sender
-                }(),
-                message: content.description,
-                action: action
-            )
-        case let .error(message):
-            Text("error: \(message)")
-        }
+        UI.ReplyQuoteView(quote: embeddedEvent.replyQuote, action: action)
     }
 }

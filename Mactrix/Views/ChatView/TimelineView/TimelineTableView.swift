@@ -257,6 +257,7 @@ class TimelineViewController: NSViewController {
         listenForPaginationActivity()
         #if canImport(Core)
             listenForPopoverRequests()
+            listenForReplyDetails()
         #endif
     }
 

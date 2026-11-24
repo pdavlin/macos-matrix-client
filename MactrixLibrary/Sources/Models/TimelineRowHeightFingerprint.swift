@@ -146,6 +146,21 @@ public struct MessageBodyGeometry: Equatable, Sendable {
     }
 }
 
+/// The reply quote a message row draws above its body, reduced to what the
+/// quote view lays out (MATRIX-230).
+///
+/// The row's height fingerprint holds it, and `UI.ReplyQuoteView` draws from
+/// it, so the two cannot disagree about which quote a row shows.
+public enum ReplyQuoteGeometry: Equatable, Sendable {
+    /// The replied-to event has not loaded. The quote draws a fixed
+    /// placeholder, so the state is the whole identity.
+    case placeholder
+    /// The sender's name over the replied-to message's text. Both wrap.
+    case quote(sender: String, text: String)
+    /// The replied-to event could not load. The quote draws the message.
+    case failed(message: String)
+}
+
 /// Everything about a message row that can change its height, and nothing that
 /// cannot (MATRIX-63).
 ///
@@ -173,17 +188,19 @@ public struct MessageBodyGeometry: Equatable, Sendable {
 /// takes layout space, it has to come into this type.
 public struct TimelineRowHeightFingerprint: Equatable, Sendable {
     public let body: MessageBodyGeometry
-    /// Whether the row draws a reply preview: an `EmbeddedMessageView` plus
-    /// 10pt of padding above the body.
+    /// The reply quote the row draws above its body, or nil for a row that
+    /// quotes nothing (MATRIX-230).
     ///
-    /// Presence, not the replied-to event's identity. The identity costs an FFI
-    /// call per mapped row and cannot change without the row becoming a
-    /// different event — an edit does not move a reply relation.
+    /// The quote, not only its presence: a placeholder and a loaded quote
+    /// differ by lines, so a row measured with one has the wrong height for
+    /// the other. Not the replied-to event's identity, which cannot change
+    /// without the row becoming a different event.
     ///
-    /// The preview's resolved *text* is not here, and cannot be: reply details
-    /// load asynchronously against the timeline object rather than arriving as
-    /// a row update, so no fingerprint could see that change either way.
-    public let hasReplyPreview: Bool
+    /// The mapping fills it from the SDK's own reply details, which a row
+    /// update can change. Details that the app loads itself
+    /// (`LiveTimeline.loadedReplyDetails`) arrive outside the row updates; the
+    /// container puts them in with `TimelineRow.withReplyQuote(_:)`.
+    public let replyQuote: ReplyQuoteGeometry?
     /// A thread summary draws an extra line under the body.
     public let hasThreadSummary: Bool
     /// The failure banner a failed local echo draws, which wraps its message.
@@ -214,7 +231,7 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
 
     public init(
         body: MessageBodyGeometry,
-        hasReplyPreview: Bool = false,
+        replyQuote: ReplyQuoteGeometry? = nil,
         hasThreadSummary: Bool = false,
         sendFailureMessage: String? = nil,
         senderName: String,
@@ -222,7 +239,7 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
         grouping: TimelineRowGrouping = .standalone
     ) {
         self.body = body
-        self.hasReplyPreview = hasReplyPreview
+        self.replyQuote = replyQuote
         self.hasThreadSummary = hasThreadSummary
         self.sendFailureMessage = sendFailureMessage
         self.senderName = senderName
@@ -234,7 +251,20 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
     public func with(grouping: TimelineRowGrouping) -> TimelineRowHeightFingerprint {
         TimelineRowHeightFingerprint(
             body: body,
-            hasReplyPreview: hasReplyPreview,
+            replyQuote: replyQuote,
+            hasThreadSummary: hasThreadSummary,
+            sendFailureMessage: sendFailureMessage,
+            senderName: senderName,
+            reactions: reactions,
+            grouping: grouping
+        )
+    }
+
+    /// The same fingerprint with another reply quote (MATRIX-230).
+    public func with(replyQuote: ReplyQuoteGeometry) -> TimelineRowHeightFingerprint {
+        TimelineRowHeightFingerprint(
+            body: body,
+            replyQuote: replyQuote,
             hasThreadSummary: hasThreadSummary,
             sendFailureMessage: sendFailureMessage,
             senderName: senderName,
@@ -261,5 +291,20 @@ public struct TimelineRowHeightFingerprint: Equatable, Sendable {
             return false
         }
         return oldFingerprint == newFingerprint
+    }
+}
+
+public extension TimelineRow {
+    /// The same row with the reply quote it draws now (MATRIX-230), or nil for
+    /// a row that quotes nothing.
+    ///
+    /// The container calls it when the app loads a replied-to event itself,
+    /// and compares the result with `heightIsUnchanged(from:to:)`: the load
+    /// reaches the height cache through the same test as a row update.
+    func withReplyQuote(_ quote: ReplyQuoteGeometry) -> TimelineRow? {
+        guard case let .message(uniqueId, event, kind, fingerprint) = self, fingerprint.replyQuote != nil else {
+            return nil
+        }
+        return .message(uniqueId: uniqueId, event: event, kind: kind, heightFingerprint: fingerprint.with(replyQuote: quote))
     }
 }

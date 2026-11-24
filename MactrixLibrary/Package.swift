@@ -94,6 +94,8 @@ let package = Package(
             name: "CoreTests",
             dependencies: [
                 "Core",
+                // MATRIX-230: the reply quote tests measure the quote view.
+                "UI",
                 .product(name: "MatrixRustSDK", package: "matrix-rust-components-swift"),
             ]
         ),

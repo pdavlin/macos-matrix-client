@@ -117,7 +117,7 @@ extension View {
                         mediaHeight: media?.height,
                         secondaryText: media?.caption
                     ),
-                    hasReplyPreview: quotedReply != nil,
+                    replyQuote: quotedReply.map { .quote(sender: $0.senderName, text: $0.preview) },
                     sendFailureMessage: sendFailure,
                     senderName: name,
                     reactions: ReactionStripGeometry(

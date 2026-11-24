@@ -7,7 +7,7 @@ extension TimelineRowHeightFingerprint {
     /// changes exactly the one field it is about.
     static func stub(
         body: MessageBodyGeometry = .init(variant: "text", text: "hello"),
-        hasReplyPreview: Bool = false,
+        replyQuote: ReplyQuoteGeometry? = nil,
         hasThreadSummary: Bool = false,
         sendFailureMessage: String? = nil,
         senderName: String = "@ada:example.org",
@@ -16,7 +16,7 @@ extension TimelineRowHeightFingerprint {
     ) -> TimelineRowHeightFingerprint {
         TimelineRowHeightFingerprint(
             body: body,
-            hasReplyPreview: hasReplyPreview,
+            replyQuote: replyQuote,
             hasThreadSummary: hasThreadSummary,
             sendFailureMessage: sendFailureMessage,
             senderName: senderName,
@@ -235,8 +235,8 @@ struct TimelineRowHeightFingerprintTests {
 
     @Test
     func replyPreviewAppearingIsNotHeightNeutral() {
-        let before = messageRow(.stub(hasReplyPreview: false))
-        let after = messageRow(.stub(hasReplyPreview: true))
+        let before = messageRow(.stub(replyQuote: nil))
+        let after = messageRow(.stub(replyQuote: .placeholder))
 
         #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
     }
@@ -358,7 +358,7 @@ struct TimelineRowHeightFingerprintTests {
     func withGroupingChangesOnlyTheGrouping() {
         let fingerprint = TimelineRowHeightFingerprint.stub(
             body: .init(variant: "text", text: "edited", isEdited: true),
-            hasReplyPreview: true,
+            replyQuote: .quote(sender: "Bob", text: "ok"),
             sendFailureMessage: "offline",
             pills: [pill("👍", 2)]
         )
@@ -376,5 +376,70 @@ struct TimelineRowHeightFingerprintTests {
     func decimalDigitsCountsWithoutBuildingAString(count: Int, expected: Int) {
         #expect(ReactionPillGeometry.decimalDigits(of: count) == expected)
         #expect(ReactionPillGeometry(key: "👍", senderCount: count).countDigits == expected)
+    }
+}
+
+/// MATRIX-230: the reply quote in the fingerprint. A placeholder and a loaded
+/// quote differ by lines, so a row measured with one must be measured again
+/// for the other.
+struct ReplyQuoteFingerprintTests {
+    private func messageRow(_ fingerprint: TimelineRowHeightFingerprint) -> TimelineRow {
+        .message(uniqueId: "u1", event: MockEventTimelineItem(), kind: .text, heightFingerprint: fingerprint)
+    }
+
+    private func pill(_ key: String, _ senderCount: Int) -> ReactionPillGeometry {
+        ReactionPillGeometry(key: key, senderCount: senderCount)
+    }
+
+    @Test
+    func loadedQuoteReplacingThePlaceholderIsNotHeightNeutral() {
+        let before = messageRow(.stub(replyQuote: .placeholder))
+        let after = messageRow(.stub(replyQuote: .quote(sender: "Bob", text: "ok")))
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
+    }
+
+    @Test
+    func failedQuoteReplacingThePlaceholderIsNotHeightNeutral() {
+        let before = messageRow(.stub(replyQuote: .placeholder))
+        let after = messageRow(.stub(replyQuote: .failed(message: "not found")))
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
+    }
+
+    @Test
+    func quotedTextChangeIsNotHeightNeutral() {
+        let before = messageRow(.stub(replyQuote: .quote(sender: "Bob", text: "ok")))
+        let after = messageRow(.stub(replyQuote: .quote(sender: "Bob", text: "a longer quote that can wrap")))
+
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
+    }
+
+    @Test
+    func sameQuoteIsHeightNeutral() {
+        let before = messageRow(.stub(replyQuote: .quote(sender: "Bob", text: "ok"), pills: [pill("👍", 1)]))
+        let after = messageRow(.stub(replyQuote: .quote(sender: "Bob", text: "ok"), pills: [pill("👍", 2)]))
+
+        #expect(TimelineRowHeightFingerprint.heightIsUnchanged(from: before, to: after))
+    }
+
+    @Test
+    func withReplyQuoteChangesOnlyTheQuote() throws {
+        let grouping = TimelineRowGrouping(isContinuation: true, gap: .longPause)
+        let fingerprint = TimelineRowHeightFingerprint.stub(replyQuote: .placeholder, pills: [pill("👍", 2)]).with(grouping: grouping)
+        let row = messageRow(fingerprint)
+
+        let updated = try #require(row.withReplyQuote(.quote(sender: "Bob", text: "ok")))
+
+        #expect(updated.uniqueId == row.uniqueId)
+        #expect(updated.heightFingerprint == fingerprint.with(replyQuote: .quote(sender: "Bob", text: "ok")))
+        #expect(updated.heightFingerprint?.grouping == grouping)
+        #expect(!TimelineRowHeightFingerprint.heightIsUnchanged(from: row, to: updated))
+    }
+
+    @Test
+    func withReplyQuoteLeavesARowThatQuotesNothing() {
+        #expect(messageRow(.stub(replyQuote: nil)).withReplyQuote(.placeholder) == nil)
+        #expect(TimelineRow.paginationActivity(uniqueId: "p").withReplyQuote(.placeholder) == nil)
     }
 }

@@ -82,10 +82,11 @@ struct JumboEmojiSnapshotTests {
                 imageLoader: nil,
                 roomMembers: [MockRoomMember]()
             ) {
+                // The app's quote and gap (MATRIX-230): the stack's spacing
+                // alone is the gap.
                 VStack(alignment: .leading, spacing: 10) {
                     if let reply {
-                        MessageReplyView(username: reply.name, message: reply.text)
-                            .padding(.bottom, 10)
+                        ReplyQuoteView(quote: .quote(sender: reply.name, text: reply.text))
                     }
                     messageBody(body)
                 }
