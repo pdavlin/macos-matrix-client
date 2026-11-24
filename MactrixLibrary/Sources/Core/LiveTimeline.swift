@@ -100,7 +100,7 @@ public final class LiveTimeline {
     /// `refreshThreadFacts()`.
     public internal(set) var threadFacts = ThreadTimelineFacts()
 
-    public private(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
+    public internal(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false
 
     /// The message of the last failed back-pagination, or nil when the oldest
@@ -110,7 +110,7 @@ public final class LiveTimeline {
     /// the oldest end repeatedly, so an unlatched failure would re-ask a
     /// failing homeserver on every scroll event. `retryPagination` is the only
     /// way past it.
-    public private(set) var paginationFailure: String?
+    public internal(set) var paginationFailure: String?
 
     /// Whether the timeline view is scrolled to (or near) the newest message.
     /// Written by the timeline container on scroll; read by the
@@ -207,17 +207,15 @@ public final class LiveTimeline {
     private func listenToPaginationStatus(threadId: String?) async throws {
         guard let timeline else { return }
 
-        let listener = AsyncSDKListener<PaginationStatus>()
-        // Only main timelines can subscibe to back pagination status
-        if threadId == nil {
-            paginateHandle = try await timeline.subscribeToBackPaginationStatus(listener: listener)
-        } else {
-            // A thread timeline has no status to subscribe to (the SDK
-            // refuses the call on a focused timeline). One initial status
-            // starts the first fetch. After that, `fetchOlderMessages` sets
-            // the status from the result of each pagination (MATRIX-169).
-            listener.publishValue(.idle(hitTimelineStart: false))
+        // A thread timeline has no status to subscribe to: the SDK refuses
+        // the call on a focused timeline. It fills itself (MATRIX-229).
+        guard threadId == nil else {
+            startThreadFill()
+            return
         }
+
+        let listener = AsyncSDKListener<PaginationStatus>()
+        paginateHandle = try await timeline.subscribeToBackPaginationStatus(listener: listener)
 
         Task { [weak self] in
             for await status in listener {
@@ -254,7 +252,7 @@ public final class LiveTimeline {
         // A thread timeline gets no status from the SDK, so this call owns
         // the status there: it stops a second call while one runs, and it
         // records the start of the thread so a later scroll does not ask
-        // again (MATRIX-169).
+        // again (MATRIX-169). The thread fill holds it too (MATRIX-229).
         let ownsStatus = focusedThreadId != nil
         if ownsStatus {
             paginating = .paginating
@@ -278,7 +276,11 @@ public final class LiveTimeline {
         guard paginationFailure != nil else { return }
         Logger.liveTimeline.info("retrying back-pagination after a failure")
         paginationFailure = nil
-        Task { await fetchOlderMessages() }
+        if focusedThreadId != nil {
+            startThreadFill()
+        } else {
+            Task { await fetchOlderMessages() }
+        }
     }
 
     public func focusEvent(id eventId: MatrixRustSDK.EventOrTransactionId) {
