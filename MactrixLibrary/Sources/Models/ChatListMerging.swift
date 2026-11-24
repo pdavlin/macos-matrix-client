@@ -18,6 +18,8 @@ public struct ChatListEntry: Equatable, Sendable, Identifiable {
     /// `ChatListUnread` folds it into `isUnread`, so a merged row could not
     /// tell it apart from a count on a muted member without it.
     public var isMarkedUnread: Bool
+    /// MATRIX-224: the room waits for an answer (`ChatListUnanswered`).
+    public var isUnanswered: Bool
 
     public var id: String {
         row.id
@@ -27,12 +29,14 @@ public struct ChatListEntry: Equatable, Sendable, Identifiable {
         row: ChatListRowModel,
         lastActivity: Date? = nil,
         isFavourite: Bool = false,
-        isMarkedUnread: Bool = false
+        isMarkedUnread: Bool = false,
+        isUnanswered: Bool = false
     ) {
         self.row = row
         self.lastActivity = lastActivity
         self.isFavourite = isFavourite
         self.isMarkedUnread = isMarkedUnread
+        self.isUnanswered = isUnanswered
     }
 }
 
@@ -62,6 +66,9 @@ public struct MergedChatListEntry: Equatable, Sendable, Identifiable {
     public var lastActivity: Date?
     /// Any present member is a favourite.
     public var isFavourite: Bool
+    /// MATRIX-224: the newest member waits for an answer. Its latest event
+    /// is the merged chat's last message.
+    public var isUnanswered = false
 
     public var id: String {
         merge.id
@@ -284,7 +291,8 @@ public enum ChatListMerging {
             avatarRoomId: avatarMember.id,
             networks: networks,
             lastActivity: newest.lastActivity,
-            isFavourite: ordered.contains(where: \.isFavourite)
+            isFavourite: ordered.contains(where: \.isFavourite),
+            isUnanswered: newest.isUnanswered
         )
     }
 

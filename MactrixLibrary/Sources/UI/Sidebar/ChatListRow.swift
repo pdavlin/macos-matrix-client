@@ -96,14 +96,22 @@ public struct ChatListRow: View {
         }
     }
 
-    /// The preview, or MATRIX-207's inbox note in its place. The note takes
+    /// The preview, or MATRIX-207's inbox note, MATRIX-224's typing state,
+    /// or the draft in its place (`ChatListRowModel.previewLine`). All take
     /// the preview's secondary style, not the accent color: the accent is
-    /// the selected row's background, so an accent note is not readable.
+    /// the selected row's background, so accent text is not readable. The
+    /// typing state is italic, and the "Draft:" prefix is semibold.
     private var previewText: Text {
-        guard let note = model.inboxNote else {
-            return Text(model.preview ?? "")
+        switch model.previewLine {
+        case let .inboxNote(note):
+            Text("\(Image(systemName: "moon.zzz.fill")) \(note)")
+        case let .typing(text):
+            Text(text).italic()
+        case let .draft(draft):
+            Text("\(Text(ChatListPreviewLine.draftPrefix).fontWeight(.semibold)) \(draft)")
+        case let .preview(preview):
+            Text(preview ?? "")
         }
-        return Text("\(Image(systemName: "moon.zzz.fill")) \(note)")
     }
 
     private var previewLine: some View {
@@ -150,7 +158,7 @@ public struct ChatListRow: View {
         .help(model.helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.accessibilityLabel)
-        .accessibilityValue(model.preview ?? "")
+        .accessibilityValue(model.previewLine.spokenText)
         .modifier(ChatListRowAccessibilityAction(action: primaryAction))
     }
 }

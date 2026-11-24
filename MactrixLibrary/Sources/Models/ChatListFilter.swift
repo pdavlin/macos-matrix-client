@@ -6,11 +6,21 @@ import Foundation
 /// `RoomListEntriesDynamicFilterKind` lives in the app target. MATRIX-206:
 /// Archived is the app's own state (`InboxStateDocument`), not a room tag;
 /// the SDK narrows the list to the archived rooms by identifier.
+///
+/// MATRIX-224: Unanswered and Drafts are app rules too. Drafts narrows the
+/// SDK list to the rooms with a saved draft, like Archived. Unanswered keeps
+/// the Inbox's SDK filter and drops the other chats app-side
+/// (`ChatListUnanswered`), because the rule reads the latest event.
 public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendable {
     /// Every room that is not low priority.
     case inbox
     /// Inbox rooms with unread messages or the marked-unread flag.
     case unread
+    /// Inbox chats whose last message is from another person and has no
+    /// own reaction (MATRIX-224, `ChatListUnanswered`).
+    case unanswered
+    /// Inbox chats with a saved composer draft (MATRIX-224).
+    case drafts
     /// Inbox rooms the SDK classifies as people (DMs).
     case people
     /// Inbox rooms the SDK classifies as groups.
@@ -29,9 +39,19 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
     /// in the Inbox.
     public var inboxPlacement: InboxPlacement {
         switch self {
-        case .inbox, .unread, .people, .groups, .lowPriority: .inbox
+        case .inbox, .unread, .unanswered, .drafts, .people, .groups, .lowPriority: .inbox
         case .archived: .archived
         case .snoozed: .snoozed
+        }
+    }
+
+    /// The SDK list holds only the rooms the app names
+    /// (`.identifiers`): Archived, Snoozed, and Drafts. Without a narrowing
+    /// such a filter shows no chat.
+    public var narrowsByRoomIds: Bool {
+        switch self {
+        case .archived, .snoozed, .drafts: true
+        case .inbox, .unread, .unanswered, .people, .groups, .lowPriority: false
         }
     }
 
@@ -39,6 +59,8 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
         switch self {
         case .inbox: "Inbox"
         case .unread: "Unread"
+        case .unanswered: "Unanswered"
+        case .drafts: "Drafts"
         case .people: "People"
         case .groups: "Groups"
         case .lowPriority: "Low Priority"
@@ -51,6 +73,8 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
         switch self {
         case .inbox: "tray"
         case .unread: "circlebadge"
+        case .unanswered: "arrowshape.turn.up.left"
+        case .drafts: "square.and.pencil"
         case .people: "person"
         case .groups: "person.3"
         case .lowPriority: "arrow.down.to.line"

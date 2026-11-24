@@ -46,6 +46,13 @@ public class MatrixClient {
     /// See `MatrixClient+OwnServiceProfile.swift`.
     public let ownServiceAvatars = OwnServiceAvatarStore()
 
+    /// MATRIX-224: the saved composer drafts, for the "Draft:" row prefix
+    /// and the Drafts list filter.
+    public let composerDrafts = ChatListDraftsModel()
+
+    /// MATRIX-224: the typing state of the chat-list rows on the screen.
+    public let chatListTyping = ChatListTypingModel()
+
     public init(userSession: UserSession) async throws {
         storeID = userSession.storeID
         storePassphrase = userSession.storePassphrase

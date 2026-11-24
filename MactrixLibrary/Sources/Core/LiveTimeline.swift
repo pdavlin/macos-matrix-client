@@ -357,6 +357,8 @@ extension LiveTimeline {
         threadReplies.refresh()
         loadPendingReplyDetails()
         refreshThreadFacts()
+        // MATRIX-224: the Unanswered filter's own reaction.
+        noteOwnReactionMark()
     }
 
     /// Applies one SDK diff to the SDK-ordered array and mirrors it onto the

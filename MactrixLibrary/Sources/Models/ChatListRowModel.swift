@@ -36,6 +36,12 @@ public struct ChatListRowModel: Equatable, Identifiable, Sendable {
     public var inboxNote: String?
     /// MATRIX-212: the chat has a scheduled message. The row shows a clock.
     public var hasScheduledMessages = false
+    /// MATRIX-224: the saved draft's row text (`ChatListDraftText`), or nil.
+    /// The row shows "Draft:" and the text in place of the preview.
+    public var draft: String?
+    /// MATRIX-224: the names of the people who type, without the user. The
+    /// row shows the typing state in place of the preview.
+    public var typingNames: [String] = []
 
     public init(
         id: String,

@@ -18,12 +18,15 @@ extension ChatInputView {
         guard isDraftLoaded else { return } // avoid saving a draft hasn't yet been restored
         if let merged {
             merged.saveDraft(composerText: chatInput, textBeforeEdit: editSession?.previousDraftText)
+            // MATRIX-224: the merged chat's row shows the draft.
+            appState.matrixClient?.composerDrafts.mergedDraftDidChange(mergeId: merged.merge.id, text: merged.draftText)
             return
         }
         if chatInput.isEmpty, replyTo == nil, editSession == nil {
             Logger.viewCycle.debug("clearing draft")
             do {
                 try await room.clearComposerDraft(threadRoot: timeline.focusedThreadId)
+                reportDraftToChatList(nil)
             } catch {
                 Logger.viewCycle.error("failed to clear draft: \(error)")
             }
@@ -48,9 +51,20 @@ extension ChatInputView {
         )
         do {
             try await room.saveComposerDraft(draft: draft, threadRoot: timeline.focusedThreadId)
+            reportDraftToChatList(draft)
         } catch {
             Logger.viewCycle.error("failed save draft: \(error)")
         }
+    }
+
+    /// MATRIX-224: tells the chat list's draft cache what the store now
+    /// holds, so the list does not read the store again. Only the main
+    /// timeline's draft shows on the row.
+    ///
+    /// - Parameter draft: the saved draft, or nil after a clear.
+    private func reportDraftToChatList(_ draft: ComposerDraft?) {
+        guard timeline.focusedThreadId == nil else { return }
+        appState.matrixClient?.composerDrafts.roomDraftDidChange(roomId: room.id(), draft: draft)
     }
 
     func loadDraft() async {

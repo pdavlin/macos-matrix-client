@@ -69,12 +69,18 @@ struct SidebarView: View {
             placement: placement
         )
         // MATRIX-212: a clock on each chat with a scheduled message.
-        let visible = merged.withScheduledMarks(roomIds: client?.scheduledMessages?.document.roomIds ?? [])
-        guard placement == .snoozed else {
-            return SidebarChatList(visible: visible, rooms: chatRooms)
+        // MATRIX-224: the drafts, then the Unanswered and Drafts filters,
+        // then the typing state of the chats that are left.
+        var visible = merged
+            .withScheduledMarks(roomIds: client?.scheduledMessages?.document.roomIds ?? [])
+            .withDrafts(client?.composerDrafts.drafts ?? ChatListDrafts())
+            .filtered(for: windowState.chatListFilter)
+            .withTyping(client?.chatListTyping.names ?? [:])
+        if placement == .snoozed {
+            // MATRIX-207: each row says when its snooze ends.
+            visible = visible.withSnoozeNotes(inbox: inbox, merges: merges, now: now)
         }
-        // MATRIX-207: each row says when its snooze ends.
-        return SidebarChatList(visible: visible.withSnoozeNotes(inbox: inbox, merges: merges, now: now), rooms: chatRooms)
+        return SidebarChatList(visible: visible, rooms: chatRooms)
     }
 
     /// The chat-list entries of the sidebar's chat rooms, in SDK order. The
@@ -85,9 +91,12 @@ struct SidebarView: View {
         let mutedByLabel = client?.labels?.document.labelMutedRoomIds ?? []
         // MATRIX-148: each row's account (its Slack workspace), for the badge.
         let accounts = client?.roomAccounts
+        // MATRIX-224: the own reactions the open timelines saw.
+        let reactionMarks = OwnReactionMarks.shared.marks
         return rooms.map { room in
             var entry = room.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains(room.id))
             entry.row.account = accounts?.account(of: room.id, network: entry.row.network)
+            entry.isUnanswered = ChatListUnanswered.isUnanswered(room.latestEvent, ownReaction: reactionMarks[room.id])
             return entry
         }
     }
@@ -365,6 +374,11 @@ private extension SidebarView {
                 .listRowInsets(EdgeInsets())
                 .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
                 .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
+                // MATRIX-224: the typing state, while the row is on the
+                // screen.
+                .task(id: item.roomIds) {
+                    await appState.matrixClient?.chatListTyping.watch(chats.rooms(of: item).map(\.room))
+                }
                 .contextMenu {
                     ChatListItemContextMenu(item: item, chats: chats)
                 }

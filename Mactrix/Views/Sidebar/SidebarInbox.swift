@@ -200,11 +200,21 @@ enum SidebarInbox {
     /// The SDK narrowing for the window: the rail filter's rooms, and for
     /// the Archived list filter only the archived rooms among them. Sorted,
     /// so the value changes only when the set changes.
+    ///
+    /// MATRIX-224: for the Drafts list filter, only the rooms with a draft
+    /// (and the members of a merged chat with a draft).
     static func narrowingRoomIds(client: MatrixClient?, windowState: WindowState) -> [String]? {
         let rail = SidebarRail.narrowingRoomIds(client: client, windowState: windowState)
-        let placement = windowState.chatListFilter.inboxPlacement
-        guard placement != .inbox else { return rail }
-        let kept = client?.inbox?.roomIds(in: placement) ?? []
+        let filter = windowState.chatListFilter
+        let kept: Set<String>
+        if filter == .drafts {
+            let merges = client?.mergedChats?.document ?? MergedChatDocument()
+            kept = client?.composerDrafts.drafts.roomIds(merges: merges) ?? []
+        } else if filter.inboxPlacement != .inbox {
+            kept = client?.inbox?.roomIds(in: filter.inboxPlacement) ?? []
+        } else {
+            return rail
+        }
         guard let rail else { return kept.sorted() }
         return rail.filter(kept.contains).sorted()
     }

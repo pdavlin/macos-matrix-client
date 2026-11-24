@@ -185,14 +185,14 @@ extension Models.ChatListFilter {
     /// MATRIX-77: the filter narrowed to a label's rooms. Spaces still pass,
     /// for the reason above; the label narrows only the chats.
     ///
-    /// MATRIX-206, MATRIX-207: Archived and Snoozed have no SDK kind: the
-    /// caller narrows each to its rooms. Without a narrowing it shows no
-    /// chat.
+    /// MATRIX-206, MATRIX-207, MATRIX-224: Archived, Snoozed, and Drafts
+    /// have no SDK kind: the caller narrows each to its rooms. Without a
+    /// narrowing it shows no chat.
     func roomListFilter(labelRooms: [String]?) -> RoomListEntriesDynamicFilterKind {
         var chats = chatFilters
         if let labelRooms {
             chats.append(.identifiers(identifiers: labelRooms))
-        } else if inboxPlacement != .inbox {
+        } else if narrowsByRoomIds {
             chats.append(.identifiers(identifiers: []))
         }
         return .any(filters: [.space, .all(filters: chats)])
@@ -201,6 +201,10 @@ extension Models.ChatListFilter {
     private var chatFilters: [RoomListEntriesDynamicFilterKind] {
         switch self {
         case .inbox:
+            [.nonLowPriority]
+        case .unanswered, .drafts:
+            // MATRIX-224: they refine the Inbox. Unanswered drops chats
+            // app-side; Drafts gets the draft rooms as its narrowing.
             [.nonLowPriority]
         case .unread:
             // SDK 26.11.11 renamed `.unread`; `.notifications` is its old rule.

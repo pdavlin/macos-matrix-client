@@ -109,6 +109,10 @@ public extension MatrixClient {
         // the new room list service.
         await dockBadge.start(roomListService: _roomListService, labels: labels)
 
+        // MATRIX-224: read the saved drafts one time, off the main actor.
+        // The composer keeps the cache current after that.
+        composerDrafts.loadAll(rooms: client.rooms())
+
         // MATRIX-163: read the account's profile avatar. Not awaited: the
         // read is a server request and must not hold the sync start.
         Task { [weak self] in await self?.refreshOwnAvatar(readsCache: true) }
@@ -173,6 +177,10 @@ public extension MatrixClient {
         bookmarks = nil
         scheduledMessages?.stop()
         scheduledMessages = nil
+        // MATRIX-224.
+        composerDrafts.reset()
+        chatListTyping.reset()
+        OwnReactionMarks.shared.removeAll()
 
         try? await client.logout()
         client = nil
