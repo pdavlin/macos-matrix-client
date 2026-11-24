@@ -56,6 +56,35 @@ struct ChatListActiveFilterTests {
         #expect(chip(.space("!dev"), .people)?.title == "DevObsessed · People")
     }
 
+    // MARK: Section header under the chip
+
+    /// The plain Inbox has no chip, so the section keeps its title.
+    @Test
+    func sectionKeepsItsTitleWithNoChip() {
+        let header = ChatListSectionHeader(listTitle: "Inbox", activeFilter: chip(.inbox), broadcastName: nil)
+        #expect(header.title == "Inbox")
+        #expect(!header.isEmpty)
+    }
+
+    /// The chip names the filter: the section leaves out the title and
+    /// keeps the Broadcast button.
+    @Test
+    func sectionLeavesOutTheTitleUnderTheChip() {
+        let header = ChatListSectionHeader(listTitle: "Work · Unread", activeFilter: chip(.label("work"), .unread), broadcastName: "Work")
+        #expect(header.title == nil)
+        #expect(header.broadcastName == "Work")
+        #expect(!header.isEmpty)
+    }
+
+    /// A list filter alone has no Broadcast button: the section draws no
+    /// header.
+    @Test
+    func sectionWithNeitherTitleNorButtonIsEmpty() {
+        let header = ChatListSectionHeader(listTitle: "Unread", activeFilter: chip(.inbox, .unread), broadcastName: nil)
+        #expect(header.title == nil)
+        #expect(header.isEmpty)
+    }
+
     /// A label or a space that is not known counts as the Inbox, as the chat
     /// list does.
     @Test

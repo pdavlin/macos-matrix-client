@@ -258,7 +258,12 @@ struct SidebarView: View {
         let selectedItemId = windowState.chatSelection?.itemId
         // MATRIX-168: nil for the Inbox and for a filter with no chat.
         // MATRIX-172: it does not depend on the chats the list shows.
-        let broadcastName = SidebarBroadcast.filterName(client: appState.matrixClient, windowState: windowState)
+        // MATRIX-226: no title under the filter chip, which names the filter.
+        let header = ChatListSectionHeader(
+            listTitle: listTitle,
+            activeFilter: SidebarFilterHeader.activeFilter(client: appState.matrixClient, windowState: windowState),
+            broadcastName: SidebarBroadcast.filterName(client: appState.matrixClient, windowState: windowState)
+        )
 
         return List(selection: listSelection) {
             SidebarSyncStateView()
@@ -288,37 +293,17 @@ struct SidebarView: View {
                 .selectionDisabled()
             }
 
-            Section {
-                ForEach(inbox) { item in
-                    // MATRIX-222: Archive (Unarchive) under the pointer.
-                    ChatListRow(model: item.row, imageLoader: appState.matrixClient, primaryAction: rowAction(for: item))
-                        // The row pads itself to the Beeper geometry. The macOS
-                        // sidebar List still insets each row 16 pt on each side
-                        // (measured for MATRIX-123), so the row adds no
-                        // horizontal padding of its own.
-                        .listRowInsets(EdgeInsets())
-                        .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
-                        .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
-                        .contextMenu {
-                            ChatListItemContextMenu(item: item, chats: chats)
-                        }
+            // MATRIX-226: an empty header would draw an empty band, so the
+            // section has none then.
+            if header.isEmpty {
+                Section {
+                    chatRows(inbox, chats: chats)
                 }
-            } header: {
-                HStack(spacing: 6) {
-                    Text(listTitle)
-                    Spacer(minLength: 0)
-                    // MATRIX-168: shows for a label or a space with chats.
-                    if let broadcastName {
-                        Button {
-                            windowState.broadcast = SidebarBroadcast.request(
-                                client: appState.matrixClient, windowState: windowState
-                            )
-                        } label: {
-                            Label("Broadcast…", systemImage: "megaphone")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Send one message to the chats of \(broadcastName)")
-                    }
+            } else {
+                Section {
+                    chatRows(inbox, chats: chats)
+                } header: {
+                    sectionHeader(header)
                 }
             }
         }
@@ -362,5 +347,50 @@ struct SidebarView: View {
             )
         }
         .help("Filter chats: \(windowState.chatListFilter.title)")
+    }
+}
+
+// MARK: - Chat list section
+
+private extension SidebarView {
+    /// The chat list's rows below the pinned grid.
+    func chatRows(_ inbox: [ChatListItem], chats: SidebarChatList) -> some View {
+        ForEach(inbox) { item in
+            // MATRIX-222: Archive (Unarchive) under the pointer.
+            ChatListRow(model: item.row, imageLoader: appState.matrixClient, primaryAction: rowAction(for: item))
+                // The row pads itself to the Beeper geometry. The macOS
+                // sidebar List still insets each row 16 pt on each side
+                // (measured for MATRIX-123), so the row adds no
+                // horizontal padding of its own.
+                .listRowInsets(EdgeInsets())
+                .onAppear { chats.rooms(of: item).forEach { $0.chatListRowDidAppear() } }
+                .onDisappear { chats.rooms(of: item).forEach { $0.chatListRowDidDisappear() } }
+                .contextMenu {
+                    ChatListItemContextMenu(item: item, chats: chats)
+                }
+        }
+    }
+
+    /// The section header: the list's title (none under the filter chip,
+    /// MATRIX-226) and the Broadcast button at the trailing edge.
+    func sectionHeader(_ header: ChatListSectionHeader) -> some View {
+        HStack(spacing: 6) {
+            if let title = header.title {
+                Text(title)
+            }
+            Spacer(minLength: 0)
+            // MATRIX-168: shows for a label or a space with chats.
+            if let broadcastName = header.broadcastName {
+                Button {
+                    windowState.broadcast = SidebarBroadcast.request(
+                        client: appState.matrixClient, windowState: windowState
+                    )
+                } label: {
+                    Label("Broadcast…", systemImage: "megaphone")
+                }
+                .buttonStyle(.borderless)
+                .help("Send one message to the chats of \(broadcastName)")
+            }
+        }
     }
 }

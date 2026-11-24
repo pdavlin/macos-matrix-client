@@ -19,11 +19,12 @@ struct SidebarFilterHeader: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    /// The chip for the window's filters, by the rules the chat list draws
-    /// with (`SidebarRail.filter`), or nil for the plain Inbox.
-    private var activeFilter: ChatListActiveFilter? {
-        let client = appState.matrixClient
-        return ChatListActiveFilter.chip(
+    /// The chip for a window's filters, by the rules the chat list draws
+    /// with (`SidebarRail.filter`), or nil for the plain Inbox. The one
+    /// source for "a chip shows": the chat list's section header reads it
+    /// too, to leave out its title under the chip.
+    static func activeFilter(client: MatrixClient?, windowState: WindowState) -> ChatListActiveFilter? {
+        ChatListActiveFilter.chip(
             rail: SidebarRail.filter(client: client, windowState: windowState),
             list: windowState.chatListFilter,
             labels: client?.labels?.document ?? ChatLabelDocument(),
@@ -33,7 +34,7 @@ struct SidebarFilterHeader: View {
     }
 
     var body: some View {
-        if let activeFilter {
+        if let activeFilter = Self.activeFilter(client: appState.matrixClient, windowState: windowState) {
             HStack(spacing: 0) {
                 ChatListFilterChip(filter: activeFilter, usesGlass: !reduceTransparency) {
                     windowState.railFilter = .inbox

@@ -85,3 +85,32 @@ public struct ChatListActiveFilter: Equatable, Sendable {
         return chip
     }
 }
+
+/// The chat list's section header under the filter chip (MATRIX-226).
+///
+/// The chip names the filter, so while it shows, the header leaves out the
+/// list's title and keeps only the Broadcast button (MATRIX-168). With
+/// neither a title nor the button, the list draws no header at all, so no
+/// empty band shows.
+public struct ChatListSectionHeader: Equatable, Sendable {
+    /// The list's title, or nil while the chip names the filter.
+    public var title: String?
+    /// The name of the label or space the Broadcast button sends to, or nil
+    /// with no button.
+    public var broadcastName: String?
+
+    /// - Parameters:
+    ///   - listTitle: the list's title ("Inbox", "Work · Unread").
+    ///   - activeFilter: the chip the sidebar header shows
+    ///     (`ChatListActiveFilter.chip`), or nil for none.
+    ///   - broadcastName: the Broadcast button's target, or nil.
+    public init(listTitle: String, activeFilter: ChatListActiveFilter?, broadcastName: String?) {
+        title = activeFilter == nil ? listTitle : nil
+        self.broadcastName = broadcastName
+    }
+
+    /// True when the header has nothing to show: the list leaves it out.
+    public var isEmpty: Bool {
+        title == nil && broadcastName == nil
+    }
+}
