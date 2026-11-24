@@ -5,7 +5,7 @@ import SwiftUI
 import UI
 
 struct SettingsView: View {
-    /// MATRIX-215: whether macOS blocks notifications for Mactrix.
+    /// MATRIX-215: whether macOS blocks notifications for Round.
     private let notificationPermission = NotificationPermissionModel.shared
 
     var body: some View {

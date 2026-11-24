@@ -13,7 +13,7 @@ import SwiftUI
 /// settings. Per-room mute and the MATRIX-77 label mute are not here and
 /// still apply first.
 ///
-/// When macOS blocks notifications for Mactrix (MATRIX-215), a row above the
+/// When macOS blocks notifications for Round (MATRIX-215), a row above the
 /// switches says so and opens System Settings > Notifications: the switches
 /// alone do nothing then.
 ///
@@ -31,7 +31,7 @@ public struct NotificationSettingsView: View {
     /// - Parameters:
     ///   - store: the defaults store to read and write. `nil` uses
     ///     `UserDefaults.standard`; tests pass an isolated suite.
-    ///   - isBlockedBySystem: macOS blocks notifications for Mactrix
+    ///   - isBlockedBySystem: macOS blocks notifications for Round
     ///     (`NotificationPermission.blocked`).
     public init(store: UserDefaults? = nil, isBlockedBySystem: Bool = false) {
         self.isBlockedBySystem = isBlockedBySystem
@@ -58,7 +58,7 @@ public struct NotificationSettingsView: View {
         Form {
             if isBlockedBySystem {
                 HStack {
-                    Label("macOS blocks notifications for Mactrix.", systemImage: "exclamationmark.triangle.fill")
+                    Label("macOS blocks notifications for Round.", systemImage: "exclamationmark.triangle.fill")
                         .symbolRenderingMode(.multicolor)
                     Spacer()
                     Button("Open System Settings") {

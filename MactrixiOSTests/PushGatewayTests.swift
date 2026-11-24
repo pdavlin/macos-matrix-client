@@ -16,7 +16,7 @@ final class PushGatewayTests: XCTestCase {
     func testDefaultPayloadRunsTheExtension() {
         XCTAssertEqual(
             PushGateway.defaultPayload,
-            #"{"aps":{"alert":{"body":"New message","title":"Mactrix"},"mutable-content":1}}"#
+            #"{"aps":{"alert":{"body":"New message","title":"Round"},"mutable-content":1}}"#
         )
     }
 

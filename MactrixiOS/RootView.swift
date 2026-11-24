@@ -21,7 +21,7 @@ struct RootView: View {
 
     private var signedOut: some View {
         ContentUnavailableView {
-            Label("Mactrix", systemImage: "bubble.left.and.bubble.right")
+            Label("Round", systemImage: "bubble.left.and.bubble.right")
         } description: {
             Text(model.status.title)
                 .accessibilityIdentifier("sessionStatus")

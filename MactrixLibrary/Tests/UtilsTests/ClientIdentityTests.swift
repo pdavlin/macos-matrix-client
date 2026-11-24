@@ -5,22 +5,22 @@ struct ClientIdentityTests {
     @Test func macValuesAreUnchanged() {
         let identity = ClientIdentity(platform: .macOS)
 
-        #expect(identity.deviceDisplayName == "Mactrix")
-        #expect(identity.userAgent == "Mactrix macOS")
+        #expect(identity.deviceDisplayName == "Round")
+        #expect(identity.userAgent == "Round macOS")
     }
 
     @Test func iPhoneValues() {
         let identity = ClientIdentity(platform: .iPhone)
 
-        #expect(identity.deviceDisplayName == "Mactrix (iPhone)")
-        #expect(identity.userAgent == "Mactrix iOS")
+        #expect(identity.deviceDisplayName == "Round (iPhone)")
+        #expect(identity.userAgent == "Round iOS")
     }
 
     @Test func iPadValues() {
         let identity = ClientIdentity(platform: .iPad)
 
-        #expect(identity.deviceDisplayName == "Mactrix (iPad)")
-        #expect(identity.userAgent == "Mactrix iOS")
+        #expect(identity.deviceDisplayName == "Round (iPad)")
+        #expect(identity.userAgent == "Round iOS")
     }
 
     @Test func everyPlatformHasADistinctDisplayName() {

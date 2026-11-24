@@ -5,7 +5,7 @@ keeps this list. Each item is a check on the running app or a decision that
 only Patrick can make. Tick an item in Plane (the issue is in Review,
 assigned to Patrick) or tell the orchestrator the result.
 
-The app runs from `build/DerivedData/Build/Products/Debug/Mactrix.app`.
+The app runs from `build/DerivedData/Build/Products/Debug/Round.app` (`Mactrix.app` before MATRIX-236).
 
 Passed on 2026-11-17 and moved to Done: MATRIX-135 to 138, 141 to 145, 147
 to 151, 153 to 157, 159, 161, 162, 166, 168 to 170, 172, 175, 178.

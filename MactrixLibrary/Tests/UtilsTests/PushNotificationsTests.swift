@@ -9,7 +9,7 @@ struct PushNotificationPayloadTests {
     private let sygnalPayload: [AnyHashable: Any] = [
         "aps": [
             "mutable-content": 1,
-            "alert": ["title": "Mactrix", "body": "New message"],
+            "alert": ["title": "Round", "body": "New message"],
         ],
         "room_id": "!abc:davlin.io",
         "event_id": "$event1",
@@ -66,7 +66,7 @@ struct PusherDefaultPayloadTests {
     @Test func exactJSON() {
         // MATRIX-90 (Sygnal) must forward this payload unchanged.
         #expect(PusherDefaultPayload.json
-            == #"{"aps":{"alert":{"body":"New message","title":"Mactrix"},"mutable-content":1}}"#)
+            == #"{"aps":{"alert":{"body":"New message","title":"Round"},"mutable-content":1}}"#)
     }
 
     @Test func parsesAsAnAPNsPayloadThatRunsTheExtension() throws {

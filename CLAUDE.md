@@ -2,6 +2,8 @@
 
 Single-user, Mac-native Matrix client. Hard fork of Mactrix (SwiftUI + matrix-rust-sdk). One account, one self-hosted homeserver, mautrix bridges. Success metric: Beeper and Element Desktop get uninstalled.
 
+The app's name is **Round** (MATRIX-236): the Mac product is `Round.app` with the process name `Round`, and the iOS display name is Round. The code keeps the Mactrix names: the targets, schemes, folders, the `Mactrix` and `MactrixiOS` modules, `MactrixLibrary`, and every bundle ID (`io.davlin.matrixclient`…).
+
 ## Repo state
 
 The Mactrix fork has landed. Current layout:
@@ -31,7 +33,7 @@ scripts/lint.sh     # SwiftFormat --lint + SwiftLint
 
 Each script auto-detects `DEVELOPER_DIR` (existing env value, else Xcode-beta.app, else Xcode.app) unless it is already set.
 
-`build.sh` and `test.sh` put the Xcode build data in `build/DerivedData/` inside the checkout (gitignored), not in `~/Library/Developer/Xcode/DerivedData`. Removing a worktree removes its build data. The built app is `build/DerivedData/Build/Products/Debug/Mactrix.app`. Set `DERIVED_DATA_PATH` to use another folder.
+`build.sh` and `test.sh` put the Xcode build data in `build/DerivedData/` inside the checkout (gitignored), not in `~/Library/Developer/Xcode/DerivedData`. Removing a worktree removes its build data. The built app is `build/DerivedData/Build/Products/Debug/Round.app`. Set `DERIVED_DATA_PATH` to use another folder.
 
 ## Definition of done (every story)
 

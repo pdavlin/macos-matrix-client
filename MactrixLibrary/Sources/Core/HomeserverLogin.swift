@@ -37,7 +37,7 @@ public struct HomeserverLogin: Sendable {
 
     private var oauthConfiguration: OAuthConfiguration {
         // redirect uri must be reverse domain of client uri
-        OAuthConfiguration(clientName: "Mactrix", redirectUri: "com.github:/", clientUri: "https://github.com/viktorstrate/mactrix", logoUri: nil, tosUri: nil, policyUri: nil, staticRegistrations: [:])
+        OAuthConfiguration(clientName: "Round", redirectUri: "com.github:/", clientUri: "https://github.com/viktorstrate/mactrix", logoUri: nil, tosUri: nil, policyUri: nil, staticRegistrations: [:])
     }
 
     @MainActor

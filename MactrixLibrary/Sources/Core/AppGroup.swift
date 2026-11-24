@@ -46,7 +46,7 @@ public enum PushGateway {
     public static let defaultPayload = PusherDefaultPayload.json
 
     /// The pusher `app_display_name`.
-    public static let appDisplayName = "Mactrix"
+    public static let appDisplayName = "Round"
 }
 
 /// Where the SDK store of each session lives.

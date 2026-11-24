@@ -40,7 +40,7 @@ public struct PushNotificationPayload: Equatable, Sendable {
 /// alert is the generic content that shows if the extension cannot decrypt
 /// the event in time. The Sygnal config (MATRIX-90) must not override `aps`.
 public enum PusherDefaultPayload {
-    public static let json = #"{"aps":{"alert":{"body":"New message","title":"Mactrix"},"mutable-content":1}}"#
+    public static let json = #"{"aps":{"alert":{"body":"New message","title":"Round"},"mutable-content":1}}"#
 }
 
 /// Encodes an APNs device token as the pusher `pushkey`.
@@ -100,7 +100,7 @@ public struct NotificationDisplay: Equatable, Sendable {
 
     /// The generic text if the event cannot be shown. Same text as the
     /// pusher's default payload.
-    public static let fallbackTitle = "Mactrix"
+    public static let fallbackTitle = "Round"
     public static let fallbackBody = "New message"
     public static let encryptedBody = "Encrypted message"
     public static let inviteBody = "Invited you"

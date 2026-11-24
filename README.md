@@ -1,6 +1,4 @@
-<img width="128" height="128" src="./docs/mactrix-icon.webp">
-
-# Matrix client for macOS (Mactrix fork)
+# Round, a Matrix client for macOS (Mactrix fork)
 
 A single-user, Mac-native [Matrix](https://matrix.org) client for one account
 on one self-hosted homeserver (davlin.io) with mautrix bridges. The goal is to

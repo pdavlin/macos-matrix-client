@@ -93,7 +93,7 @@ struct MediaViewerScreen: View {
 enum PhotoLibrarySaver {
     struct NotAuthorizedError: LocalizedError {
         var errorDescription: String? {
-            "Mactrix has no permission to add to your photo library. Allow it in Settings."
+            "Round has no permission to add to your photo library. Allow it in Settings."
         }
     }
 

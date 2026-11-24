@@ -15,14 +15,14 @@ public struct ClientIdentity: Sendable, Equatable {
     public init(platform: ClientDevice) {
         switch platform {
         case .macOS:
-            deviceDisplayName = "Mactrix"
-            userAgent = "Mactrix macOS"
+            deviceDisplayName = "Round"
+            userAgent = "Round macOS"
         case .iPhone:
-            deviceDisplayName = "Mactrix (iPhone)"
-            userAgent = "Mactrix iOS"
+            deviceDisplayName = "Round (iPhone)"
+            userAgent = "Round iOS"
         case .iPad:
-            deviceDisplayName = "Mactrix (iPad)"
-            userAgent = "Mactrix iOS"
+            deviceDisplayName = "Round (iPad)"
+            userAgent = "Round iOS"
         }
     }
 }

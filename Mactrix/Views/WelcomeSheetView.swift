@@ -100,7 +100,7 @@ struct WelcomeSheetView: View {
 
     var body: some View {
         VStack {
-            Text("Welcome to Mactrix")
+            Text("Welcome to Round")
                 .font(.headline)
                 .padding(.bottom)
 

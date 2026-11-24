@@ -161,7 +161,7 @@ public struct LabelRail: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .disabled(!isEditable)
-            .help(isEditable ? "New Label…" : "Labels cannot be changed: Mactrix could not read the saved labels")
+            .help(isEditable ? "New Label…" : "Labels cannot be changed: Round could not read the saved labels")
             .accessibilityLabel("New Label")
             .padding(.bottom, LabelToken.railVerticalPadding)
         }
