@@ -67,9 +67,19 @@ public final class RecoveryProgress {
         guard !isBusy else { return }
         phase = .enabling(detail: "Starting…")
 
-        let listener = EnableRecoveryProgressRelay { [weak self] detail in
-            guard let self else { return }
-            if case .enabling = phase { phase = .enabling(detail: detail) }
+        // MATRIX-237: one ordered stream with one consumer, so the newest
+        // stage is the one that shows.
+        let (details, continuation) = AsyncStream<String>.makeStream()
+        let listener = EnableRecoveryProgressRelay(continuation: continuation)
+        let detailTask = Task { [weak self] in
+            for await detail in details {
+                guard let self else { break }
+                if case .enabling = phase { phase = .enabling(detail: detail) }
+            }
+        }
+        defer {
+            continuation.finish()
+            detailTask.cancel()
         }
 
         do {
@@ -122,10 +132,10 @@ public final class RecoveryProgress {
 /// called from the SDK's own threads, while `RecoveryProgress` is main-actor
 /// isolated.
 private final class EnableRecoveryProgressRelay: EnableRecoveryProgressListener {
-    private let onDetail: @MainActor (String) -> Void
+    private let continuation: AsyncStream<String>.Continuation
 
-    init(onDetail: @escaping @MainActor (String) -> Void) {
-        self.onDetail = onDetail
+    init(continuation: AsyncStream<String>.Continuation) {
+        self.continuation = continuation
     }
 
     func onUpdate(status: EnableRecoveryProgress) {
@@ -148,6 +158,6 @@ private final class EnableRecoveryProgressRelay: EnableRecoveryProgressListener 
         }
 
         guard let detail else { return }
-        Task { @MainActor [onDetail] in onDetail(detail) }
+        continuation.yield(detail)
     }
 }

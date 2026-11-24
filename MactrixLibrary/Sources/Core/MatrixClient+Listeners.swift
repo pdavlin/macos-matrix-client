@@ -77,34 +77,49 @@ public extension MatrixClient {
     }
 }
 
-extension MatrixClient: SyncServiceStateObserver {
-    public nonisolated func onUpdate(state: MatrixRustSDK.SyncServiceState) {
-        Task { @MainActor in
-            syncState = state
+// MARK: - SDK listener values (MATRIX-237)
+
+// `startSync()` registers an `AsyncSDKListener` for each SDK listener and
+// applies its values here, through `AsyncSDKListener.deliver(to:)`: one
+// ordered stream with one consumer each. One `Task` per callback had no order,
+// so an older value could land last.
+
+extension MatrixClient {
+    /// Applies one sync service state.
+    func applySyncState(_ state: MatrixRustSDK.SyncServiceState) {
+        let name = switch state {
+        case .idle: "idle"
+        case .running: "running"
+        case .terminated: "terminated"
+        case .error: "error"
+        case .offline: "offline"
+        }
+        Logger.matrixClient.info("sync state: \(name, privacy: .public)")
+        syncState = state
+        if state == .running {
+            syncHasRun = true
         }
     }
-}
 
-extension MatrixClient: VerificationStateListener {
-    public nonisolated func onUpdate(status: MatrixRustSDK.VerificationState) {
-        Task { @MainActor in
-            // Recorded because a session that reports `unverified` on every
-            // launch cannot read the key backup, which shows up downstream as
-            // `historicalMessageAndDeviceIsUnverified` UTDs rather than as
-            // anything that names verification.
-            let name = switch status {
-            case .unknown: "unknown"
-            case .verified: "verified"
-            case .unverified: "unverified"
-            }
-            Logger.matrixClient.info("verification state: \(name, privacy: .public)")
-            verificationState = status
-
-            // S-24: check whether the account's own identity was reset
-            // externally. `hasVerificationViolation()` is the SDK's signal
-            // that a previously-verified identity no longer matches.
-            await checkOwnIdentityViolation()
+    /// Applies one verification state.
+    func applyVerificationState(_ status: MatrixRustSDK.VerificationState) async {
+        // Recorded because a session that reports `unverified` on every
+        // launch cannot read the key backup, which shows up downstream as
+        // `historicalMessageAndDeviceIsUnverified` UTDs rather than as
+        // anything that names verification.
+        let name = switch status {
+        case .unknown: "unknown"
+        case .verified: "verified"
+        case .unverified: "unverified"
         }
+        Logger.matrixClient.info("verification state: \(name, privacy: .public)")
+        verificationState = status
+
+        // S-24: check whether the account's own identity was reset
+        // externally. `hasVerificationViolation()` is the SDK's signal
+        // that a previously-verified identity no longer matches. Awaited in
+        // the ordered stream, so an older check cannot write its result last.
+        await checkOwnIdentityViolation()
     }
 
     /// Queries the SDK for the account's own identity violation state.
@@ -140,13 +155,9 @@ extension MatrixClient: VerificationStateListener {
             Logger.matrixClient.error("failed to check own identity violation: \(error)")
         }
     }
-}
 
-extension MatrixClient: RecoveryStateListener {
-    public nonisolated func onUpdate(status: MatrixRustSDK.RecoveryState) {
-        Task { @MainActor in
-            recoveryState = status
-        }
+    /// Applies one recovery state.
+    func applyRecoveryState(_ status: MatrixRustSDK.RecoveryState) {
         let name = switch status {
         case .unknown: "unknown"
         case .enabled: "enabled"
@@ -154,56 +165,91 @@ extension MatrixClient: RecoveryStateListener {
         case .incomplete: "incomplete"
         }
         Logger.matrixClient.info("recovery state: \(name, privacy: .public)")
+        recoveryState = status
     }
-}
 
-extension MatrixClient: RoomListServiceStateListener {
-    public nonisolated func onUpdate(state: MatrixRustSDK.RoomListServiceState) {
-        Task { @MainActor in
-            // Logged because this state gates the recovery UI (see
-            // `RecoveryPrompt`) and because an empty sidebar is otherwise
-            // indistinguishable from a room list that never started.
-            let (name, evidence): (String, SessionSyncEvidence.RoomListState) = switch state {
-            case .initial: ("initial", .initial)
-            case .settingUp: ("settingUp", .settingUp)
-            case .recovering: ("recovering", .recovering)
-            case .running: ("running", .running)
-            case .error: ("error", .error)
-            case .terminated: ("terminated", .terminated)
-            }
-            Logger.matrixClient.info("room list state: \(name, privacy: .public) rooms=\(self.rooms.count, privacy: .public)")
-            roomListServiceState = state
-            // MATRIX-171, MATRIX-186: an empty space graph counts only
-            // after a sync (`running`).
-            roomAccounts.note(roomListState: evidence)
-            // MATRIX-77, MATRIX-140, MATRIX-208, MATRIX-212: sync has caught
-            // up, so the labels, merged chats, bookmarks, and scheduled
-            // messages in the store are current.
-            if case .running = state {
-                await labels?.refresh()
-                await mergedChats?.refresh()
-                await inbox?.refresh()
-                await bookmarks?.refresh()
-                await scheduledMessages?.refresh()
-                // MATRIX-207: snooze ends and reminders fire once sync has
-                // caught up, so the first arm resolves what came due while
-                // the app was closed against current state. macOS only: the
-                // iOS UI is out of scope, and two devices would both post.
-                #if os(macOS)
-                    inbox?.startDueTimer { [weak self] title, body, roomId in
-                        guard let notifications = self?.notifications else { return }
-                        Task { await notifications.postLocalNotification(title: title, body: body, roomId: roomId) }
-                    }
-                #endif
-            }
+    /// Applies one room list service state.
+    func applyRoomListState(_ state: MatrixRustSDK.RoomListServiceState) {
+        // Logged because this state gates the recovery UI (see
+        // `RecoveryPrompt`) and because an empty sidebar is otherwise
+        // indistinguishable from a room list that never started.
+        let (name, evidence): (String, SessionSyncEvidence.RoomListState) = switch state {
+        case .initial: ("initial", .initial)
+        case .settingUp: ("settingUp", .settingUp)
+        case .recovering: ("recovering", .recovering)
+        case .running: ("running", .running)
+        case .error: ("error", .error)
+        case .terminated: ("terminated", .terminated)
+        }
+        Logger.matrixClient.info("room list state: \(name, privacy: .public) rooms=\(self.rooms.count, privacy: .public)")
+        roomListServiceState = state
+        // MATRIX-171, MATRIX-186: an empty space graph counts only
+        // after a sync (`running`).
+        roomAccounts.note(roomListState: evidence)
+        // MATRIX-77, MATRIX-140, MATRIX-208, MATRIX-212: sync has caught
+        // up, so the labels, merged chats, bookmarks, and scheduled
+        // messages in the store are current. Not awaited: each refresh
+        // reads the store again, and a slow one must not hold the next
+        // state.
+        if case .running = state {
+            Task { [weak self] in await self?.refreshAfterRoomListCaughtUp() }
         }
     }
-}
 
-extension MatrixClient: RoomListServiceSyncIndicatorListener {
-    public nonisolated func onUpdate(syncIndicator: MatrixRustSDK.RoomListServiceSyncIndicator) {
-        Task { @MainActor in
-            showRoomSyncIndicator = syncIndicator
+    private func refreshAfterRoomListCaughtUp() async {
+        await labels?.refresh()
+        await mergedChats?.refresh()
+        await inbox?.refresh()
+        await bookmarks?.refresh()
+        await scheduledMessages?.refresh()
+        // MATRIX-207: snooze ends and reminders fire once sync has
+        // caught up, so the first arm resolves what came due while
+        // the app was closed against current state. macOS only: the
+        // iOS UI is out of scope, and two devices would both post.
+        #if os(macOS)
+            inbox?.startDueTimer { [weak self] title, body, roomId in
+                guard let notifications = self?.notifications else { return }
+                Task { await notifications.postLocalNotification(title: title, body: body, roomId: roomId) }
+            }
+        #endif
+    }
+
+    /// Applies one room list sync indicator.
+    func applySyncIndicator(_ syncIndicator: MatrixRustSDK.RoomListServiceSyncIndicator) {
+        showRoomSyncIndicator = syncIndicator
+    }
+
+    /// Applies one ignored users list.
+    func applyIgnoredUsers(_ ignoredUserIds: [String]) {
+        Logger.matrixClient.debug("Updated ignored users: \(ignoredUserIds)")
+        self.ignoredUserIds = ignoredUserIds
+    }
+
+    /// Applies one session verification callback.
+    func applySessionVerification(_ event: SessionVerificationEvent) {
+        switch event {
+        case let .receivedRequest(details):
+            Logger.matrixClient.debug("session verification: didReceiveVerificationRequest")
+            sessionVerificationRequest = details
+        case .acceptedRequest:
+            Logger.matrixClient.debug("session verification: didAcceptVerificationRequest")
+        case .startedSas:
+            Logger.matrixClient.debug("session verification: didStartSasVerification")
+        case let .receivedData(data):
+            Logger.matrixClient.debug("session verification: didReceiveVerificationData")
+            sessionVerificationData = data
+        case .failed:
+            Logger.matrixClient.debug("session verification: didFail")
+            sessionVerificationRequest = nil
+            sessionVerificationData = nil
+        case .cancelled:
+            Logger.matrixClient.debug("session verification: didCancel")
+            sessionVerificationRequest = nil
+            sessionVerificationData = nil
+        case .finished:
+            Logger.matrixClient.debug("session verification: didFinish")
+            sessionVerificationRequest = nil
+            sessionVerificationData = nil
         }
     }
 }
@@ -234,63 +280,6 @@ extension MatrixClient: MatrixRustSDK.ClientDelegate {
             authenticationFailed = true
             Logger.matrixClient.error("auth error: token rejected (not soft logout); stopping sync")
             await syncService?.stop()
-        }
-    }
-}
-
-extension MatrixClient: MatrixRustSDK.IgnoredUsersListener {
-    public nonisolated func call(ignoredUserIds: [String]) {
-        Task { @MainActor in
-            Logger.matrixClient.debug("Updated ignored users: \(ignoredUserIds)")
-            self.ignoredUserIds = ignoredUserIds
-        }
-    }
-}
-
-extension MatrixClient: SessionVerificationControllerDelegate {
-    public nonisolated func didReceiveVerificationRequest(details: MatrixRustSDK.SessionVerificationRequestDetails) {
-        Task { @MainActor in
-            Logger.matrixClient.debug("session verification: didReceiveVerificationRequest")
-            sessionVerificationRequest = details
-        }
-    }
-
-    public nonisolated func didAcceptVerificationRequest() {
-        Logger.matrixClient.debug("session verification: didAcceptVerificationRequest")
-    }
-
-    public nonisolated func didStartSasVerification() {
-        Logger.matrixClient.debug("session verification: didStartSasVerification")
-    }
-
-    public nonisolated func didReceiveVerificationData(data: MatrixRustSDK.SessionVerificationData) {
-        Task { @MainActor in
-            Logger.matrixClient.debug("session verification: didReceiveVerificationData")
-            sessionVerificationData = data
-        }
-    }
-
-    public nonisolated func didFail() {
-        Task { @MainActor in
-            Logger.matrixClient.debug("session verification: didFail")
-            sessionVerificationRequest = nil
-            sessionVerificationData = nil
-        }
-    }
-
-    public nonisolated func didCancel() {
-        Task { @MainActor in
-            Logger.matrixClient.debug("session verification: didCancel")
-            sessionVerificationRequest = nil
-            sessionVerificationData = nil
-        }
-    }
-
-    public nonisolated func didFinish() {
-        Task { @MainActor in
-            Logger.matrixClient.debug("session verification: didFinish")
-            sessionVerificationRequest = nil
-            sessionVerificationData = nil
         }
     }
 }

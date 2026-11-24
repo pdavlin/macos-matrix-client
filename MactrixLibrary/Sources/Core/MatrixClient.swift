@@ -113,7 +113,18 @@ public class MatrixClient {
     }
 
     public var syncService: SyncService?
-    public var syncState: SyncServiceState = .terminated
+    public internal(set) var syncState: SyncServiceState = .terminated
+    /// MATRIX-237: whether the sync service sent `running` at least once.
+    /// After that, `idle` means that sync stopped, not that it connects.
+    public internal(set) var syncHasRun = false
+    /// MATRIX-237: whether the last `startSync()` threw. The sync state
+    /// can then stay `idle` with no service that runs.
+    public internal(set) var syncStartFailed = false
+    /// The sidebar's sync line for the current sync state.
+    public var syncStatusLine: SyncStatusLine {
+        SyncStatusLine(state: syncState, hasRun: syncHasRun, startFailed: syncStartFailed)
+    }
+
     public var roomListService: RoomListService?
     public var roomListServiceState: RoomListServiceState?
     public var showRoomSyncIndicator: RoomListServiceSyncIndicator?
@@ -129,6 +140,12 @@ public class MatrixClient {
     @ObservationIgnored var verificationStateHandle: TaskHandle?
     @ObservationIgnored var recoveryStateHandle: TaskHandle?
     @ObservationIgnored var ignoredUsersHandle: TaskHandle?
+    /// MATRIX-237: the tasks that apply the SDK listener values above, in
+    /// order. See `AsyncSDKListener.deliver(to:)`.
+    @ObservationIgnored var listenerTasks: [Task<Void, Never>] = []
+    /// MATRIX-237: whether `syncService` was started. A second `startSync()`
+    /// then restarts it and does not build a second service.
+    @ObservationIgnored var syncServiceStarted = false
 
     /// The latest session verification request received by another client
     public var sessionVerificationRequest: SessionVerificationRequestDetails?

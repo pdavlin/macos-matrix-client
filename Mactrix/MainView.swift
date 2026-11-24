@@ -250,11 +250,10 @@ struct MainView: View {
                 // check if a room is selected and load it
                 await onRoomSelected()
             } catch {
-                // Sync state stays at its pre-start value (.terminated, or
-                // .error/.offline if the SDK reported one before the throw), so
-                // the sidebar's "Restart sync" button (SidebarSyncStateView) is
-                // already visible and wired to retry startSync() — no separate
-                // failure UI needed here (MATRIX-56).
+                // `startSync()` records the throw (`syncStartFailed`), so the
+                // sidebar shows "Sync error" and its "Restart sync" button
+                // (SidebarSyncStateView), wired to retry startSync() — no
+                // separate failure UI needed here (MATRIX-56, MATRIX-237).
                 Logger.viewCycle.error("Failed to start sync: \(String(describing: error), privacy: .public)")
             }
         }

@@ -6,16 +6,53 @@ import OSLog
 // MARK: - Sync lifecycle: start, clear caches, sign-out teardown
 
 public extension MatrixClient {
+    /// Starts sync, or restarts it when it was started before.
+    ///
+    /// MATRIX-237: the sidebar's "Restart sync" calls this again. A started
+    /// service is restarted with `SyncService.start()`, which the SDK makes
+    /// safe to call again: it restarts an `offline` service and starts an
+    /// `idle`, `terminated` or `error` one. A second service is never built:
+    /// the first one would keep its sync loop but lose its state listener,
+    /// so the line showed "Connecting…" while messages came in.
     func startSync() async throws {
+        syncStartFailed = false
+        if let syncService, syncServiceStarted {
+            // The homeserver rejected the token: a restart would only retry
+            // it. The session teardown follows.
+            guard !authenticationFailed else { return }
+            Logger.matrixClient.info("restarting sync")
+            await syncService.start()
+            return
+        }
+        do {
+            try await buildAndStartSync()
+        } catch {
+            syncStartFailed = true
+            throw error
+        }
+    }
+
+    /// Cancels the tasks that apply the SDK listener values.
+    internal func cancelListenerTasks() {
+        roomEntriesTask?.cancel()
+        roomEntriesTask = nil
+        for task in listenerTasks {
+            task.cancel()
+        }
+        listenerTasks.removeAll()
+    }
+
+    private func buildAndStartSync() async throws {
+        // A service that an earlier call built did not start, so nothing
+        // syncs with it. Its listener tasks go with it.
+        cancelListenerTasks()
+
         let _syncService = try await client.syncService().withOfflineMode().finish()
         syncService = _syncService
 
-        syncStateHandle = _syncService.state(listener: self)
-
         let _roomListService = _syncService.roomListService()
         roomListService = _roomListService
-        roomListServiceStateHandle = _roomListService.state(listener: self)
-        syncIndicatorHandle = _roomListService.syncIndicator(delayBeforeShowingInMs: 200, delayBeforeHidingInMs: 200, listener: self)
+        subscribeToSyncStates(of: _syncService, roomListService: _roomListService)
 
         let roomEntriesListener = AsyncSDKListener<[RoomListEntriesUpdate]>()
         let _roomListEntriesHandle = try await _roomListService.allRooms().entriesWithDynamicAdapters(pageSize: 100, listener: roomEntriesListener)
@@ -36,19 +73,7 @@ public extension MatrixClient {
         // prompt, and sync must not wait for the user.
         Task { await NotificationPermissionModel.shared.requestAuthorizationOnce() }
 
-        try await client.getSessionVerificationController().setDelegate(delegate: self)
-
-        verificationStateHandle = client.encryption().verificationStateListener(listener: self)
-
-        // Recovery state decides whether this device can pull the backup
-        // decryption key out of secret storage. `disabled` or `incomplete`
-        // means device-historical events stay undecryptable however many times
-        // the device is verified by SAS. Subscribed rather than sampled: the
-        // value reads `unknown` until the first sync settles.
-        recoveryStateHandle = client.encryption().recoveryStateListener(listener: self)
-
-        ignoredUsersHandle = client.subscribeToIgnoredUsers(listener: self)
-        ignoredUserIds = try await client.ignoredUsers()
+        try await subscribeToAccountStates()
 
         // MATRIX-77: labels read the local store, so this first read shows
         // what the last session synced; the room list's `running` state
@@ -105,8 +130,8 @@ public extension MatrixClient {
         await inbox?.refresh()
         dockBadge.inboxHiddenRoomIds = { [weak self] in self?.inbox?.hiddenRoomIds ?? [] }
 
-        // MATRIX-119: a no-op on iOS. Restart sync calls this again with
-        // the new room list service.
+        // MATRIX-119: a no-op on iOS. Restart sync keeps the room list
+        // service (MATRIX-237), so this runs once for each service.
         await dockBadge.start(roomListService: _roomListService, labels: labels)
 
         // MATRIX-224: read the saved drafts one time, off the main actor.
@@ -119,7 +144,61 @@ public extension MatrixClient {
 
         // Start the sync loop.
         await _syncService.start()
+        syncServiceStarted = true
         Logger.matrixClient.info("Matrix sync started")
+    }
+
+    /// MATRIX-237: the sync service and room list states. Each listener
+    /// feeds one ordered stream, see `AsyncSDKListener.deliver(to:)`.
+    private func subscribeToSyncStates(of syncService: SyncService, roomListService: RoomListService) {
+        let syncStateListener = AsyncSDKListener<SyncServiceState>()
+        listenerTasks.append(syncStateListener.deliver { [weak self] in self?.applySyncState($0) })
+        syncStateHandle = syncService.state(listener: syncStateListener)
+
+        let roomListStateListener = AsyncSDKListener<RoomListServiceState>()
+        listenerTasks.append(roomListStateListener.deliver { [weak self] in self?.applyRoomListState($0) })
+        roomListServiceStateHandle = roomListService.state(listener: roomListStateListener)
+
+        let syncIndicatorListener = AsyncSDKListener<RoomListServiceSyncIndicator>()
+        listenerTasks.append(syncIndicatorListener.deliver { [weak self] in self?.applySyncIndicator($0) })
+        syncIndicatorHandle = roomListService.syncIndicator(
+            delayBeforeShowingInMs: 200,
+            delayBeforeHidingInMs: 200,
+            listener: syncIndicatorListener
+        )
+    }
+
+    /// MATRIX-237: the session verification, verification, recovery and
+    /// ignored users states, each through one ordered stream.
+    private func subscribeToAccountStates() async throws {
+        let sessionVerificationListener = AsyncSDKListener<SessionVerificationEvent>()
+        listenerTasks.append(sessionVerificationListener.deliver { [weak self] in self?.applySessionVerification($0) })
+        try await client.getSessionVerificationController().setDelegate(delegate: sessionVerificationListener)
+
+        let verificationStateListener = AsyncSDKListener<VerificationState>()
+        listenerTasks.append(verificationStateListener.deliver { [weak self] in await self?.applyVerificationState($0) })
+        verificationStateHandle = client.encryption().verificationStateListener(listener: verificationStateListener)
+
+        // Recovery state decides whether this device can pull the backup
+        // decryption key out of secret storage. `disabled` or `incomplete`
+        // means device-historical events stay undecryptable however many times
+        // the device is verified by SAS. Subscribed rather than sampled: the
+        // value reads `unknown` until the first sync settles.
+        let recoveryStateListener = AsyncSDKListener<RecoveryState>()
+        listenerTasks.append(recoveryStateListener.deliver { [weak self] in self?.applyRecoveryState($0) })
+        recoveryStateHandle = client.encryption().recoveryStateListener(listener: recoveryStateListener)
+
+        let ignoredUsersListener = AsyncSDKListener<[String]>()
+        listenerTasks.append(ignoredUsersListener.deliver { [weak self] in self?.applyIgnoredUsers($0) })
+        ignoredUsersHandle = client.subscribeToIgnoredUsers(listener: ignoredUsersListener)
+        // MATRIX-237: a server request. Offline it throws, and a throw here
+        // left a built service that never started. The subscription above
+        // sends the list when it changes.
+        do {
+            ignoredUserIds = try await client.ignoredUsers()
+        } catch {
+            Logger.matrixClient.error("failed to read ignored users: \(String(describing: error), privacy: .public)")
+        }
     }
 
     func clearCache() async throws {
@@ -133,8 +212,7 @@ public extension MatrixClient {
         // Rust objects alive in the FFI handle maps: an unstopped sync service
         // keeps long-polling with the token that `logout` revokes, observed
         // server-side as a ~5 req/s storm of 401s (S-30).
-        roomEntriesTask?.cancel()
-        roomEntriesTask = nil
+        cancelListenerTasks()
         roomListEntriesHandle?.entriesStream().cancel()
         roomListEntriesHandle = nil
 
@@ -165,6 +243,7 @@ public extension MatrixClient {
 
         await syncService?.stop()
         syncService = nil
+        syncServiceStarted = false
         roomListService = nil
         roomListServiceState = nil
         showRoomSyncIndicator = nil

@@ -83,3 +83,106 @@ extension AsyncSDKListener: RoomListEntriesListener where Element == [RoomListEn
         publishValue(roomEntriesUpdate)
     }
 }
+
+// MARK: - Ordered state delivery (MATRIX-237)
+
+@MainActor
+public extension AsyncSDKListener {
+    /// Applies each value on the main actor, one at a time, in the order the
+    /// SDK sent them.
+    ///
+    /// MATRIX-237: one `Task { @MainActor in ... }` for each callback gives no
+    /// order. A handler that suspends, or a task that starts late, lets an
+    /// older value land after a newer one, and the newest value must win. The
+    /// stream has one consumer, and the next value waits for `apply` to return.
+    ///
+    /// The task ends when it is cancelled.
+    func deliver(to apply: @escaping @MainActor (Element) async -> Void) -> Task<Void, Never> {
+        Task { @MainActor in
+            for await value in self {
+                await apply(value)
+            }
+        }
+    }
+}
+
+extension AsyncSDKListener: SyncServiceStateObserver where Element == MatrixRustSDK.SyncServiceState {
+    public func onUpdate(state: MatrixRustSDK.SyncServiceState) {
+        publishValue(state)
+    }
+}
+
+extension AsyncSDKListener: RoomListServiceStateListener where Element == MatrixRustSDK.RoomListServiceState {
+    public func onUpdate(state: MatrixRustSDK.RoomListServiceState) {
+        publishValue(state)
+    }
+}
+
+extension AsyncSDKListener: RoomListServiceSyncIndicatorListener where Element == MatrixRustSDK.RoomListServiceSyncIndicator {
+    public func onUpdate(syncIndicator: MatrixRustSDK.RoomListServiceSyncIndicator) {
+        publishValue(syncIndicator)
+    }
+}
+
+extension AsyncSDKListener: VerificationStateListener where Element == MatrixRustSDK.VerificationState {
+    public func onUpdate(status: MatrixRustSDK.VerificationState) {
+        publishValue(status)
+    }
+}
+
+extension AsyncSDKListener: RecoveryStateListener where Element == MatrixRustSDK.RecoveryState {
+    public func onUpdate(status: MatrixRustSDK.RecoveryState) {
+        publishValue(status)
+    }
+}
+
+extension AsyncSDKListener: IgnoredUsersListener where Element == [String] {
+    public func call(ignoredUserIds: [String]) {
+        publishValue(ignoredUserIds)
+    }
+}
+
+/// One callback of `SessionVerificationControllerDelegate`, as a value.
+///
+/// MATRIX-237: the callbacks are a sequence (request, data, finish), so they
+/// go through one ordered stream. Out of order, a `finish` could clear the
+/// emoji before the `data` that came before it sets them again.
+public enum SessionVerificationEvent: Sendable {
+    case receivedRequest(MatrixRustSDK.SessionVerificationRequestDetails)
+    case acceptedRequest
+    case startedSas
+    case receivedData(MatrixRustSDK.SessionVerificationData)
+    case failed
+    case cancelled
+    case finished
+}
+
+extension AsyncSDKListener: SessionVerificationControllerDelegate where Element == SessionVerificationEvent {
+    public func didReceiveVerificationRequest(details: MatrixRustSDK.SessionVerificationRequestDetails) {
+        publishValue(.receivedRequest(details))
+    }
+
+    public func didAcceptVerificationRequest() {
+        publishValue(.acceptedRequest)
+    }
+
+    public func didStartSasVerification() {
+        publishValue(.startedSas)
+    }
+
+    public func didReceiveVerificationData(data: MatrixRustSDK.SessionVerificationData) {
+        publishValue(.receivedData(data))
+    }
+
+    public func didFail() {
+        publishValue(.failed)
+    }
+
+    public func didCancel() {
+        publishValue(.cancelled)
+    }
+
+    public func didFinish() {
+        publishValue(.finished)
+    }
+}

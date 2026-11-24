@@ -1,5 +1,4 @@
 import Core
-import MatrixRustSDK
 import OSLog
 import SwiftUI
 
@@ -14,50 +13,43 @@ struct SidebarSyncStateView: View {
 
     @State var restarting: Bool = false
 
-    private var state: SyncServiceState? {
-        appState.matrixClient?.syncState
+    /// MATRIX-237: the line, from the sync state and from whether sync ran
+    /// before. "Connecting…" shows only before the first `running`.
+    private var line: SyncStatusLine {
+        appState.matrixClient?.syncStatusLine ?? .signedOut
     }
 
-    /// Whether sync runs. Only this state hides the line.
-    private var isOnline: Bool {
-        state == .running
-    }
-
-    /// The text for each state other than `.running`.
+    /// The text for each line other than `.hidden`.
     private var title: LocalizedStringKey {
-        switch state {
-        case .idle:
+        switch line {
+        case .connecting:
             "Connecting…"
-        case .running:
+        case .hidden:
             "Online"
-        case .terminated:
+        case .stopped:
             "Sync stopped"
         case .error:
             "Sync error"
         case .offline:
             "Offline"
-        case nil:
+        case .signedOut:
             "Logged out"
         }
     }
 
     private var systemImage: String {
-        switch state {
-        case .idle, .running:
+        switch line {
+        case .connecting, .hidden:
             "arrow.triangle.2.circlepath"
         case .error:
             "exclamationmark.triangle"
-        case .terminated, .offline, nil:
+        case .stopped, .offline, .signedOut:
             "wifi.slash"
         }
     }
 
-    var canRestart: Bool {
-        [.error, .offline, .terminated].contains(where: { $0 == state })
-    }
-
     var body: some View {
-        if !isOnline {
+        if line != .hidden {
             HStack(spacing: 6) {
                 Label(title, systemImage: systemImage)
                     .lineLimit(1)
@@ -65,7 +57,7 @@ struct SidebarSyncStateView: View {
 
                 Spacer(minLength: 4)
 
-                if canRestart {
+                if line.canRestart {
                     Button("Restart sync") {
                         Task {
                             restarting = true
