@@ -114,8 +114,12 @@ struct SidebarView: View {
         HStack(spacing: 0) {
             SidebarLabelRail(labels: labels)
             Divider()
-            chatList
-                .environment(\.showsNetworkBadges, showsNetworkBadges)
+            // MATRIX-226: the active filter chip, above the list.
+            VStack(spacing: 0) {
+                SidebarFilterHeader()
+                chatList
+                    .environment(\.showsNetworkBadges, showsNetworkBadges)
+            }
         }
         .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
         // MATRIX-148: read each room's account once; new rooms as they come.
