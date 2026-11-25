@@ -62,6 +62,31 @@ final class RoomNavigationTests: XCTestCase {
         XCTAssertNil(RoomDetailResolution.room(withID: "!gone", in: Item.all, opened: Item.all[0]))
     }
 
+    // MARK: Search results outside the list (MATRIX-247)
+
+    func testSearchResultOutsideTheListOpensOnIPhone() {
+        let outside = Item(id: "!old", title: "Book club")
+        let opened = host(usesStack: true, openedRoomID: "!old") { $0 == outside.id ? outside : nil }
+
+        XCTAssertTrue(waitForTimeline(), "a room outside the list did not show the timeline container")
+        XCTAssertEqual(opened.ids, ["!old"])
+    }
+
+    func testSearchResultOutsideTheListOpensOnIPad() {
+        let outside = Item(id: "!low", title: "Newsletters")
+        let opened = host(usesStack: false, openedRoomID: "!low") { $0 == outside.id ? outside : nil }
+
+        XCTAssertTrue(waitForTimeline(), "a room outside the list did not show the timeline container")
+        XCTAssertEqual(opened.ids, ["!low"])
+    }
+
+    func testRoomTheLookUpCannotFindShowsNoTimeline() {
+        let opened = host(usesStack: true, openedRoomID: "!gone") { _ in nil }
+
+        XCTAssertFalse(waitForTimeline(timeout: 0.5))
+        XCTAssertTrue(opened.ids.isEmpty)
+    }
+
     // MARK: - Hosting
 
     /// The rooms the shell asked a detail for, in order.
@@ -69,7 +94,11 @@ final class RoomNavigationTests: XCTestCase {
         var ids: [String] = []
     }
 
-    private func host(usesStack: Bool, openedRoomID: String?) -> OpenedRooms {
+    private func host(
+        usesStack: Bool,
+        openedRoomID: String?,
+        roomOutsideList: (@MainActor (String) -> Item?)? = nil
+    ) -> OpenedRooms {
         let opened = OpenedRooms()
         let feed = TimelineFixtureFeed()
         let shell = RoomNavigationShell(
@@ -77,7 +106,8 @@ final class RoomNavigationTests: XCTestCase {
             isLoading: false,
             imageLoader: nil,
             usesStack: usesStack,
-            openedRoomID: openedRoomID
+            openedRoomID: openedRoomID,
+            roomOutsideList: roomOutsideList
         ) { room in
             TimelineFixtureConversation(feed: feed)
                 .onAppear { opened.ids.append(room.id) }

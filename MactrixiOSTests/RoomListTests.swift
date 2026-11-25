@@ -38,6 +38,28 @@ final class RoomListTests: XCTestCase {
         XCTAssertEqual(sections.map(\.kind), [.favorites])
     }
 
+    /// MATRIX-247: the next page loads when the list's last row shows.
+    func testLastRowIsTheLastRoomOfTheLastSection() {
+        let sections = RoomListSections.make(from: Item.all)
+
+        XCTAssertEqual(RoomListSections.lastRoomID(in: sections), "!room2")
+    }
+
+    func testLastRowFollowsTheSectionsNotTheSDKOrder() {
+        let items = [
+            Item(id: "!room", title: "Room"),
+            Item(id: "!dm", title: "Alex", isDirect: true),
+        ]
+
+        let sections = RoomListSections.make(from: items)
+
+        XCTAssertEqual(RoomListSections.lastRoomID(in: sections), "!room")
+    }
+
+    func testEmptyListHasNoLastRow() {
+        XCTAssertNil(RoomListSections.lastRoomID(in: RoomListSections.make(from: [Item]())))
+    }
+
     func testEmptyListHasNoSections() {
         XCTAssertTrue(RoomListSections.make(from: [Item]()).isEmpty)
         XCTAssertTrue(RoomListSections.make(from: [Item(id: "!s", title: "Space", isSpace: true)]).isEmpty)

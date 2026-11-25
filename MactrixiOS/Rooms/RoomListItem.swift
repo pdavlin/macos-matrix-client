@@ -96,4 +96,13 @@ enum RoomListSections {
         ]
         .filter { !$0.rooms.isEmpty }
     }
+
+    /// The room on the list's last row (MATRIX-247). When it shows, the
+    /// user has seen every loaded room, and the list loads the next page.
+    /// Each section keeps the SDK order, so a new page adds rooms to the
+    /// sections and moves this row down.
+    @MainActor
+    static func lastRoomID(in sections: [RoomListSection<some RoomListItem>]) -> String? {
+        sections.last?.rooms.last?.id
+    }
 }

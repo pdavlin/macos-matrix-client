@@ -212,6 +212,14 @@ public class MatrixClient {
         }
     }
 
+    /// MATRIX-247: shows one more page of the room-list entries (a page is
+    /// 100 rooms, `startSync()`). The SDK's dynamic adapters raise the
+    /// list's limit by one page (`addOnePage`). The iOS chat list calls it
+    /// when its last row shows. Before `startSync()` it does nothing.
+    public func loadMoreRooms() {
+        roomListEntriesHandle?.controller().addOnePage()
+    }
+
     public func isUserIgnored(_ userId: String) -> Bool {
         ignoredUserIds.contains(userId)
     }
