@@ -41,6 +41,66 @@
             SampleRoomInfo(item: self)
         }
 
+        /// The item as the shared chat list reads it (MATRIX-248), with the
+        /// time of its latest message.
+        func chatListEntry(lastActivity: Date? = nil) -> ChatListEntry {
+            ChatListEntry(
+                row: ChatListRowModel(
+                    id: id,
+                    title: title,
+                    avatarUrl: avatarUrl,
+                    isDirect: isDirect,
+                    unread: ChatListUnread(
+                        numUnreadMessages: unreadMessages,
+                        numUnreadNotifications: unreadNotifications,
+                        numUnreadMentions: unreadMentions,
+                        isMarkedUnread: false,
+                        isMuted: isMuted
+                    )
+                ),
+                lastActivity: lastActivity,
+                isFavourite: isFavourite
+            )
+        }
+
+        /// MATRIX-248: one person on two networks, merged on the Mac as
+        /// "Seth". The WhatsApp chat has the newer message.
+        static let sethMembers: [SampleRoomListItem] = [
+            .init(id: "!seth-wa", title: "Seth (WhatsApp)", isDirect: true, unreadMessages: 2, unreadNotifications: 2),
+            .init(id: "!seth-signal", title: "Seth (Signal)", isDirect: true, unreadMessages: 1, unreadNotifications: 1),
+        ]
+
+        static let sethMerge = MergedChatDocument(merges: [
+            MergedChat(id: "merged-seth", name: "Seth", rooms: ["!seth-signal", "!seth-wa"]),
+        ])
+
+        /// The list's rows as the app builds them (MATRIX-248): the shared
+        /// rule (`ChatListMerging.visible`, as `MatrixClient.visibleChatList`
+        /// calls it, with no rail and no labels) over `items`. Each item's
+        /// latest message is one minute older than the one before it, so
+        /// the order is the SDK's recency order.
+        static func chats(
+            _ items: [SampleRoomListItem],
+            merges: MergedChatDocument = sethMerge,
+            inbox: InboxStateDocument = InboxStateDocument(),
+            filter: ChatListFilter = .inbox
+        ) -> [RoomListChat<SampleRoomListItem>] {
+            let newest = Date(timeIntervalSince1970: 1_800_000_000)
+            let entries = items.filter { !$0.isSpace }.enumerated().map { index, item in
+                item.chatListEntry(lastActivity: newest.addingTimeInterval(-60 * Double(index)))
+            }
+            let visible = ChatListMerging.visible(
+                entries: entries,
+                filter: .inbox,
+                labels: ChatLabelDocument(),
+                spaces: RoomSpaceMap(),
+                document: merges,
+                inbox: inbox,
+                placement: filter.inboxPlacement
+            )
+            return RoomListChats.make(from: visible.ordered, rooms: items)
+        }
+
         static let all: [SampleRoomListItem] = [
             .init(id: "!fav", title: "Family", isFavourite: true, unreadMessages: 3, unreadNotifications: 3),
             .init(id: "!dm1", title: "Alex (Signal)", isDirect: true, unreadMessages: 2, unreadNotifications: 2),
@@ -85,6 +145,19 @@
 
     #Preview("iPhone list") {
         RoomNavigationShell(rooms: SampleRoomListItem.all, isLoading: false, imageLoader: nil, usesStack: true) { _ in
+            TimelineFixtureConversation(feed: TimelineFixtureFeed())
+        }
+    }
+
+    #Preview("Merged chat") {
+        let rooms = SampleRoomListItem.sethMembers + SampleRoomListItem.all
+        RoomNavigationShell(
+            rooms: rooms,
+            chats: SampleRoomListItem.chats(rooms),
+            isLoading: false,
+            imageLoader: nil,
+            usesStack: true
+        ) { _ in
             TimelineFixtureConversation(feed: TimelineFixtureFeed())
         }
     }

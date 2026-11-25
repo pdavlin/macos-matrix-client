@@ -116,9 +116,10 @@ public enum ChatListFilter: String, CaseIterable, Codable, Identifiable, Sendabl
 
 public extension ChatListFilter {
     /// The filters the iOS chat list offers in its toolbar menu. iOS has no
-    /// rail and no inbox state yet (MATRIX-248), so it offers the two SDK
-    /// views that together hold every chat: the Inbox and Low Priority.
-    static let iosChoices: [ChatListFilter] = [.inbox, .lowPriority]
+    /// rail, so it offers the views that together hold every chat: the
+    /// Inbox and Low Priority, and (MATRIX-248) Archived and Snoozed, the
+    /// chats the Mac's inbox state takes out of the other two.
+    static let iosChoices: [ChatListFilter] = [.inbox, .lowPriority, .archived, .snoozed]
 
     /// The filter an iOS scene restores from its stored raw value: the
     /// stored filter if iOS offers it, else the Inbox.

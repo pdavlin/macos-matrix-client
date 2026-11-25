@@ -47,27 +47,26 @@ struct SidebarView: View {
     /// (`GoNavigationPublisher`), so the two cannot disagree. Space rooms
     /// are left out: a space is a rail filter. The rules (filter, then
     /// merge, then split favourites) are in
-    /// `ChatListMerging.visible(entries:filter:labels:spaces:document:)`.
+    /// `ChatListMerging.visible(entries:filter:labels:spaces:document:)`,
+    /// fed by Core's `MatrixClient.visibleChatList` (MATRIX-248).
     ///
     /// - Parameter now: decides the rows' timestamp buckets.
     static func visibleChatList(client: MatrixClient?, windowState: WindowState, now: Date = .now) -> SidebarChatList {
-        let chatRooms = (client?.rooms ?? []).filter { !$0.room.isSpace() }
-        let labels = client?.labels?.document ?? ChatLabelDocument()
-        let accounts = client?.roomAccounts
+        let chatRooms = client?.chatRooms ?? []
         let merges = client?.mergedChats?.document ?? MergedChatDocument()
         let inbox = client?.inbox?.document ?? InboxStateDocument()
         let placement = windowState.chatListFilter.inboxPlacement
-        let merged = ChatListMerging.visible(
-            entries: chatListEntries(client: client, rooms: chatRooms, now: now),
-            filter: SidebarRail.filter(client: client, windowState: windowState),
-            labels: labels,
-            spaces: accounts?.spaceMap ?? RoomSpaceMap(),
-            document: merges,
-            // MATRIX-206, MATRIX-207: archived and snoozed chats show under
-            // their own list filter only.
-            inbox: inbox,
-            placement: placement
-        )
+        // MATRIX-248: the rule the iOS chat list calls too. MATRIX-206,
+        // MATRIX-207: archived and snoozed chats show under their own list
+        // filter only.
+        let merged = client.map { client in
+            client.visibleChatList(
+                entries: client.chatListEntries(rooms: chatRooms, now: now),
+                rail: SidebarRail.filter(client: client, windowState: windowState),
+                filter: windowState.chatListFilter,
+                labels: client.labels?.document ?? ChatLabelDocument()
+            )
+        } ?? VisibleChatList(favorites: [], list: [])
         // MATRIX-212: a clock on each chat with a scheduled message.
         // MATRIX-224: the drafts, then the Unanswered and Drafts filters,
         // then the typing state of the chats that are left.
@@ -81,24 +80,6 @@ struct SidebarView: View {
             visible = visible.withSnoozeNotes(inbox: inbox, merges: merges, now: now)
         }
         return SidebarChatList(visible: visible, rooms: chatRooms)
-    }
-
-    /// The chat-list entries of the sidebar's chat rooms, in SDK order. The
-    /// broadcast reads them too (MATRIX-172).
-    ///
-    /// - Parameter rooms: the client's rooms without the spaces.
-    static func chatListEntries(client: MatrixClient?, rooms: [SidebarRoom], now: Date = .now) -> [ChatListEntry] {
-        let mutedByLabel = client?.labels?.document.labelMutedRoomIds ?? []
-        // MATRIX-148: each row's account (its Slack workspace), for the badge.
-        let accounts = client?.roomAccounts
-        // MATRIX-224: the own reactions the open timelines saw.
-        let reactionMarks = OwnReactionMarks.shared.marks
-        return rooms.map { room in
-            var entry = room.chatListEntry(now: now, mutedByLabel: mutedByLabel.contains(room.id))
-            entry.row.account = accounts?.account(of: room.id, network: entry.row.network)
-            entry.isUnanswered = ChatListUnanswered.isUnanswered(room.latestEvent, ownReaction: reactionMarks[room.id])
-            return entry
-        }
     }
 
     private var labels: LabelsModel? {

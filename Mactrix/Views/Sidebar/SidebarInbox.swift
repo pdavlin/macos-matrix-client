@@ -216,15 +216,13 @@ enum SidebarInbox {
     ///
     /// MATRIX-224: for the Drafts list filter, only the rooms with a draft
     /// (and the members of a merged chat with a draft). The rule is
-    /// `ChatListFilter.narrowingRoomIds(rail:placementRoomIds:draftRoomIds:)`.
+    /// `ChatListFilter.narrowingRoomIds(rail:placementRoomIds:draftRoomIds:)`,
+    /// fed by Core's `narrowingRoomIds(rail:client:)`, which the iOS chat
+    /// list calls too (MATRIX-248).
     static func narrowingRoomIds(client: MatrixClient?, windowState: WindowState) -> [String]? {
         windowState.chatListFilter.narrowingRoomIds(
             rail: SidebarRail.narrowingRoomIds(client: client, windowState: windowState),
-            placementRoomIds: { client?.inbox?.roomIds(in: $0) ?? [] },
-            draftRoomIds: {
-                let merges = client?.mergedChats?.document ?? MergedChatDocument()
-                return client?.composerDrafts.drafts.roomIds(merges: merges) ?? []
-            }
+            client: client
         )
     }
 }

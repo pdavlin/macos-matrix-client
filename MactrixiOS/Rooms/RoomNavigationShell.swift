@@ -13,6 +13,13 @@ import UIKit
 /// Mac; the directory lives while the search field is open. The toolbar menu
 /// switches the client's list between the Inbox and Low Priority. The last
 /// row of the list loads the next page of rooms.
+///
+/// MATRIX-248: the list follows the Mac's inbox state and merged chats,
+/// through the rules the Mac sidebar calls (`MatrixClient.visibleChatList`,
+/// `ChatListFilter.narrowingRoomIds(rail:client:)`). Archived and snoozed
+/// chats leave the Inbox and Low Priority and show under their own filters.
+/// A merged chat is one row that opens its newest member room. The phone
+/// has no Archive or Snooze action: it shows what the Mac writes.
 struct SignedInRoomNavigation: View {
     let matrixClient: MatrixClient
 
@@ -30,13 +37,18 @@ struct SignedInRoomNavigation: View {
         let imageLoader = RoomListImageLoader(matrixClient: matrixClient)
         // Read here, so a new directory renders the shell again.
         let directory = directory
+        let merges = matrixClient.mergedChats?.document ?? MergedChatDocument()
+        let inbox = matrixClient.inbox?.document ?? InboxStateDocument()
         RoomNavigationShell(
             rooms: matrixClient.rooms,
+            chats: chats,
             isLoading: RoomListLoading.isLoading(matrixClient.roomListServiceState),
             imageLoader: imageLoader,
             filter: filter,
             search: RoomListSearch(
-                results: { query in directory.flatMap { ChatListSearch.results(in: $0.rooms, query: query) } },
+                results: { query in
+                    directory.flatMap { ChatListSearch.results(in: $0.rooms, query: query, merges: merges, inbox: inbox) }
+                },
                 setActive: { isSearching = $0 }
             ),
             loadMore: matrixClient.loadMoreRooms,
@@ -47,8 +59,21 @@ struct SignedInRoomNavigation: View {
         .onChange(of: storedFilter, initial: true) {
             applyFilter()
         }
+        // MATRIX-248: an archive, a snooze, or a merge on the Mac changes
+        // the rooms that Archived and Snoozed narrow the SDK list to.
+        .onChange(of: narrowingRoomIds) {
+            applyFilter()
+        }
         .onChange(of: scenePhase) {
-            if scenePhase == .active { applyFilter() }
+            guard scenePhase == .active else { return }
+            applyFilter()
+            // MATRIX-248: merged chats and inbox states have no change
+            // listener. The Mac reads them again when a window becomes
+            // active; the phone does when the scene becomes active.
+            Task {
+                await matrixClient.mergedChats?.refresh()
+                await matrixClient.inbox?.refresh()
+            }
         }
         .task(id: isSearching) {
             await updateDirectory()
@@ -65,8 +90,31 @@ struct SignedInRoomNavigation: View {
         )
     }
 
+    /// The list's rows: the shared chat list (the Mac sidebar's rule) for
+    /// the scene's filter, with no rail.
+    ///
+    /// iOS has no label rail, so the Inbox keeps the chats of labels that
+    /// are hidden from the Mac's Inbox: the phone has no other list to
+    /// reach them from (MATRIX-248).
+    private var chats: [RoomListChat<SidebarRoom>] {
+        let visible = matrixClient.visibleChatList(
+            entries: matrixClient.chatListEntries(rooms: matrixClient.chatRooms),
+            rail: .inbox,
+            filter: ChatListFilter.iosChoice(restoring: storedFilter),
+            labels: ChatLabelDocument()
+        )
+        return RoomListChats.make(from: visible.ordered, rooms: matrixClient.rooms)
+    }
+
+    /// The rooms the SDK list is narrowed to for the scene's filter: the
+    /// archived or the snoozed rooms, or nil for the Inbox and Low
+    /// Priority. The Mac sidebar's rule, with no rail.
+    private var narrowingRoomIds: [String]? {
+        ChatListFilter.iosChoice(restoring: storedFilter).narrowingRoomIds(rail: nil, client: matrixClient)
+    }
+
     private func applyFilter() {
-        matrixClient.setChatListFilter(ChatListFilter.iosChoice(restoring: storedFilter))
+        matrixClient.setChatListFilter(ChatListFilter.iosChoice(restoring: storedFilter), labelRooms: narrowingRoomIds)
     }
 
     /// A search result outside the loaded list: the Mac's fallback for a
@@ -131,7 +179,11 @@ enum RoomNavigationLayout {
 /// long as the room stays open: popped off the iPhone stack, or replaced by a
 /// new iPad selection, its state (the room's timeline) is released.
 struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
+    /// The rooms an open room resolves in: every room of the client's list,
+    /// the member rooms of merged chats too.
     let rooms: [Item]
+    /// The list's rows (MATRIX-248): plain rooms and merged chats.
+    let chats: [RoomListChat<Item>]
     let isLoading: Bool
     let imageLoader: (any UI.ImageLoader)?
     let usesStack: Bool
@@ -153,11 +205,13 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
     @State private var isSearchPresented = false
 
     /// - Parameters:
+    ///   - chats: The list's rows. Nil: one row per room of `rooms`.
     ///   - openedRoomID: A room to show at first appearance, as if the user
     ///     selected it. Tests use it; the app starts on the list.
     ///   - roomDetail: The detail screen for one selected room.
     init(
         rooms: [Item],
+        chats: [RoomListChat<Item>]? = nil,
         isLoading: Bool,
         imageLoader: (any UI.ImageLoader)?,
         usesStack: Bool = RoomNavigationLayout.usesStack(for: UIDevice.current.userInterfaceIdiom),
@@ -169,6 +223,7 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
         @ViewBuilder roomDetail: @escaping (Item) -> RoomDetail
     ) {
         self.rooms = rooms
+        self.chats = chats ?? rooms.map { RoomListChat<Item>.room($0) }
         self.isLoading = isLoading
         self.imageLoader = imageLoader
         self.usesStack = usesStack
@@ -221,7 +276,7 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
         let shownFilter = filter?.wrappedValue ?? .inbox
         return searchable(
             RoomListView(
-                rooms: rooms,
+                chats: chats,
                 searchResults: search?.results(query),
                 isLoading: isLoading,
                 imageLoader: imageLoader,
@@ -335,7 +390,9 @@ enum RoomDetailResolution {
 /// placeholder when the room id is not in the list.
 ///
 /// MATRIX-247: a search result can name a room that is not in the list (a
-/// later page, or Low Priority while the list shows the Inbox). The host
+/// later page, Low Priority while the list shows the Inbox, or (MATRIX-248)
+/// an archived or snoozed chat, or the newest member of a merged chat that
+/// the list's filter does not hold). The host
 /// then asks `roomOutsideList` once, and keeps the item while the room is
 /// open.
 private struct RoomDetailHost<Item: RoomListItem, Content: View>: View {

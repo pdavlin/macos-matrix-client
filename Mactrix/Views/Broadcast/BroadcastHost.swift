@@ -37,12 +37,11 @@ enum SidebarBroadcast {
     /// while the sheet is open.
     static func request(client: MatrixClient?, windowState: WindowState) -> BroadcastRequest? {
         guard let client, let name = filterName(client: client, windowState: windowState) else { return nil }
-        let chatRooms = client.rooms.filter { !$0.room.isSpace() }
         // `listedRooms` (MATRIX-171) holds each room when the SDK lists it;
         // `chats` gets a room after its room info is read.
         let tracker = client.dockBadge.unreadChats
         let source = BroadcastChatSource(
-            sidebarEntries: SidebarView.chatListEntries(client: client, rooms: chatRooms),
+            sidebarEntries: client.chatListEntries(rooms: client.chatRooms),
             accountChatIds: Set(tracker.chats.keys).union(tracker.listedRooms.map { $0.room.id() }),
             accountListLimit: Int(UnreadChatsTracker.pageSize),
             row: { client.chatListRow(forRoomId: $0) }

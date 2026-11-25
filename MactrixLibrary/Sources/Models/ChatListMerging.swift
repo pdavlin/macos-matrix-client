@@ -256,10 +256,9 @@ public enum ChatListMerging {
             networks.append(network)
         }
 
-        let trimmedName = merge.name.trimmingCharacters(in: .whitespacesAndNewlines)
         var row = ChatListRowModel(
             id: merge.id,
-            title: trimmedName.isEmpty ? avatarMember.row.title : trimmedName,
+            title: title(of: merge, avatarMemberTitle: avatarMember.row.title),
             avatarUrl: avatarMember.row.avatarUrl,
             isDirect: avatarMember.row.isDirect,
             preview: newest.row.preview,
@@ -345,10 +344,36 @@ public enum ChatListMerging {
 
     /// The member whose avatar the merged row shows. See the type's rules.
     static func avatarMember(merge: MergedChat, ordered: [ChatListEntry]) -> ChatListEntry? {
-        if let avatarRoom = merge.avatarRoom, let chosen = ordered.first(where: { $0.id == avatarRoom }) {
+        avatarMember(merge: merge, ordered: ordered, roomId: \.id, hasAvatarImage: \.row.hasAvatarImage)
+    }
+
+    /// The member whose avatar a merged chat shows: the `avatarRoom` member
+    /// when present, else the first member with an avatar image, else the
+    /// first member. The chat list and the iOS chat search (MATRIX-248) use
+    /// this one rule.
+    ///
+    /// - Parameters:
+    ///   - merge: the merged chat.
+    ///   - ordered: the present members, in the merged chat's order.
+    ///   - roomId: a member's room ID.
+    ///   - hasAvatarImage: the member's avatar draws an image.
+    static func avatarMember<Member>(
+        merge: MergedChat,
+        ordered: [Member],
+        roomId: (Member) -> String,
+        hasAvatarImage: (Member) -> Bool
+    ) -> Member? {
+        if let avatarRoom = merge.avatarRoom, let chosen = ordered.first(where: { roomId($0) == avatarRoom }) {
             return chosen
         }
-        return ordered.first(where: \.row.hasAvatarImage) ?? ordered.first
+        return ordered.first(where: hasAvatarImage) ?? ordered.first
+    }
+
+    /// The title a merged chat shows: its name, or the avatar member's title
+    /// when the name is blank.
+    static func title(of merge: MergedChat, avatarMemberTitle: String) -> String {
+        let trimmedName = merge.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? avatarMemberTitle : trimmedName
     }
 
     /// Room ID to the index of the first merged chat that holds it.

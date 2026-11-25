@@ -124,17 +124,11 @@ struct QuickSwitcherContainerView: View {
                     peerUserId: nil,
                     roomName: nil
                 ).detail
-            } else if case .navigate = purpose, let inbox = matrixClient.inbox {
+            } else if case .navigate = purpose, let mark = matrixClient.inbox?.searchMark(of: room.id) {
                 // MATRIX-206, MATRIX-207: ⌘K lists archived and snoozed
-                // chats too, marked.
-                switch inbox.placement(of: room.id) {
-                case .archived:
-                    room.detail = "Archived"
-                case .snoozed:
-                    room.detail = inbox.snoozedUntil(of: room.id).map { InboxTimeText.snoozed(until: $0, now: .now) }
-                case .inbox:
-                    break
-                }
+                // chats too, marked. MATRIX-248: the iOS chat search shows
+                // the same mark.
+                room.detail = mark
             }
             return room
         }

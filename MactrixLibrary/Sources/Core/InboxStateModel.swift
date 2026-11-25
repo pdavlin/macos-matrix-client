@@ -186,6 +186,12 @@ public final class InboxStateModel {
         document.snoozedUntil(of: roomId, merges: mergedChats())
     }
 
+    /// The ⌘K mark of the chat that holds `roomId`: "Archived", "Snoozed
+    /// until …", or nil in the Inbox (`InboxStateDocument.searchMark`).
+    public func searchMark(of roomId: String, now: Date = .now) -> String? {
+        document.searchMark(of: roomId, merges: mergedChats(), now: now)
+    }
+
     /// The reminder time of the chat that holds `roomId`, if it has one.
     public func remindAt(of roomId: String) -> Date? {
         document.remindAt(of: roomId, merges: mergedChats())

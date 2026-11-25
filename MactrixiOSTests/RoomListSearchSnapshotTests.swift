@@ -57,7 +57,7 @@ final class RoomListSearchSnapshotTests: XCTestCase {
     private func list(searchResults: [QuickSwitcherRoom]) -> some View {
         NavigationStack {
             RoomListView(
-                rooms: Item.all,
+                chats: Item.all.map { RoomListChat.room($0) },
                 searchResults: searchResults,
                 isLoading: false,
                 imageLoader: nil,

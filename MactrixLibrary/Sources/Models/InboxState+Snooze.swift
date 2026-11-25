@@ -103,6 +103,21 @@ public extension InboxStateDocument {
         let ids = Self.chatRoomIds(for: [roomId], merges: merges)
         return ids.compactMap { state(of: $0).remindAt }.min()
     }
+
+    /// The mark a chat search row shows for the chat that holds `roomId`:
+    /// "Archived", "Snoozed until …", or nil for a chat in the Inbox. The
+    /// ⌘K quick switcher (MATRIX-206, MATRIX-207) and the iOS chat search
+    /// (MATRIX-248) show it. A merged chat is one chat.
+    func searchMark(of roomId: String, merges: MergedChatDocument, now: Date) -> String? {
+        switch placement(of: roomId, merges: merges) {
+        case .archived:
+            "Archived"
+        case .snoozed:
+            snoozedUntil(of: roomId, merges: merges).map { InboxTimeText.snoozed(until: $0, now: now) }
+        case .inbox:
+            nil
+        }
+    }
 }
 
 public extension VisibleChatList where Room == ChatListItem {
