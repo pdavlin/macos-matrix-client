@@ -94,6 +94,18 @@ struct ReactionChipToolTipTests {
         #expect(toolTipViews(in: unnamed.host).first?.toolTip == "Ana and zed")
     }
 
+    /// MATRIX-259: the hosted chip names all six people, with no count.
+    @Test func theTooltipNamesEveryPerson() {
+        let reaction = ChipReaction(
+            key: "👍",
+            senderIds: ["@ana:example.org", "@ben:example.org", Self.ownUserId, "@cy:example.org", "@di:example.org", "@ed:example.org"]
+        )
+        let hosted = host(chip(reaction))
+        defer { hosted.window.close() }
+        #expect(toolTipViews(in: hosted.host).first?.toolTip == "Ana, Ben, You, cy, di and ed")
+        #expect(chip(reaction).accessibilityText == "👍, 6 reactions: Ana, Ben, You, cy, di and ed")
+    }
+
     @Test func theAccessibilityLabelSaysTheSamePeople() {
         let reaction = ChipReaction(key: "👍", senderIds: ["@ana:example.org", "@ben:example.org", Self.ownUserId])
         #expect(chip(reaction).accessibilityText == "👍, 3 reactions: Ana, Ben and You")

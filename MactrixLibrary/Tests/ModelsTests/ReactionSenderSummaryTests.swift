@@ -20,37 +20,46 @@ struct ReactionSenderSummaryTests {
         (0 ..< count).map { "@extra\($0):example.org" }
     }
 
-    @Test func oneToFourPeopleAreAllNamed() {
+    @Test func everyPersonIsNamed() {
         #expect(summary([Self.own]).peopleText == "You")
         #expect(summary(["@ana:example.org"]).peopleText == "Ana")
         #expect(summary(["@ana:example.org", "@ben:example.org"]).peopleText == "Ana and Ben")
         #expect(summary(["@ana:example.org", "@ben:example.org", Self.own]).peopleText == "Ana, Ben and You")
         #expect(
-            summary(["@ana:example.org", "@ben:example.org", "@cy:example.org", "@di:example.org"]).peopleText
-                == "Ana, Ben, Cy and Di"
+            summary(["@ana:example.org", "@ben:example.org", "@cy:example.org", "@di:example.org", Self.own]).peopleText
+                == "Ana, Ben, Cy, Di and You"
         )
     }
 
-    @Test func moreThanFourPeopleShowThreeNamesAndACount() {
-        let seven = summary(["@ana:example.org", "@ben:example.org", Self.own] + extras(4))
-        #expect(seven.peopleText == "Ana, Ben, You and 4 others")
-        #expect(seven.names.count == ReactionSenderSummary.namesShownWithOthers)
-        #expect(seven.otherCount == 4)
+    /// MATRIX-259: no "and N others", and "You" keeps its place.
+    @Test func sixOrMorePeopleAreAllNamedInTheReactionsOrder() {
+        let seven = summary(["@ana:example.org", "@ben:example.org", Self.own, "@cy:example.org", "@di:example.org"] + extras(2))
+        #expect(seven.peopleText == "Ana, Ben, You, Cy, Di, extra0 and extra1")
+        #expect(seven.names == ["Ana", "Ben", "You", "Cy", "Di", "extra0", "extra1"])
         #expect(seven.peopleCount == 7)
-
-        let five = summary(["@ana:example.org", "@ben:example.org", "@cy:example.org", "@di:example.org", "@extra:example.org"])
-        #expect(five.peopleText == "Ana, Ben, Cy and 2 others")
+        #expect(seven.tooltip(emojiName: "partyparrot") == ":partyparrot: · Ana, Ben, You, Cy, Di, extra0 and extra1")
+        #expect(seven.accessibilityLabel(keyName: "👍") == "👍, 7 reactions: Ana, Ben, You, Cy, Di, extra0 and extra1")
     }
 
-    @Test func theOwnUserIsNamedWhenItWouldBeInTheCount() {
-        let text = summary(["@ana:example.org", "@ben:example.org", "@cy:example.org", "@di:example.org", Self.own]).peopleText
-        #expect(text == "Ana, Ben, You and 2 others")
+    @Test func aLongListHasNoCap() {
+        let fifty = summary(extras(50))
+        #expect(fifty.names.count == 50)
+        #expect(fifty.peopleText.hasPrefix("extra0, extra1, "))
+        #expect(fifty.peopleText.hasSuffix(", extra48 and extra49"))
+        #expect(!fifty.peopleText.contains("other"))
     }
 
-    @Test func aUserIdThatOccursTwiceCountsOnce() {
+    @Test func aUserIdThatOccursTwiceCountsOnceAtItsFirstPlace() {
         let twice = summary(["@ana:example.org", "@ben:example.org", "@ana:example.org", Self.own, Self.own])
         #expect(twice.peopleText == "Ana, Ben and You")
         #expect(twice.peopleCount == 3)
+
+        let repeated = summary([
+            "@ana:example.org", "@ben:example.org", "@ana:example.org", Self.own, "@cy:example.org",
+            "@ben:example.org", Self.own, "@di:example.org", "@extra0:example.org",
+        ])
+        #expect(repeated.peopleText == "Ana, Ben, You, Cy, Di and extra0")
+        #expect(repeated.peopleCount == 6)
     }
 
     @Test func aUserWithNoDisplayNameShowsTheLocalpart() {
@@ -62,14 +71,16 @@ struct ReactionSenderSummaryTests {
         #expect(ReactionSenderSummary.localpart(of: "@") == "@")
     }
 
-    @Test func namesAreLookedUpOnlyForThePeopleShown() {
+    /// MATRIX-259: each person other than the own user gets one lookup,
+    /// a repeated user ID too.
+    @Test func everyOtherPersonsNameIsLookedUpOnce() {
         var asked: [String] = []
-        let senderIds = ["@ana:example.org", "@ben:example.org", "@cy:example.org"] + extras(20)
+        let senderIds = ["@ana:example.org", Self.own, "@ben:example.org", "@ana:example.org"] + extras(20)
         _ = ReactionSenderSummary(senderIds: senderIds, ownUserId: Self.own) { userId in
             asked.append(userId)
             return nil
         }
-        #expect(asked == ["@ana:example.org", "@ben:example.org", "@cy:example.org"])
+        #expect(asked == ["@ana:example.org", "@ben:example.org"] + extras(20))
     }
 
     @Test func theEmojiNameComesFirstWhenTheCallerHasOne() {

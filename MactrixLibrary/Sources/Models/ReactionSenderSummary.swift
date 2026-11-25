@@ -1,20 +1,16 @@
 import Foundation
 
 /// Who posted one reaction, as the chip's tooltip and its accessibility
-/// label say it (MATRIX-166).
+/// label say it (MATRIX-166, MATRIX-259).
 ///
 /// Rules:
-/// - The user IDs keep the reaction's order. A user ID that occurs twice
-///   counts once, at its first place.
-/// - The account's own user is "You".
+/// - The text names every person, in the reaction's order. A user ID that
+///   occurs twice counts once, at its first place.
+/// - The account's own user is "You", at its place in the order.
 /// - A user with no known display name shows the localpart of the user ID:
 ///   "ana" for "@ana:example.org".
-/// - Up to `maxPeopleNamedInFull` (4) people are all named: "Ana",
-///   "Ana and Ben", "Ana, Ben and You", "Ana, Ben, Cy and Di".
-/// - More people show the first `namesShownWithOthers` (3) names and a
-///   count: "Ana, Ben, Cy and 4 others". The count is then 2 or more.
-/// - If the own user would be in the count, "You" takes the last named
-///   place: "Ana, Ben, You and 4 others".
+/// - There is no cap and no "and N others": "Ana, Ben, Cy, Di, Ed and
+///   You". The system tooltip wraps a long list.
 ///
 /// Usage:
 /// ```swift
@@ -26,39 +22,23 @@ import Foundation
 /// summary.tooltip(emojiName: "partyparrot") // ":partyparrot: · Ana and Ben"
 /// ```
 public struct ReactionSenderSummary: Equatable, Sendable {
-    /// The most people the text names with no count.
-    public static let maxPeopleNamedInFull = 4
-    /// How many names the text shows before "and N others".
-    public static let namesShownWithOthers = 3
-
-    /// The names the text shows, in order.
+    /// The names of the people, in the reaction's order: one for each
+    /// person.
     public let names: [String]
-    /// How many people the text counts and does not name.
-    public let otherCount: Int
 
     /// How many different people posted the reaction.
     public var peopleCount: Int {
-        names.count + otherCount
+        names.count
     }
 
     /// - Parameters:
     ///   - senderIds: The senders' user IDs in the reaction's order.
     ///   - ownUserId: The account's own user ID.
     ///   - displayName: The display name of a user ID, or nil when it is not
-    ///     known. It is called only for the users the text names.
+    ///     known. It is called once for each person other than the own user.
     public init(senderIds: [String], ownUserId: String, displayName: (String) -> String?) {
         var seen = Set<String>()
-        let people = senderIds.filter { seen.insert($0).inserted }
-
-        var shown = people
-        if people.count > Self.maxPeopleNamedInFull {
-            shown = Array(people.prefix(Self.namesShownWithOthers))
-            if !shown.contains(ownUserId), people.contains(ownUserId) {
-                shown[shown.count - 1] = ownUserId
-            }
-        }
-
-        names = shown.map { userId in
+        names = senderIds.filter { seen.insert($0).inserted }.map { userId in
             if userId == ownUserId {
                 return String(localized: "You", comment: "Reaction tooltip: the account's own user in the list of people.")
             }
@@ -67,18 +47,12 @@ public struct ReactionSenderSummary: Equatable, Sendable {
             }
             return Self.localpart(of: userId)
         }
-        otherCount = people.count - shown.count
     }
 
-    /// The people: "Ana, Ben and You", or "Ana, Ben, You and 4 others".
-    /// Empty when the reaction has no sender.
+    /// The people: "Ana, Ben, Cy, Di, Ed and You". Empty when the reaction
+    /// has no sender.
     public var peopleText: String {
         var parts = names
-        if otherCount == 1 {
-            parts.append(String(localized: "1 other", comment: "Reaction tooltip: one more person after the names."))
-        } else if otherCount > 1 {
-            parts.append(String(localized: "\(otherCount) others", comment: "Reaction tooltip: how many more people after the names."))
-        }
         guard let last = parts.popLast() else { return "" }
         guard !parts.isEmpty else { return last }
         let head = parts.joined(separator: String(localized: ", ", comment: "Reaction tooltip: between two names in the list of people."))

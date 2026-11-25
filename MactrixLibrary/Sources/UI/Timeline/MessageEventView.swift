@@ -321,9 +321,9 @@ public struct MessageEventBodyView<
                         ),
                         imageLoader: imageLoader,
                         ownUserId: ownUserId,
-                        // MATRIX-166: names from the member list the row
-                        // already has. The chip asks only for the few
-                        // senders its tooltip names.
+                        // MATRIX-166, MATRIX-259: names from the member
+                        // list the row already has, in memory. The chip
+                        // asks for each sender: no server request.
                         displayName: { userId in roomMembers.first { $0.userId == userId }?.displayName }
                     )
                 }
