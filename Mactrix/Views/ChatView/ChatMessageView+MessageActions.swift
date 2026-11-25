@@ -60,10 +60,14 @@ struct ChatMessageActions {
         return MusicLink.originalLinks(inHTML: formatted.body).first
     }
 
-    /// The hover bar's and the menus' quick reactions: the top three recent
-    /// emoji, or the three defaults before the list loads (MATRIX-111).
+    /// The hover bar's and the menus' quick reactions: the room's most used
+    /// reactions, then the recent ones of its spaces and labels, then the
+    /// account's recent emoji, then the defaults (MATRIX-262). The row's own
+    /// room holds the message, also in a merged chat.
     var quickReactionKeys: [String] {
-        appState.matrixClient?.recentEmojis.quickReactionKeys ?? MessageActionModel.defaultQuickReactionKeys
+        guard let client = appState.matrixClient else { return MessageActionModel.defaultQuickReactionKeys }
+        guard let roomId = timeline?.room.id else { return client.recentEmojis.quickReactionKeys }
+        return client.quickReactionKeys(forRoom: roomId)
     }
 
     /// Whether the timeline has a message selection (MATRIX-113).
@@ -133,7 +137,8 @@ struct ChatMessageActions {
 
     /// Toggles the own reaction `key` on this message. Every reaction that
     /// is added, from the hover bar, a menu, the picker, or a reaction pill,
-    /// counts as a use of the emoji in the account's recent list (D-3).
+    /// counts as a use of the emoji in the room (MATRIX-262) and in the
+    /// account's recent list (D-3).
     /// `LiveTimeline.toggleReaction(key:on:recordingUseIn:)` holds that rule,
     /// shared with the timeline controller's picker popover (MATRIX-138).
     func toggleReaction(key: String) {

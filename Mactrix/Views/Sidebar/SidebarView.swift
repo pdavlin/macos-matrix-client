@@ -158,6 +158,8 @@ struct SidebarView: View {
             Task { await appState.matrixClient?.bookmarks?.refresh() }
             // MATRIX-212: nor do scheduled messages.
             Task { await appState.matrixClient?.scheduledMessages?.refresh() }
+            // MATRIX-262: nor does the reaction use.
+            Task { await appState.matrixClient?.reactionUsage?.refresh() }
         }
         .sheet(item: $windowState.labelEditor) { request in
             LabelEditorHost(request: request)

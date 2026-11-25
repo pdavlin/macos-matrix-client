@@ -106,6 +106,11 @@ Composer and message actions
   stays in a file on the Mac that scheduled it; other devices show
   "Scheduled message". Mac only.
 - Reaction picker with SDK recent emoji.
+- The three quick reactions of the hover row and the React submenus are per
+  room: the room's most used reactions, then the ones used last in its
+  spaces and labels, then the account's recent emoji, then the defaults.
+  The record is in account data (`io.davlin.matrixclient.reaction_usage`),
+  so the Mac and the phone share it (MATRIX-262).
 - The reaction picker shows the Slack workspace's custom emoji as a section,
   and the search finds their shortcodes. This needs the bridge's
   `import-image-pack`. An `mxc://` key does not go into the recent list

@@ -43,14 +43,14 @@ public extension LiveTimeline {
     /// The one path for every reaction toggle: the hover row, the menus, a
     /// reaction pill, and the picker (in the row or in the timeline
     /// controller's popover). Every added reaction counts as a use of the
-    /// emoji in the account's recent list (D-3). Removing a reaction is not
-    /// a use. The SDK owns the toggle.
+    /// emoji in this room's reaction use (MATRIX-262) and in the account's
+    /// recent list (D-3). Removing a reaction is not a use. The SDK owns the
+    /// toggle.
     ///
     /// - Parameters:
     ///   - key: The reaction key, usually one emoji.
     ///   - itemId: The message.
-    ///   - client: The client whose recent-emoji list records the use. Nil
-    ///     records nothing.
+    ///   - client: The client that records the use. Nil records nothing.
     func toggleReaction(key: String, on itemId: MatrixRustSDK.EventOrTransactionId, recordingUseIn client: MatrixClient?) async {
         guard let timeline else {
             Logger.liveTimeline.error("toggle reaction: the timeline has not loaded")
@@ -59,9 +59,7 @@ public extension LiveTimeline {
         do {
             let reactionWasAdded = try await timeline.toggleReaction(itemId: itemId, key: key)
             Logger.liveTimeline.debug("reaction \(reactionWasAdded ? "added" : "removed"): \(key)")
-            if reactionWasAdded {
-                client?.recordRecentEmoji(key)
-            }
+            client?.recordReactionToggle(key, inRoom: room.id, wasAdded: reactionWasAdded)
         } catch {
             Logger.liveTimeline.error("failed to toggle reaction: \(String(describing: error), privacy: .public)")
         }

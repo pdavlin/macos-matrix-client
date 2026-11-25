@@ -181,6 +181,10 @@ public class MatrixClient {
     /// MATRIX-212: the account's scheduled messages (Send Later). Created
     /// when sync starts, refreshed on the same triggers as `labels`.
     public var scheduledMessages: ScheduledMessagesModel?
+    /// MATRIX-262: the account's reaction use by room, which ranks the quick
+    /// reactions. Created when sync starts, refreshed on the same triggers
+    /// as `labels`. See `MatrixClient+QuickReactions.swift`.
+    public var reactionUsage: ReactionUsageStore?
 
     /// MATRIX-147: the space names that tell merged-chat members apart.
     public let roomAccounts = RoomAccountNames()

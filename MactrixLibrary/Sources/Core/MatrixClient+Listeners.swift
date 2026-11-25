@@ -186,9 +186,9 @@ extension MatrixClient {
         // MATRIX-171, MATRIX-186: an empty space graph counts only
         // after a sync (`running`).
         roomAccounts.note(roomListState: evidence)
-        // MATRIX-77, MATRIX-140, MATRIX-208, MATRIX-212: sync has caught
-        // up, so the labels, merged chats, bookmarks, and scheduled
-        // messages in the store are current. Not awaited: each refresh
+        // MATRIX-77, MATRIX-140, MATRIX-208, MATRIX-212, MATRIX-262: sync
+        // has caught up, so the labels, merged chats, bookmarks, scheduled
+        // messages, and reaction use in the store are current. Not awaited: each refresh
         // reads the store again, and a slow one must not hold the next
         // state.
         if case .running = state {
@@ -202,6 +202,7 @@ extension MatrixClient {
         await inbox?.refresh()
         await bookmarks?.refresh()
         await scheduledMessages?.refresh()
+        await reactionUsage?.refresh()
         // MATRIX-207: snooze ends and reminders fire once sync has
         // caught up, so the first arm resolves what came due while
         // the app was closed against current state. macOS only: the

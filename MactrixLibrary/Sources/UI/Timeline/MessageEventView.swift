@@ -15,8 +15,8 @@ public protocol MessageEventActions {
     /// right-click menu.
     var actionSubject: MessageActionSubject? { get }
 
-    /// The quick reactions of the React submenu: the account's top recent
-    /// emoji (MATRIX-111, D-3).
+    /// The quick reactions of the React submenu: the room's ranked
+    /// reactions (MATRIX-262, `QuickReactionRanking`).
     var quickReactionKeys: [String] { get }
 
     /// Runs one action from the right-click menu.

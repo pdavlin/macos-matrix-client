@@ -36,12 +36,13 @@ extension ChatInputView {
         )
     }
 
-    /// Puts the pick into the composer. A pick counts as a use in the
-    /// account's recent list, as a reaction pick does; the list does not
-    /// record a custom emoji.
+    /// Puts the pick into the composer. A pick counts as a use in the room
+    /// the message goes to (MATRIX-262) and in the account's recent list,
+    /// as a reaction pick does; the recent list does not record a custom
+    /// emoji.
     private func insertPickedEmoji(_ pick: ComposerEmojiPick) {
         mentions.insert(pick)
-        appState.matrixClient?.recordRecentEmoji(pick.key)
+        appState.matrixClient?.recordComposerEmojiPick(pick.key, inRoom: timeline.room.id)
     }
 
     /// When the popover closes (a pick, Esc, or a click outside), the text

@@ -107,6 +107,12 @@ public extension MatrixClient {
         }
         await scheduledMessages?.refresh()
 
+        // MATRIX-262: the reaction use is read the same way.
+        if reactionUsage == nil {
+            reactionUsage = makeReactionUsageStore()
+        }
+        await reactionUsage?.refresh()
+
         // MATRIX-144 hookup (MATRIX-141 Phase B): notifications and the Dock
         // badge read the merged chats live. The badge reads the observable
         // document inside Observation tracking, so a merge or an unmerge
@@ -256,6 +262,7 @@ public extension MatrixClient {
         bookmarks = nil
         scheduledMessages?.stop()
         scheduledMessages = nil
+        reactionUsage = nil
         // MATRIX-224.
         composerDrafts.reset()
         chatListTyping.reset()
