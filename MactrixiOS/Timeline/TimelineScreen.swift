@@ -1,5 +1,6 @@
 import Core
 import MatrixRustSDK
+import Models
 import OSLog
 import SwiftUI
 import Tokens
@@ -12,11 +13,16 @@ import UIKit
 /// It owns the room's `LiveTimeline`, created once on first appearance: a
 /// timeline configures an SDK timeline when it is created, so it must not be
 /// created again on every view init.
+///
+/// A thread chip or "Reply in Thread" pushes the thread screen over it
+/// (MATRIX-245, `ThreadScreen`).
 struct TimelineScreen: View {
     let room: LiveRoom
     let imageLoader: (any UI.ImageLoader)?
 
     @State private var timeline: LiveTimeline?
+    /// The thread screen pushed over the room, or nil (MATRIX-245).
+    @State private var openThread: ThreadScreenRequest?
 
     init(room: LiveRoom, imageLoader: (any UI.ImageLoader)? = nil) {
         self.room = room
@@ -26,13 +32,18 @@ struct TimelineScreen: View {
     var body: some View {
         Group {
             if let timeline {
-                LiveTimelineContainer(timeline: timeline, imageLoader: imageLoader)
+                LiveTimelineContainer(timeline: timeline, imageLoader: imageLoader) { request in
+                    openThread = request
+                }
             } else {
                 Color(.systemBackground)
             }
         }
         .navigationTitle(room.displayName ?? "Room")
         .navigationBarTitleDisplayMode(.inline)
+        .threadDestination($openThread) { request in
+            ThreadScreen(room: room, request: request, imageLoader: imageLoader)
+        }
         .onAppear {
             if timeline?.room.id != room.id {
                 timeline = LiveTimeline(room: room)
@@ -42,16 +53,44 @@ struct TimelineScreen: View {
 }
 
 /// The container for a live timeline, plus the read receipts the Mac
-/// `ChatJoinedRoom` sends.
-private struct LiveTimelineContainer: View {
+/// `ChatJoinedRoom` sends. The room screen and the thread screen
+/// (MATRIX-245) both show one.
+///
+/// Only a room timeline sends read receipts. The Mac thread panel sends
+/// none, so the thread screen sends none either.
+struct LiveTimelineContainer: View {
     @Environment(AppState.self) private var appState
     @Environment(\.scenePhase) private var scenePhase
 
     let timeline: LiveTimeline
     let imageLoader: (any UI.ImageLoader)?
+    /// Pushes the thread screen (MATRIX-245). The thread screen gives none:
+    /// its root draws no chip, and its "Reply in Thread" replies in place.
+    let openThread: @MainActor (ThreadScreenRequest) -> Void
 
     @State private var feed: LiveTimelineFeed?
     @State private var composerTarget: LiveComposerTarget?
+    /// Raised to put the keyboard focus in the composer (`ComposerBar`).
+    @State private var composerFocusRequest: Int
+
+    /// - Parameters:
+    ///   - focusesComposer: true when the composer takes the keyboard focus
+    ///     at open: a thread screen opened by "Reply in Thread".
+    init(
+        timeline: LiveTimeline,
+        imageLoader: (any UI.ImageLoader)?,
+        focusesComposer: Bool = false,
+        openThread: @escaping @MainActor (ThreadScreenRequest) -> Void = { _ in }
+    ) {
+        self.timeline = timeline
+        self.imageLoader = imageLoader
+        self.openThread = openThread
+        _composerFocusRequest = State(initialValue: focusesComposer ? 1 : 0)
+    }
+
+    private var isRoomTimeline: Bool {
+        timeline.focusedThreadId == nil
+    }
 
     private var ownUserId: String {
         (try? appState.matrixClient?.userSession().userID) ?? ""
@@ -74,12 +113,20 @@ private struct LiveTimelineContainer: View {
                         ownUserId: ownUserId,
                         showsReadReceipts: timeline.room.roomInfo?.isDirect == true,
                         media: mediaLoader,
-                        ownAvatarUrl: appState.matrixClient?.ownAvatarUrl
+                        ownAvatarUrl: appState.matrixClient?.ownAvatarUrl,
+                        repliesInThreads: timeline.repliesInThreads,
+                        openThread: openThread,
+                        focusComposer: { composerFocusRequest += 1 }
                     )
                 } composer: {
                     ComposerBar(
                         target: composerTarget,
-                        placeholder: "Message \(timeline.room.displayName ?? "room")"
+                        placeholder: ComposerPlaceholder.text(
+                            isThreadTimeline: !isRoomTimeline,
+                            mergedPlaceholder: nil,
+                            roomName: timeline.room.displayName
+                        ),
+                        focusRequest: composerFocusRequest
                     )
                     // A new room starts with an empty field.
                     .id(ObjectIdentifier(composerTarget))
@@ -95,7 +142,7 @@ private struct LiveTimelineContainer: View {
             }
         }
         .task(id: ReadKey(count: timeline.timelineItems.count, active: scenePhase == .active), priority: .background) {
-            guard scenePhase == .active else { return }
+            guard isRoomTimeline, scenePhase == .active else { return }
             do {
                 try await Task.sleep(for: .seconds(1))
                 try await timeline.timeline?.markAsRead(receiptType: .read)
@@ -106,6 +153,9 @@ private struct LiveTimelineContainer: View {
             }
         }
         .onDisappear {
+            // The room screen also disappears under a pushed thread screen
+            // (MATRIX-245), as it does when the room closes.
+            guard isRoomTimeline else { return }
             Task {
                 do {
                     try await timeline.timeline?.markAsRead(receiptType: .fullyRead)
@@ -135,6 +185,10 @@ struct TimelineContainer: View {
     var fallbackActions: (any TimelineFallbackRowActions)?
     /// The account's global profile avatar (MATRIX-163).
     var ownAvatarUrl: String?
+    /// Thread entry points (MATRIX-245, MATRIX-246): see `TimelineRowContext`.
+    var repliesInThreads = false
+    var openThread: @MainActor (ThreadScreenRequest) -> Void = { _ in }
+    var focusComposer: @MainActor () -> Void = {}
 
     /// The file the full-screen viewer shows. Presented from here, not from
     /// a cell: a cell is recycled or reconfigured at any update.
@@ -159,7 +213,10 @@ struct TimelineContainer: View {
                 media: media,
                 openMedia: { viewerItem = $0 },
                 fallbackActions: fallbackActions,
-                ownAvatarUrl: ownAvatarUrl
+                ownAvatarUrl: ownAvatarUrl,
+                repliesInThreads: repliesInThreads,
+                openThread: openThread,
+                focusComposer: focusComposer
             )
         )
         .overlay(alignment: .bottomTrailing) {

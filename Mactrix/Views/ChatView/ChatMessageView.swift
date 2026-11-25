@@ -227,8 +227,11 @@ struct ChatMessageView: View, UI.MessageEventActions {
     /// thread opens, before the first reply.
     var chipThreadSummary: MatrixRustSDK.ThreadSummary? {
         guard let summary = msg.threadSummary,
-              ThreadRootRule.isThreadRoot(replyCount: summary.numReplies()),
-              !isThreadPanelRoot
+              ThreadRootRule.showsChip(
+                  replyCount: summary.numReplies(),
+                  rowEventId: event.eventOrTransactionId.id,
+                  timelineThreadRoot: timeline?.focusedThreadId
+              )
         else { return nil }
         return summary
     }

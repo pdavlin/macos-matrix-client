@@ -31,6 +31,18 @@ struct TimelineRowContext {
     /// The account's global profile avatar (MATRIX-163). An own message
     /// without a room member avatar draws it.
     var ownAvatarUrl: String?
+    /// Whether every reply in the room belongs in a thread (MATRIX-232,
+    /// `LiveTimeline.repliesInThreads`): the long-press menu then offers
+    /// Reply in Thread in place of Reply (MATRIX-246). The container reads
+    /// it once for all rows. It changes no row height.
+    var repliesInThreads = false
+    /// Pushes the thread screen (MATRIX-245): a tap on a thread chip, or
+    /// "Reply in Thread" in the room timeline. A no-op where no thread can
+    /// open: the thread screen itself, and the DEBUG fixture.
+    var openThread: @MainActor (ThreadScreenRequest) -> Void = { _ in }
+    /// Puts the keyboard focus in the composer under the timeline: "Reply in
+    /// Thread" in the thread screen (MATRIX-245).
+    var focusComposer: @MainActor () -> Void = {}
 }
 
 /// Reply and send-failure actions for non-SDK rows, keyed by row id.
@@ -131,6 +143,11 @@ struct TimelineRowContent: View {
                             discard: { actions?.discardSend(ofRow: rowId) }
                         )
                     }
+                    if let summary = Self.chipSummary(of: textEvent, rowId: rowId) {
+                        UI.MessageThreadSummary(summary: summary, imageLoader: context.imageLoader) {
+                            context.openThread(.chip(rootEventId: rowId))
+                        }
+                    }
                 }
             }
         }
@@ -145,6 +162,15 @@ struct TimelineRowContent: View {
             }
         })
     }
+
+    /// The thread summary that a non-SDK row's chip draws, or nil
+    /// (MATRIX-245): the rule of the SDK row, in a room timeline.
+    private static func chipSummary(of event: (any TimelineTextEvent)?, rowId: String) -> (any Models.ThreadSummary)? {
+        guard let summary = event?.threadSummary,
+              ThreadRootRule.showsChip(replyCount: summary.numReplies(), rowEventId: rowId, timelineThreadRoot: nil)
+        else { return nil }
+        return summary
+    }
 }
 
 /// An event that carries its own body text and reaction pills. Only the DEBUG
@@ -158,6 +184,13 @@ protocol TimelineTextEvent: Models.EventTimelineItem {
     /// The message this one replies to, as its preview draws it.
     var quotedReply: ComposerReply? { get }
     var reactionPills: [TimelineReactionPill] { get }
+    /// The thread summary the row's chip draws, or nil (MATRIX-245).
+    var threadSummary: (any Models.ThreadSummary)? { get }
+}
+
+extension TimelineTextEvent {
+    /// The fixture and the gate rows have no thread.
+    var threadSummary: (any Models.ThreadSummary)? { nil }
 }
 
 /// A reaction pill reduced to its key and tally, for non-SDK rows.
@@ -173,8 +206,8 @@ struct TimelineReactionPill: Models.Reaction {
     var id: String { key }
 }
 
-/// Message actions for rows that take none from the shared views. Reactions,
-/// pins, and threads are outside the iOS fence (E-APP-05 §8).
+/// Message actions for rows that take none from the shared views. Reactions
+/// and pins are outside the iOS fence (E-APP-05 §8).
 struct TimelineNoActions: UI.MessageEventActions {
     func toggleReaction(key _: String) {}
     func reply() {}
@@ -198,9 +231,56 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
         context.timeline?.sendReplyTo = event
     }
 
-    func replyInThread() {}
+    /// "Reply in Thread" (MATRIX-245): the room timeline pushes the thread
+    /// screen with the focus in its composer; the thread screen replies in
+    /// place. The thread is the one that holds the message, else the
+    /// message's own (`ThreadReplyStart`), as on the Mac.
+    func replyInThread() {
+        let entry = ThreadReplyEntry.of(
+            eventId: event.eventOrTransactionId.id,
+            messageThreadRoot: msgLike.threadRoot,
+            timelineThreadRoot: context.timeline?.focusedThreadId
+        )
+        switch entry {
+        case let .openThread(start):
+            Logger.timelineIOS.info("reply in thread: open \(start.root, privacy: .public)")
+            context.openThread(.replyInThread(start, to: event))
+        case let .replyHere(quotesMessage):
+            context.timeline?.sendReplyTo = quotesMessage ? event : nil
+            context.focusComposer()
+        }
+    }
+
     func pin() {}
     func focusUser() {}
+
+    /// The thread summary the row's chip draws, or nil for no chip
+    /// (`ThreadRootRule.showsChip`): the thread screen's own root draws none.
+    private var chipThreadSummary: MatrixRustSDK.ThreadSummary? {
+        guard let summary = msgLike.threadSummary,
+              ThreadRootRule.showsChip(
+                  replyCount: summary.numReplies(),
+                  rowEventId: event.eventOrTransactionId.id,
+                  timelineThreadRoot: context.timeline?.focusedThreadId
+              )
+        else { return nil }
+        return summary
+    }
+
+    /// Whether the row is the root of the thread screen that shows it: it
+    /// draws the root band (MATRIX-183), as the Mac thread panel's root does.
+    private var isThreadScreenRoot: Bool {
+        guard let root = context.timeline?.focusedThreadId else { return false }
+        return root == event.eventOrTransactionId.id
+    }
+
+    /// The reply entries of the long-press menu, from the shared action
+    /// model (MATRIX-232, MATRIX-245).
+    private var replyActions: [MessageAction] {
+        var subject = MessageActionSubject(event: event, msg: msgLike, pinnedEventIds: [], redactPermission: .none)
+        subject.repliesInThreads = context.repliesInThreads
+        return TimelineReplyMenu.actions(for: subject, inThread: context.timeline?.focusedThreadId != nil)
+    }
 
     /// Retries a failed local echo, as the Mac `ChatMessageView` does: a
     /// recoverable failure disabled the room's send queue, so retry re-enables
@@ -280,13 +360,24 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
                             discard: { discardFailedSend() }
                         )
                     }
+                    // MATRIX-245: the Mac chip, under the body. A tap pushes
+                    // the thread screen.
+                    if let threadSummary = chipThreadSummary {
+                        UI.MessageThreadSummary(summary: threadSummary, imageLoader: context.imageLoader) {
+                            context.openThread(.chip(rootEventId: event.eventOrTransactionId.id))
+                        }
+                    }
                 }
             }
         }
+        .environment(\.timelineRowIsThreadRoot, isThreadScreenRoot)
         .contextMenu {
-            if event.canBeRepliedTo {
-                Button("Reply", systemImage: "arrowshape.turn.up.left") {
-                    reply()
+            ForEach(replyActions, id: \.self) { action in
+                Button(
+                    UI.MessageActionPresentation.title(of: action),
+                    systemImage: UI.MessageActionPresentation.systemImage(of: action) ?? "arrowshape.turn.up.left"
+                ) {
+                    perform(action)
                 }
             }
             if let copyableText {
@@ -357,77 +448,6 @@ struct TimelineFormattedText: View {
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-}
-
-/// The body of an SDK message on iOS: formatted text, media, or a one-line
-/// label for kinds outside the M1 read path.
-private struct TimelineMessageBody: View {
-    let kind: MatrixRustSDK.MsgLikeKind
-    let context: TimelineRowContext
-
-    var body: some View {
-        switch kind {
-        case let .message(content: content):
-            VStack(alignment: .leading, spacing: 2) {
-                messageType(content.msgType)
-                if content.isEdited {
-                    UI.EditedMarker()
-                }
-            }
-        case let .sticker(body, _, _):
-            label("Sticker", body)
-        case let .poll(question, _, _, _, _, _, _):
-            label("Poll", question)
-        case .redacted:
-            Text("Message redacted")
-                .italic()
-                .foregroundStyle(.secondary)
-        case let .unableToDecrypt(msg: encrypted):
-            UI.UnableToDecryptView(cause: Models.UnableToDecryptCause(encrypted: encrypted))
-        case let .other(eventType):
-            label("Custom event", eventType.description)
-        case let .liveLocation(content):
-            label("Live location", content.description ?? "no description")
-        }
-    }
-
-    @ViewBuilder
-    private func messageType(_ type: MatrixRustSDK.MessageType) -> some View {
-        switch type {
-        case let .text(content):
-            TimelineFormattedText(
-                text: content.body,
-                html: content.formatted?.format == .html ? content.formatted?.body : nil,
-                imageLoader: context.imageLoader
-            )
-        case let .notice(content):
-            wrapped(content.body)
-                .foregroundStyle(.secondary)
-        case let .emote(content):
-            wrapped("* \(content.body)")
-        case .image, .video, .audio, .file:
-            if let media = TimelineMedia(type) {
-                TimelineMediaView(media: media, context: context)
-            }
-        case let .gallery(content):
-            label("Gallery", content.body)
-        case let .location(content):
-            label("Location", content.body)
-        case let .other(msgtype, body):
-            label(msgtype, body)
-        }
-    }
-
-    private func wrapped(_ text: String) -> some View {
-        Text(text.formatAsMarkdown)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func label(_ title: String, _ detail: String) -> some View {
-        Text("\(title): \(detail)")
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
     }
 }
 

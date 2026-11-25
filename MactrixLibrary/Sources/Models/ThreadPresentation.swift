@@ -14,6 +14,22 @@ public enum ThreadRootRule {
     public static func isThreadRoot(replyCount: UInt64?) -> Bool {
         (replyCount ?? 0) > 0
     }
+
+    /// Whether a message row draws the thread chip. The Mac row and the iOS
+    /// row (MATRIX-245) use this rule.
+    ///
+    /// - Parameters:
+    ///   - replyCount: the reply count of the message's thread summary, or
+    ///     nil when the message has no summary.
+    ///   - rowEventId: the event ID of the message.
+    ///   - timelineThreadRoot: the thread root of the timeline that shows
+    ///     the row, or nil for a room timeline.
+    /// - Returns: true for a thread root (`isThreadRoot`). False for the
+    ///   root row of a thread timeline (MATRIX-183): there the chip would
+    ///   open the thread that the timeline already shows.
+    public static func showsChip(replyCount: UInt64?, rowEventId: String, timelineThreadRoot: String?) -> Bool {
+        isThreadRoot(replyCount: replyCount) && rowEventId != timelineThreadRoot
+    }
 }
 
 /// The reply count text of a thread (MATRIX-183): "1 reply", "4 replies".

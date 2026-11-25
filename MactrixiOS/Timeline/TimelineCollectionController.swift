@@ -225,18 +225,24 @@ final class TimelineCollectionController: NSObject {
     }
 
     /// The row context changed (typography, own user, receipts flag): every
-    /// height is suspect and every visible cell redraws.
+    /// height is suspect and every visible cell redraws. A change of the
+    /// thread reply rule (MATRIX-246) changes only the long-press menu: the
+    /// visible cells redraw, and the heights stay.
     func rowContextDidChange(from old: TimelineRowContext) {
-        guard old.typography != rowContext.typography
+        let changesHeights = old.typography != rowContext.typography
             || old.showsReadReceipts != rowContext.showsReadReceipts
             || old.ownUserId != rowContext.ownUserId
-        else { return }
-        heightCache.invalidateAll()
-        clearWidthPlaceholders()
+        guard changesHeights || old.repliesInThreads != rowContext.repliesInThreads else { return }
+        if changesHeights {
+            heightCache.invalidateAll()
+            clearWidthPlaceholders()
+        }
         for indexPath in collectionView.indexPathsForVisibleItems {
             reconfigureVisibleCell(atRow: indexPath.item)
         }
-        layout.invalidateLayout()
+        if changesHeights {
+            layout.invalidateLayout()
+        }
     }
 
     // MARK: - Measurement

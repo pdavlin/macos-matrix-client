@@ -88,8 +88,31 @@ Stopgap until TestFlight builds arrive: Element X against davlin.io.
 
 ## 8. Out of scope
 
-Everything in M2/M3 (edits, reactions, redactions, forwarding, markdown,
-mentions, search, media browser), Share extension, widgets, Android.
+The fence of 2026-10-27 is M1 parity plus push. The contract §11 row of
+2026-11-25 (Patrick's MATRIX-258 decisions on the parity audit,
+`docs/research/ios-parity-audit.md`) moves these into scope:
+
+- Threads: the thread chip and the thread screen (MATRIX-245), and the Slack
+  reply rule of MATRIX-232 (MATRIX-246).
+- Search over all chats and a Low Priority view, as M1 chat list parity
+  (MATRIX-247). This is a search for chats, not the M3 message search.
+- The inbox state: archived and snoozed chats leave the list, and a merged
+  chat is one row that opens its newest member room, with no merged timeline
+  (MATRIX-248).
+- Reaction chips that work, with a quick-reaction row in the context menu
+  (MATRIX-249, option A).
+- An app icon badge that counts chats, as the Mac Dock badge does
+  (MATRIX-244).
+- Display parity (MATRIX-254), edit and delete of own messages (MATRIX-252),
+  and matrix links that open in the app (MATRIX-257).
+
+Still out of scope:
+
+- The rest of M2/M3: forwarding, markdown, mentions, the M3 message search,
+  the media browser.
+- Deferred: photos and files (MATRIX-251), composer drafts (MATRIX-253).
+- Snooze ends and reminders: only the Mac posts them for now (MATRIX-256).
+- Share extension, widgets, Android.
 
 ## 9. Risks
 

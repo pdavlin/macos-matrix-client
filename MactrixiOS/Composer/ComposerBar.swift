@@ -8,6 +8,8 @@ import SwiftUI
 struct ComposerBar: View {
     let target: ComposerTarget
     let placeholder: String
+    /// Raised to put the keyboard focus in the field (`ComposerTextView`).
+    var focusRequest = 0
 
     @State private var model = ComposerModel()
 
@@ -20,7 +22,7 @@ struct ComposerBar: View {
                 Divider()
             }
             HStack(alignment: .bottom, spacing: 8) {
-                ComposerTextView(text: $model.text, placeholder: placeholder)
+                ComposerTextView(text: $model.text, placeholder: placeholder, focusRequest: focusRequest)
                     .overlay(alignment: .topLeading) {
                         if model.text.isEmpty {
                             Text(placeholder)

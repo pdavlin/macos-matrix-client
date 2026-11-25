@@ -103,4 +103,21 @@ struct ThreadPresentationTests {
     func aSummaryWithRepliesMakesAThreadRoot(count: UInt64) {
         #expect(ThreadRootRule.isThreadRoot(replyCount: count))
     }
+
+    // MARK: Thread chip (MATRIX-183, MATRIX-245)
+
+    @Test func aRootInTheRoomTimelineShowsTheChip() {
+        #expect(ThreadRootRule.showsChip(replyCount: 3, rowEventId: "$root", timelineThreadRoot: nil))
+    }
+
+    /// The root row of its own thread timeline: the chip would open the
+    /// thread that the timeline shows.
+    @Test func theRootOfTheShownThreadShowsNoChip() {
+        #expect(!ThreadRootRule.showsChip(replyCount: 3, rowEventId: "$root", timelineThreadRoot: "$root"))
+    }
+
+    @Test func aMessageWithNoReplyShowsNoChip() {
+        #expect(!ThreadRootRule.showsChip(replyCount: 0, rowEventId: "$root", timelineThreadRoot: nil))
+        #expect(!ThreadRootRule.showsChip(replyCount: nil, rowEventId: "$root", timelineThreadRoot: nil))
+    }
 }

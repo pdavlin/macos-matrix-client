@@ -23,6 +23,7 @@
 		86C0A1E2F3B4C5D6E7F80901 /* MessageFormatting in Frameworks */ = {isa = PBXBuildFile; productRef = 86C0A1E2F3B4C5D6E7F80902 /* MessageFormatting */; };
 		8E91A2C64D3B4F0A9C1E7B0C /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 8E91A2C64D3B4F0A9C1E7B0B /* Core */; };
 		8E91A2C64D3B4F0A9C1E7B0E /* Utils in Frameworks */ = {isa = PBXBuildFile; productRef = 8E91A2C64D3B4F0A9C1E7B0D /* Utils */; };
+		5E1A7C0F2F9A4B6C8D3E0A11 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1A7C0F2F9A4B6C8D3E0A12 /* SnapshotTesting */; };
 		8E91A2C64D3B4F0A9C1E7B10 /* MactrixNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8E91A2C64D3B4F0A9C1E7B01 /* MactrixNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -95,6 +96,13 @@
 			);
 			target = 8E91A2C64D3B4F0A9C1E7B02 /* MactrixNotificationService */;
 		};
+		5E1A7C0F2F9A4B6C8D3E0A14 /* Exceptions for "MactrixiOSTests" folder in "MactrixiOSTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				__Snapshots__,
+			);
+			target = A1E5E224993DB9E746ACF586 /* MactrixiOSTests */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -121,6 +129,9 @@
 		};
 		C21FDC4A02FBA782C8A30507 /* MactrixiOSTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5E1A7C0F2F9A4B6C8D3E0A14 /* Exceptions for "MactrixiOSTests" folder in "MactrixiOSTests" target */,
+			);
 			path = MactrixiOSTests;
 			sourceTree = "<group>";
 		};
@@ -174,6 +185,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5E1A7C0F2F9A4B6C8D3E0A11 /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -327,6 +339,7 @@
 			);
 			name = MactrixiOSTests;
 			packageProductDependencies = (
+				5E1A7C0F2F9A4B6C8D3E0A12 /* SnapshotTesting */,
 			);
 			productName = MactrixiOSTests;
 			productReference = 2AAA0FED675A688C639C6B94 /* MactrixiOSTests.xctest */;
@@ -399,6 +412,7 @@
 				3409F4E82EBFD8D4009537B4 /* XCLocalSwiftPackageReference "MactrixLibrary" */,
 				348E99862F40ABC3009F57A9 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 				09F31869EA4FE3AAE380CE5D /* XCLocalSwiftPackageReference "spike/TimelineSpike" */,
+				5E1A7C0F2F9A4B6C8D3E0A13 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 343858432EB394590010922A /* Products */;
@@ -1218,6 +1232,14 @@
 				minimumVersion = 1.1.2;
 			};
 		};
+		5E1A7C0F2F9A4B6C8D3E0A13 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.19.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1292,6 +1314,11 @@
 		8E91A2C64D3B4F0A9C1E7B0D /* Utils */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Utils;
+		};
+		5E1A7C0F2F9A4B6C8D3E0A12 /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1A7C0F2F9A4B6C8D3E0A13 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
