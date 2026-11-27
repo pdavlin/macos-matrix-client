@@ -16,13 +16,27 @@ import Tokens
 /// 100,000 pt in a few passes. A sidebar with no maximum moves in under the
 /// inspector, and the window grows with the drag.
 ///
+/// macOS 26 (the CI runner) lays out the same columns in other numbers:
+/// - The sidebar item's view is 8 pt wider than the SwiftUI column: 396 pt
+///   at the 388 pt ideal, 608 pt at the 600 pt maximum.
+/// - The window's minimum width has the inspector two times: the sidebar
+///   view, the detail's minimum, and two inspector widths. A 1,100 pt or
+///   1,400 pt window starts at 1,446 pt, and a sidebar drag makes the
+///   window grow with the sidebar until the sidebar stops at its maximum
+///   (1,658 pt).
+/// - With no maximum, one divider step takes the split views to
+///   10,000,000,000 pt, the limit of a layout constraint.
+/// So the tests check the rules, not the macOS 27 numbers: a column stops
+/// at its maximum, and the window stops when the column stops.
+///
 /// The tests do not run the main run loop. A run of the run loop inside a
 /// test lets Swift Testing start other main-actor tests in it, so the
-/// windows of several tests were alive and changing at the same time (the
-/// macOS 26 CI runs that stopped with signal 11). `layoutIfNeeded()` does
-/// the layout passes that make the window grow, without the run loop. Each
-/// window is torn down on the main actor, in an autorelease pool, before
-/// its test returns.
+/// windows of several tests were alive and changing at the same time. On
+/// macOS 26 the column with no maximum then went on with the drag at the
+/// constraint limit, and the process stopped with signal 11.
+/// `layoutIfNeeded()` does the layout passes that make the window grow,
+/// without the run loop. Each window is torn down on the main actor, in an
+/// autorelease pool, before its test returns.
 @MainActor
 @Suite(.serialized)
 struct MainWindowColumnGrowthTests {
@@ -202,10 +216,6 @@ struct MainWindowColumnGrowthTests {
                 break
             }
         }
-        // CI runs another macOS version than this Mac. The log shows the
-        // layout there, also when the test passes.
-        let line = "MainWindowColumnGrowthTests: widths \(growth.widths)\n\(report(window))\n"
-        FileHandle.standardError.write(Data(line.utf8))
         return growth
     }
 
@@ -217,7 +227,8 @@ struct MainWindowColumnGrowthTests {
             let growth = drag(inspector, through: stride(from: 700, through: 0, by: -100), in: window)
 
             #expect(inspector.view.frame.width <= Self.columnMaximum + 0.5, Comment(rawValue: report(window)))
-            // The window grows one time, to the three columns together, and
+            // The window grows one time, to its minimum with the widest
+            // inspector (on macOS 26 that has the inspector two times), and
             // stops.
             #expect(growth.count <= 1, Comment(rawValue: "\(growth.widths)\n\(report(window))"))
             let settled = window.frame.width
@@ -230,13 +241,26 @@ struct MainWindowColumnGrowthTests {
         let columns = Columns(sidebarMaximum: Self.columnMaximum, inspectorMaximum: Self.columnMaximum)
         try withWindow(columns, width: 1400) { window in
             let sidebar = try column(.sidebar, in: window)
+            // The item's view is the column and a margin: 0 pt on macOS 27,
+            // 8 pt on macOS 26.
+            let startWidth = sidebar.view.frame.width
+            let margin = startWidth - Self.sidebarIdeal
+            #expect((-0.5 ... 8.5).contains(margin), Comment(rawValue: report(window)))
 
             let growth = drag(sidebar, through: stride(from: Self.sidebarIdeal, through: 2400, by: 100), in: window)
 
-            #expect(sidebar.view.frame.width <= Self.columnMaximum + 0.5, Comment(rawValue: report(window)))
-            // The widest sidebar, the detail, and the inspector fit in
-            // 1,400 pt.
-            #expect(growth.count == 0, Comment(rawValue: "\(growth.widths)\n\(report(window))"))
+            let endWidth = sidebar.view.frame.width
+            #expect(endWidth - margin <= Self.columnMaximum + 0.5, Comment(rawValue: report(window)))
+            // The window grows only with the sidebar: on macOS 27 the
+            // widest sidebar, the detail, and the inspector fit in 1,400 pt,
+            // and the window does not grow. On macOS 26 the window's minimum
+            // has the inspector two times, and the window grows by what the
+            // sidebar grows by.
+            let windowGrowth = window.frame.width - growth.widths[0]
+            #expect(windowGrowth <= endWidth - startWidth + 0.5, Comment(rawValue: "\(growth.widths)\n\(report(window))"))
+            // The window stops when the sidebar stops at its maximum: the
+            // last steps of the drag leave it as it is.
+            #expect(Set(growth.widths.suffix(10)).count == 1, Comment(rawValue: "\(growth.widths)"))
         }
     }
 

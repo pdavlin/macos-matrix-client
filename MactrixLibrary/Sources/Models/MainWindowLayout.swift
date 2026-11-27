@@ -11,7 +11,9 @@ import Foundation
 /// the minimum stays ahead of the window on every layout pass. The window
 /// then grows until AppKit stops the loop with an exception (the MATRIX-266
 /// crash: a 14,774 pt window). With a maximum, the column stops at it and
-/// the window grows one time, to the sum of the three.
+/// the window grows one time, to the sum of the three. On macOS 26 the
+/// window's minimum has the inspector two times, so the window there is
+/// wider, but it also stops when the columns stop at their maximum.
 public enum MainWindowLayout {
     /// The widest a sidebar or an inspector column gets, in points. The
     /// search inspector had this maximum before MATRIX-266.
