@@ -20,8 +20,12 @@ import UIKit
 /// chats leave the Inbox and Low Priority and show under their own filters.
 /// A merged chat is one row that opens its newest member room. The phone
 /// has no Archive or Snooze action: it shows what the Mac writes.
+///
+/// MATRIX-242: the list shows the client's sync line, with Retry.
 struct SignedInRoomNavigation: View {
     let matrixClient: MatrixClient
+    /// Starts sync again, for the sync line's Retry.
+    let retrySync: @MainActor () async -> Void
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -52,7 +56,8 @@ struct SignedInRoomNavigation: View {
                 setActive: { isSearching = $0 }
             ),
             loadMore: matrixClient.loadMoreRooms,
-            roomOutsideList: roomOutsideList
+            roomOutsideList: roomOutsideList,
+            sync: RoomListSync(line: matrixClient.syncStatusLine, retry: retrySync)
         ) { sidebarRoom in
             LiveRoomScreen(sidebarRoom: sidebarRoom, imageLoader: imageLoader)
         }
@@ -196,6 +201,8 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
     /// The item for a room that is not in `rooms`, for a picked search
     /// result. Nil: such a room shows the placeholder.
     private let roomOutsideList: (@MainActor (String) -> Item?)?
+    /// The sync line under the list (MATRIX-242). Nil: no line.
+    private let sync: RoomListSync?
     private let roomDetail: (Item) -> RoomDetail
 
     @State private var selection: String?
@@ -220,6 +227,7 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
         search: RoomListSearch? = nil,
         loadMore: (@MainActor () -> Void)? = nil,
         roomOutsideList: (@MainActor (String) -> Item?)? = nil,
+        sync: RoomListSync? = nil,
         @ViewBuilder roomDetail: @escaping (Item) -> RoomDetail
     ) {
         self.rooms = rooms
@@ -231,6 +239,7 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
         self.search = search
         self.loadMore = loadMore
         self.roomOutsideList = roomOutsideList
+        self.sync = sync
         self.roomDetail = roomDetail
         _path = State(initialValue: usesStack ? openedRoomID.map { [$0] } ?? [] : [])
         _selection = State(initialValue: usesStack ? nil : openedRoomID)
@@ -284,6 +293,13 @@ struct RoomNavigationShell<Item: RoomListItem, RoomDetail: View>: View {
                 filter: shownFilter,
                 loadMore: loadMore
             )
+            // MATRIX-242: chrome under the rows, not a row. No spacing, so
+            // the hidden line takes no space.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let sync {
+                    RoomListSyncLine(sync: sync)
+                }
+            }
             .navigationTitle(shownFilter.iosListTitle)
             .toolbar {
                 if let filter {

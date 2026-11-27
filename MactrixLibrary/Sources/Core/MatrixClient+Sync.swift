@@ -32,6 +32,20 @@ public extension MatrixClient {
         }
     }
 
+    /// Stops the sync loop, and keeps the service and its listeners.
+    ///
+    /// MATRIX-242: the iOS app calls this before iOS suspends it, and
+    /// `startSync()` restarts the same service when the app returns to the
+    /// foreground. `SyncService.stop()` stops both sliding syncs, waits for
+    /// their tasks, and so releases the cross-process store lock that the
+    /// encryption sync holds. The service then reports `idle`. This is not a
+    /// sign-out: `reset()` tears the session down.
+    func stopSync() async {
+        guard let syncService, syncServiceStarted else { return }
+        Logger.matrixClient.info("stopping sync")
+        await syncService.stop()
+    }
+
     /// Cancels the tasks that apply the SDK listener values.
     internal func cancelListenerTasks() {
         roomEntriesTask?.cancel()

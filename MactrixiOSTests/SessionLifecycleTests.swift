@@ -1,5 +1,6 @@
 import Core
 @testable import MactrixiOS
+import Utils
 import XCTest
 
 /// MATRIX-83: launch restore and the signed-out route.
@@ -61,6 +62,28 @@ final class SessionLifecycleTests: XCTestCase {
 
         await lifecycle.handleAuthenticationFailure()
 
+        XCTAssertEqual(lifecycle.phase, .signedOut)
+    }
+
+    /// MATRIX-242: with no session, a scene change and Retry start and stop
+    /// nothing.
+    func testSceneChangesWithoutASessionStartAndStopNothing() async {
+        let syncCalls = Counter()
+        let lifecycle = SessionLifecycle(
+            appState: AppState(),
+            restore: { nil },
+            startSync: { _ in syncCalls.value += 1 },
+            stopSync: { _ in syncCalls.value += 1 }
+        )
+        await lifecycle.restoreOnLaunch()
+
+        let changes: [SceneSyncLifecycle.Change] = [.entered(.active), .entered(.background), .entered(.active)]
+        for change in changes {
+            lifecycle.scene("scene", did: change)
+        }
+        await lifecycle.retrySync()
+
+        XCTAssertEqual(syncCalls.value, 0)
         XCTAssertEqual(lifecycle.phase, .signedOut)
     }
 

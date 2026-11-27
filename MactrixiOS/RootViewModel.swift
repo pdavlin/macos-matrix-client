@@ -32,10 +32,13 @@ final class RootViewModel {
     let appState: AppState
     /// Restore, sign-in, and sync start (MATRIX-83).
     let session: SessionLifecycle
+    /// MATRIX-242: the scene phases that stop and start sync.
+    private let sceneObserver: SceneSyncObserver
 
     init(appState: AppState) {
         self.appState = appState
         session = SessionLifecycle(appState: appState)
+        sceneObserver = SceneSyncObserver(session: session)
     }
 
     var status: SessionStatus {

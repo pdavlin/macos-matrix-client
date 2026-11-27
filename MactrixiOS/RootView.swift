@@ -12,7 +12,9 @@ struct RootView: View {
         // list navigation.
         SessionGate(session: model.session) {
             if let matrixClient = model.appState.matrixClient {
-                SignedInRoomNavigation(matrixClient: matrixClient)
+                SignedInRoomNavigation(matrixClient: matrixClient) {
+                    await model.session.retrySync()
+                }
             } else {
                 signedOut
             }
