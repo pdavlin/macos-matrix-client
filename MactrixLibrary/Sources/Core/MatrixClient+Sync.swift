@@ -267,6 +267,8 @@ public extension MatrixClient {
         composerDrafts.reset()
         chatListTyping.reset()
         OwnReactionMarks.shared.removeAll()
+        // MATRIX-261.
+        resetThreadFollow()
 
         try? await client.logout()
         client = nil

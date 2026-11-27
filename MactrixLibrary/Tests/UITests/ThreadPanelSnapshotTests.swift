@@ -105,6 +105,29 @@ struct ThreadPanelSnapshotTests {
         assertSnapshot(of: host(ThreadTimelineHeader(roomName: "#general", replyCount: nil) {}, width: 400), as: .scaledImage)
     }
 
+    /// MATRIX-261: the header with the Follow control, before the close
+    /// button: an outline bell when not followed, a filled tinted bell when
+    /// followed.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil), arguments: appearances, [false, true])
+    func headerWithFollowControl(appearance: NSAppearance.Name, followed: Bool) {
+        let follow = ThreadFollowControl(state: followed ? .followed : .notFollowed)
+        assertSnapshot(
+            of: host(ThreadTimelineHeader(roomName: "#general", replyCount: 4, follow: follow) {}, width: 400, appearance: appearance),
+            as: .scaledImage,
+            named: "\(followed ? "followed" : "notFollowed")-\(name(appearance))"
+        )
+    }
+
+    /// The control does not change the header's height, in any state.
+    @Test func followControlKeepsTheHeaderHeight() {
+        let plain = host(ThreadTimelineHeader(roomName: "#general", replyCount: 4) {}, width: 400).view.fittingSize.height
+        let states: [ThreadFollowState] = [.reading, .notFollowed, .followed, .changing(toFollowed: true)]
+        for state in states {
+            let header = ThreadTimelineHeader(roomName: "#general", replyCount: 4, follow: ThreadFollowControl(state: state)) {}
+            #expect(host(header, width: 400).view.fittingSize.height == plain)
+        }
+    }
+
     // MARK: Chip
 
     private func chip(_ summary: StubThreadSummary) -> some View {

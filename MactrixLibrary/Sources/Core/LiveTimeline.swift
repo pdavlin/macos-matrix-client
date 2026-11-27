@@ -93,12 +93,20 @@ public final class LiveTimeline {
 
     /// Replied-to events this timeline loaded itself, by event ID. Each load
     /// posts `replyDetailsDidLoad` (MATRIX-230).
-    public private(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
+    public internal(set) var loadedReplyDetails: [String: InReplyToDetails] = [:]
 
     /// What the thread panel shows of a thread timeline (MATRIX-183): the
     /// reply count and the root's row. Empty for a room timeline. See
     /// `refreshThreadFacts()`.
     public internal(set) var threadFacts = ThreadTimelineFacts()
+
+    /// The Follow control of a thread timeline (MATRIX-261). Nil for a room
+    /// timeline.
+    public let threadFollow: ThreadFollowModel?
+
+    /// The own messages of a room timeline that wait for a first thread reply
+    /// (MATRIX-261). See `noteOwnRootReplies()`.
+    @ObservationIgnored var ownRootReplies = OwnRootReplyWatch()
 
     public internal(set) var paginating: PaginationStatus = .idle(hitTimelineStart: false)
     public private(set) var hitTimelineStart: Bool = false
@@ -136,6 +144,7 @@ public final class LiveTimeline {
     public init(room: LiveRoom, mergedChatActionTarget: MessageActionTargetSlot? = nil) {
         self.focusedThreadId = nil
         self.room = room
+        self.threadFollow = nil
         self.threadReplies = ThreadReplyWatch(room: room)
         self.messageActionTarget = mergedChatActionTarget ?? MessageActionTargetSlot()
         self.isMergedChatMember = mergedChatActionTarget != nil
@@ -152,6 +161,7 @@ public final class LiveTimeline {
     public init(room: LiveRoom, focusThread threadId: String) {
         self.focusedThreadId = threadId
         self.room = room
+        self.threadFollow = ThreadFollowModel(room: room.room, rootEventId: threadId)
         self.threadReplies = ThreadReplyWatch(room: room)
         self.messageActionTarget = MessageActionTargetSlot()
         self.isMergedChatMember = false
@@ -361,6 +371,8 @@ extension LiveTimeline {
         refreshThreadFacts()
         // MATRIX-224: the Unanswered filter's own reaction.
         noteOwnReactionMark()
+        // MATRIX-261: the own-root rule.
+        noteOwnRootReplies()
     }
 
     /// Applies one SDK diff to the SDK-ordered array and mirrors it onto the
@@ -470,31 +482,6 @@ extension LiveTimeline {
         })
         if newMessages > 0 {
             unseenArrivals += newMessages
-        }
-    }
-
-    private func loadPendingReplyDetails() {
-        guard let sdkTimeline = timeline else { return }
-        for item in timelineItems {
-            guard let event = item.asEvent() else { continue }
-            guard case let .msgLike(content: msgLike) = event.content else { continue }
-            guard let inReplyTo = msgLike.inReplyTo else { continue }
-            let eventId = inReplyTo.eventId()
-            switch inReplyTo.event() {
-            case .ready, .error: continue
-            case .pending, .unavailable: break
-            }
-            guard loadedReplyDetails[eventId] == nil else { continue }
-            Task { [weak self] in
-                guard let self else { return }
-                do {
-                    let details = try await sdkTimeline.loadReplyDetails(eventIdStr: eventId)
-                    self.loadedReplyDetails[eventId] = details
-                    self.postReplyDetailsDidLoad(eventId: eventId)
-                } catch {
-                    Logger.liveTimeline.error("loadPendingReplyDetails: failed \(eventId): \(error)")
-                }
-            }
         }
     }
 }

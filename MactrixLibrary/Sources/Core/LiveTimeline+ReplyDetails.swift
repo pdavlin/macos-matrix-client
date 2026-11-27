@@ -1,5 +1,7 @@
 import Foundation
+import MatrixRustSDK
 import Models
+import OSLog
 
 /// The reply details a timeline loads itself (MATRIX-230).
 ///
@@ -23,6 +25,35 @@ public extension LiveTimeline {
             object: self,
             userInfo: [Self.loadedReplyEventIdKey: eventId]
         )
+    }
+}
+
+extension LiveTimeline {
+    /// Loads the quotes that the SDK left pending or unavailable, one time
+    /// for each replied-to event.
+    func loadPendingReplyDetails() {
+        guard let sdkTimeline = timeline else { return }
+        for item in timelineItems {
+            guard let event = item.asEvent() else { continue }
+            guard case let .msgLike(content: msgLike) = event.content else { continue }
+            guard let inReplyTo = msgLike.inReplyTo else { continue }
+            let eventId = inReplyTo.eventId()
+            switch inReplyTo.event() {
+            case .ready, .error: continue
+            case .pending, .unavailable: break
+            }
+            guard loadedReplyDetails[eventId] == nil else { continue }
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let details = try await sdkTimeline.loadReplyDetails(eventIdStr: eventId)
+                    self.loadedReplyDetails[eventId] = details
+                    self.postReplyDetailsDidLoad(eventId: eventId)
+                } catch {
+                    Logger.liveTimeline.error("loadPendingReplyDetails: failed \(eventId): \(error)")
+                }
+            }
+        }
     }
 }
 

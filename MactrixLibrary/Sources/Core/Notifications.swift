@@ -170,6 +170,21 @@ public extension MatrixNotifications {
             return
         }
 
+        // MATRIX-261: no banner for a reply in a thread that the account does
+        // not follow, as the server's push rules decide for the phone. It
+        // does nothing while the server's MSC4306 support is not known.
+        if case let .timeline(event: event) = notification.event {
+            let shows = await ThreadFollowStore.shared.bannerShows(
+                roomId: roomId,
+                threadRoot: event.threadRootEventId() ?? notification.threadId,
+                hasMention: notification.hasMention
+            )
+            guard shows else {
+                Logger.notification.debug("skipping notification from room \(roomId): thread not followed")
+                return
+            }
+        }
+
         let content = UNMutableNotificationContent()
         let remap = mergedRemap(for: notification, roomId: roomId)
         content.title = remap?.title ?? notificationTitle(for: notification)

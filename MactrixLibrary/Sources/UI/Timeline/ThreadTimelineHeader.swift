@@ -3,22 +3,34 @@ import SwiftUI
 import Tokens
 
 /// The header strip of the thread panel (MATRIX-183): the title "Thread",
-/// a subtitle with the room and the reply count, and the close button on the
-/// trailing edge, as in a macOS inspector. The strip is the navigation layer,
-/// so it keeps its material.
+/// a subtitle with the room and the reply count, the Follow control
+/// (MATRIX-261), and the close button on the trailing edge, as in a macOS
+/// inspector. The strip is the navigation layer, so it keeps its material.
 public struct ThreadTimelineHeader: View {
     let roomName: String?
     let replyCount: Int?
+    let follow: ThreadFollowControl?
+    let onFollow: () -> Void
     let dismiss: () -> Void
 
     /// - Parameters:
     ///   - roomName: the room's display name, or nil.
     ///   - replyCount: the thread's reply count, or nil while it is not
     ///     known.
+    ///   - follow: the Follow control, or nil for no control.
+    ///   - onFollow: a click on the Follow control.
     ///   - dismiss: closes the panel.
-    public init(roomName: String?, replyCount: Int?, dismiss: @escaping () -> Void) {
+    public init(
+        roomName: String?,
+        replyCount: Int?,
+        follow: ThreadFollowControl? = nil,
+        onFollow: @escaping () -> Void = {},
+        dismiss: @escaping () -> Void
+    ) {
         self.roomName = roomName
         self.replyCount = replyCount
+        self.follow = follow
+        self.onFollow = onFollow
         self.dismiss = dismiss
     }
 
@@ -37,6 +49,16 @@ public struct ThreadTimelineHeader: View {
                     }
                 }
                 Spacer(minLength: 0)
+                if let follow {
+                    Button(action: onFollow) {
+                        Label(follow.title, systemImage: follow.systemImage)
+                    }
+                    .buttonStyle(.plain)
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(follow.isFollowed ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .disabled(!follow.isEnabled)
+                    .help(follow.help)
+                }
                 Button(action: dismiss) {
                     Label("Close Thread", systemImage: "xmark.circle.fill")
                 }
@@ -54,7 +76,7 @@ public struct ThreadTimelineHeader: View {
 
 #Preview {
     VStack(spacing: 0) {
-        ThreadTimelineHeader(roomName: "#general", replyCount: 4) {}
+        ThreadTimelineHeader(roomName: "#general", replyCount: 4, follow: ThreadFollowControl(state: .followed)) {}
         Text("Body")
             .frame(maxWidth: .infinity, maxHeight: 40)
             .background(.white)

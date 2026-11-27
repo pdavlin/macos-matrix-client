@@ -44,7 +44,15 @@ struct ThreadScreen: View {
             }
             // Two lines of text, not a control: no capsule behind them.
             .sharedBackgroundVisibility(.hidden)
+            // MATRIX-261: Follow Thread or Unfollow Thread.
+            if let follow = timeline?.threadFollow {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ThreadFollowButton(model: follow)
+                }
+            }
         }
+        // Read when the thread opens (MATRIX-261).
+        .task(id: timeline.map { ObjectIdentifier($0) }) { await timeline?.threadFollow?.load() }
         .onAppear {
             guard timeline?.focusedThreadId != request.rootEventId else { return }
             let thread = LiveTimeline(room: room, focusThread: request.rootEventId)
@@ -78,6 +86,24 @@ struct ThreadScreenTitle: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The Follow control of the thread screen (MATRIX-261), in the navigation
+/// bar: a bell, filled while the account follows the thread. The title names
+/// the action, and the hint holds the help text of the Mac tooltip.
+struct ThreadFollowButton: View {
+    let model: ThreadFollowModel
+
+    var body: some View {
+        let control = model.control
+        Button {
+            Task { await model.toggle() }
+        } label: {
+            Label(control.title, systemImage: control.systemImage)
+        }
+        .disabled(!control.isEnabled)
+        .accessibilityHint(control.help)
     }
 }
 

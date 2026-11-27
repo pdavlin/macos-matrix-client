@@ -30,14 +30,23 @@ struct InspectorScreen: View {
         case let .focusThread(threadTimeline: thread):
             VStack(spacing: 0) {
                 // MATRIX-183: the header names the room and the reply count.
-                UI.ThreadTimelineHeader(roomName: thread.room.room.displayName(), replyCount: thread.threadFacts.replyCount) {
-                    windowState.inspectorVisible = false
-                    Task {
-                        // Insert sleep to delay UI update until close animation finishes
-                        try? await Task.sleep(for: .milliseconds(500))
-                        windowState.inspectorContent = .roomInfo
+                // MATRIX-261: and holds the Follow control.
+                UI.ThreadTimelineHeader(
+                    roomName: thread.room.room.displayName(),
+                    replyCount: thread.threadFacts.replyCount,
+                    follow: thread.threadFollow?.control,
+                    onFollow: { Task { await thread.threadFollow?.toggle() } },
+                    dismiss: {
+                        windowState.inspectorVisible = false
+                        Task {
+                            // Insert sleep to delay UI update until close animation finishes
+                            try? await Task.sleep(for: .milliseconds(500))
+                            windowState.inspectorContent = .roomInfo
+                        }
                     }
-                }
+                )
+                // Read when the thread opens (MATRIX-261).
+                .task(id: ObjectIdentifier(thread)) { await thread.threadFollow?.load() }
                 // One timeline container for each thread timeline. The
                 // container keeps the source it was made with, so with no
                 // identity a second thread shows the rows of the first

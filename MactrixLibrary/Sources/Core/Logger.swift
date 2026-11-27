@@ -35,6 +35,8 @@ extension Logger {
     static let bookmarks = Logger(subsystem: subsystem, category: "bookmarks")
 
     static let scheduled = Logger(subsystem: subsystem, category: "scheduled")
+
+    static let threadFollow = Logger(subsystem: subsystem, category: "thread-follow")
 }
 
 /// Signposts for the timeline measures (MATRIX-182): the member fetch when a

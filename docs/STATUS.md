@@ -145,6 +145,11 @@ Mac platform
 - Settings: Composer and Notifications tabs.
 - Local notifications and a Dock badge that counts chats. A message
   notification has Reply, Mark as Read, and Remind in 1 Hour (MATRIX-221).
+- Follow Thread and Unfollow Thread in the thread panel header and on the
+  iOS thread screen, synced on the server (MSC4306). No banner for a reply
+  in a thread the account does not follow, unless it mentions him. The
+  first reply to his own message follows its thread. All of it waits on the
+  server flag (MATRIX-264) (MATRIX-261).
 - matrix: URLs, user and public-room search (inherited).
 
 Merged chats (M2.5, MATRIX-139)
@@ -231,6 +236,7 @@ Tooling
 | MATRIX-187 | Smoke a Spotify track link in a Slack chat, in light and dark mode: the link text has the color of the message text (not blue) and a violet-to-sky gradient bar in place of the underline, also on each line of a link that wraps; the note glyph is violet; the row does not move; a resize of the window moves the bar with the text; a click on the link text or the glyph opens song.link, the pointer is a hand over it, and a drag from other text still selects |
 | MATRIX-217 | Smoke the Go-menu keys, one time with the composer focused and one time with the chat list focused: ⌘1 selects the Inbox and ⌘2 to ⌘9 the next rail items, with the item names in the Go menu; ⌘] and ⌘[ open the next and previous chat of the selected space and the composer takes the focus; ⇧⌘] and ⇧⌘[ step through the rail items and wrap; ⌥1 to ⌥9 still reach AeroSpace |
 | MATRIX-221 | Smoke the notification actions on the dev account, with Mactrix in the background and no window on the chat: Reply to a message sends the text to that chat, with no quote; Reply to a thread message puts the reply in its thread; Mark as Read clears the chat's unread mark and its other notifications; Remind in 1 Hour shows the chat's reminder in the chat list |
+| MATRIX-264, 261 | Set the server flag `msc4306_enabled` with Patrick present, then smoke Follow and Unfollow on the dev account (steps in the MATRIX-261 resolution comment) |
 | MATRIX-151 | Run `import-image-pack <team url>` in the Slack bridge bot's room, one time for each workspace. Say if `custom_emoji_reactions` is true |
 | MATRIX-124, 66 | Run `spike/run-gate.sh` on the 120 Hz display (now also covers #99, #103, #112, and the merged timeline #115) |
 | MATRIX-125 | Daily-action keyboard checklist and a full day with Beeper closed |
