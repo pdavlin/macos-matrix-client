@@ -87,6 +87,6 @@ struct SearchInspectorView: View {
 
     var body: some View {
         viewSelector
-            .inspectorColumnWidth(min: 300, ideal: 300, max: 600)
+            .inspectorColumnWidth(min: 300, ideal: 300, max: CGFloat(MainWindowLayout.maximumColumnWidth))
     }
 }

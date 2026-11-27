@@ -125,7 +125,9 @@ public struct RoomInspectorView<Room: Models.Room, RoomMember: Models.RoomMember
                 .textSelection(.enabled)
             }
         }
-        .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+        // MATRIX-266: a maximum, so the column cannot take the window's
+        // growth while the columns do not fit.
+        .inspectorColumnWidth(min: 200, ideal: 250, max: CGFloat(MainWindowLayout.maximumColumnWidth))
     }
 }
 

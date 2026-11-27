@@ -126,11 +126,13 @@ public enum SidebarWidthMemory {
     /// - Parameters:
     ///   - stored: the stored width, or `nil` before the first store.
     ///   - minimum: the column's minimum width.
+    ///   - maximum: the column's maximum width (MATRIX-266).
     ///   - defaultIdeal: the width to use when nothing usable is stored.
-    /// - Returns: the stored width, never below `minimum`; else `defaultIdeal`.
-    public static func idealWidth(stored: Double?, minimum: Double, defaultIdeal: Double) -> Double {
+    /// - Returns: the stored width, never below `minimum` and never above
+    ///   `maximum`; else `defaultIdeal`.
+    public static func idealWidth(stored: Double?, minimum: Double, maximum: Double, defaultIdeal: Double) -> Double {
         guard let stored, stored.isFinite, stored > 0 else { return defaultIdeal }
-        return max(stored, minimum)
+        return min(max(stored, minimum), maximum)
     }
 
     /// The width to store for a measured column, or `nil` to store nothing.

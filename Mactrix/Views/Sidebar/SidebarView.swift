@@ -30,6 +30,10 @@ struct SidebarView: View {
     private static let minimumWidth: CGFloat = 240 + LabelToken.railWidth
     /// The column's width before the user first resizes it.
     private static let defaultWidth: CGFloat = 320 + LabelToken.railWidth
+    /// The column's widest width (MATRIX-266). With no maximum, a divider
+    /// drag moves the sidebar in under the inspector, and the window grows
+    /// with the drag.
+    private static let maximumWidth = CGFloat(MainWindowLayout.maximumColumnWidth)
 
     /// Stores the column's width when the user resizes it (MATRIX-116).
     @State private var widthRecorder = SidebarWidthRecorder(minimumWidth: SidebarView.minimumWidth)
@@ -37,7 +41,11 @@ struct SidebarView: View {
     /// sidebar at. Read once per window, so the column's ideal does not move
     /// while the user drags the divider.
     @State private var initialWidth = CGFloat(
-        SidebarWidthRecorder.idealWidth(minimumWidth: SidebarView.minimumWidth, defaultWidth: SidebarView.defaultWidth)
+        SidebarWidthRecorder.idealWidth(
+            minimumWidth: SidebarView.minimumWidth,
+            maximumWidth: SidebarView.maximumWidth,
+            defaultWidth: SidebarView.defaultWidth
+        )
     )
 
     /// The chats a window's sidebar shows: the favourites grid, then the
@@ -113,7 +121,7 @@ struct SidebarView: View {
         }
         // MATRIX-227: a rail item's name after a Go-menu key.
         .modifier(SidebarRailNamePeek())
-        .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: nil)
+        .navigationSplitViewColumnWidth(min: Self.minimumWidth, ideal: initialWidth, max: Self.maximumWidth)
         // MATRIX-148: read each room's account once; new rooms as they come.
         // MATRIX-167: also for the chats the window's filter leaves out, so
         // the rail's spaces do not depend on the filter.

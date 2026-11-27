@@ -9,6 +9,11 @@ struct InspectorScreen: View {
     @Environment(AppState.self) var appState
     @Environment(WindowState.self) var windowState
 
+    /// The widest the inspector column gets (MATRIX-266). With no maximum,
+    /// the column took each point the window grew by while the columns did
+    /// not fit, and the window grew without end.
+    private static let maximumWidth = CGFloat(MainWindowLayout.maximumColumnWidth)
+
     /// What the inspector shows. A merged chat has no thread list and no pin
     /// list (MATRIX-149), so a panel left open from a room shows the merged
     /// chat's details there.
@@ -54,7 +59,7 @@ struct InspectorScreen: View {
                 ChatView(timeline: thread)
                     .id(ObjectIdentifier(thread))
             }
-            .inspectorColumnWidth(min: 200, ideal: 400, max: nil)
+            .inspectorColumnWidth(min: 200, ideal: 400, max: Self.maximumWidth)
         case .roomInfo:
             switch windowState.selectedScreen {
             case let .joinedRoom(timeline: timeline):
@@ -69,20 +74,20 @@ struct InspectorScreen: View {
                 }
             case let .mergedChat(id: mergedChatId):
                 MergedChatInspector(mergedChatId: mergedChatId)
-                    .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+                    .inspectorColumnWidth(min: 200, ideal: 250, max: Self.maximumWidth)
             case .none, .newRoom, .newChat, .previewRoom, .loadMatrixUrl, .user:
                 Text("No room selected")
-                    .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+                    .inspectorColumnWidth(min: 200, ideal: 250, max: Self.maximumWidth)
             }
         case let .userInfo(userId: userId):
             InspectorUserInfo(userId: userId)
-                .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+                .inspectorColumnWidth(min: 200, ideal: 250, max: Self.maximumWidth)
         case .roomThreads:
             InspectorThreads()
-                .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+                .inspectorColumnWidth(min: 200, ideal: 250, max: Self.maximumWidth)
         case .roomPins:
             InspectorRoomPins()
-                .inspectorColumnWidth(min: 200, ideal: 250, max: nil)
+                .inspectorColumnWidth(min: 200, ideal: 250, max: Self.maximumWidth)
         }
     }
 

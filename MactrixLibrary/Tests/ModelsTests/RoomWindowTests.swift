@@ -77,14 +77,21 @@ struct RoomWindowIDTests {
 /// MATRIX-116: the main window's sidebar width across launches.
 struct SidebarWidthMemoryTests {
     @Test func startsAtTheDefaultWithNothingStored() {
-        #expect(SidebarWidthMemory.idealWidth(stored: nil, minimum: 300, defaultIdeal: 380) == 380)
-        #expect(SidebarWidthMemory.idealWidth(stored: 0, minimum: 300, defaultIdeal: 380) == 380)
-        #expect(SidebarWidthMemory.idealWidth(stored: .nan, minimum: 300, defaultIdeal: 380) == 380)
+        #expect(SidebarWidthMemory.idealWidth(stored: nil, minimum: 300, maximum: 600, defaultIdeal: 380) == 380)
+        #expect(SidebarWidthMemory.idealWidth(stored: 0, minimum: 300, maximum: 600, defaultIdeal: 380) == 380)
+        #expect(SidebarWidthMemory.idealWidth(stored: .nan, minimum: 300, maximum: 600, defaultIdeal: 380) == 380)
     }
 
     @Test func startsAtTheStoredWidthButNeverBelowTheMinimum() {
-        #expect(SidebarWidthMemory.idealWidth(stored: 450, minimum: 300, defaultIdeal: 380) == 450)
-        #expect(SidebarWidthMemory.idealWidth(stored: 120, minimum: 300, defaultIdeal: 380) == 300)
+        #expect(SidebarWidthMemory.idealWidth(stored: 450, minimum: 300, maximum: 600, defaultIdeal: 380) == 450)
+        #expect(SidebarWidthMemory.idealWidth(stored: 120, minimum: 300, maximum: 600, defaultIdeal: 380) == 300)
+    }
+
+    /// MATRIX-266: the column has a maximum, and a width stored before it
+    /// (or in a layout loop) starts at the maximum.
+    @Test func startsNoWiderThanTheMaximum() {
+        #expect(SidebarWidthMemory.idealWidth(stored: 600, minimum: 300, maximum: 600, defaultIdeal: 380) == 600)
+        #expect(SidebarWidthMemory.idealWidth(stored: 14774, minimum: 300, maximum: 600, defaultIdeal: 380) == 600)
     }
 
     @Test func storesWholePointsAndSkipsUnchangedWidths() {

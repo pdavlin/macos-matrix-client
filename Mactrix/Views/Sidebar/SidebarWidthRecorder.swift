@@ -40,10 +40,21 @@ final class SidebarWidthRecorder {
     ///
     /// - Parameters:
     ///   - minimumWidth: the column's minimum width.
+    ///   - maximumWidth: the column's maximum width (MATRIX-266).
     ///   - defaultWidth: the width when nothing usable is stored.
     ///   - defaults: where the width lives.
-    static func idealWidth(minimumWidth: Double, defaultWidth: Double, defaults: UserDefaults = .standard) -> Double {
-        SidebarWidthMemory.idealWidth(stored: storedWidth(in: defaults), minimum: minimumWidth, defaultIdeal: defaultWidth)
+    static func idealWidth(
+        minimumWidth: Double,
+        maximumWidth: Double,
+        defaultWidth: Double,
+        defaults: UserDefaults = .standard
+    ) -> Double {
+        SidebarWidthMemory.idealWidth(
+            stored: storedWidth(in: defaults),
+            minimum: minimumWidth,
+            maximum: maximumWidth,
+            defaultIdeal: defaultWidth
+        )
     }
 
     /// Takes a measured width. The last width reported stores once it has

@@ -2,6 +2,7 @@ import Core
 import Models
 import OSLog
 import SwiftUI
+import UI
 import Utils
 
 @main
@@ -29,6 +30,8 @@ struct MactrixApp: App {
     var body: some Scene {
         WindowGroup(id: "main") {
             MainView()
+                // MATRIX-266: no layout loop pushes the window past the screens.
+                .modifier(ScreenWidthLimit())
         }
         .windowToolbarStyle(.automatic)
         .environment(appState)
@@ -57,12 +60,16 @@ struct MactrixApp: App {
         // window brings that window forward. SwiftUI restores these windows,
         // with their room, on relaunch.
         WindowGroup("Room", id: "room", for: RoomWindowID.self) { $roomWindow in
-            if let roomWindow {
-                RoomWindowView(roomId: roomWindow.roomId)
-                    .id(roomWindow.roomId)
-            } else {
-                ContentUnavailableView("No room", systemImage: "message.fill")
+            Group {
+                if let roomWindow {
+                    RoomWindowView(roomId: roomWindow.roomId)
+                        .id(roomWindow.roomId)
+                } else {
+                    ContentUnavailableView("No room", systemImage: "message.fill")
+                }
             }
+            // MATRIX-266: a room window has the inspector too.
+            .modifier(ScreenWidthLimit())
         }
         .defaultSize(width: 560, height: 720)
         .commandsRemoved()
