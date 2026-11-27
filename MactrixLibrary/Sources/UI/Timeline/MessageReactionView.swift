@@ -158,10 +158,21 @@ public struct MessageReactionView<Reaction: Models.Reaction>: View {
         reaction.senders.count
     }
 
+    /// The card of the chip's long-press menu on iOS (MATRIX-249): the key
+    /// over the tooltip's text.
+    var peopleCard: ReactionChipPeopleCard {
+        ReactionChipPeopleCard(key: reaction.key, text: toolTipText, imageLoader: imageLoader)
+    }
+
     public var body: some View {
         chip
             .accessibilityLabel(Text(verbatim: accessibilityText))
             .reactionChipToolTip(toolTipText)
+        #if os(iOS)
+            .reactionChipPeopleMenu(card: peopleCard, isOwn: active.wrappedValue) { [active] in
+                active.wrappedValue.toggle()
+            }
+        #endif
     }
 
     private var chip: some View {

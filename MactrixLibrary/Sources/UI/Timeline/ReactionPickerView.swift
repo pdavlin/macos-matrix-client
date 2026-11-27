@@ -21,8 +21,9 @@ public extension EmojiCatalog {
 /// The reaction picker popover (MATRIX-111, M2-B4, D-3).
 ///
 /// From the top: the account's recent emoji, a search field, a grid of every
-/// emoji by category, and a line with the name of the selected emoji. The
-/// search field has focus when the picker opens. Arrow keys move the
+/// emoji by category, and a line with the name of the selected emoji. On
+/// the Mac the search field has focus when the picker opens
+/// (`focusesSearchAtOpen`). Arrow keys move the
 /// selection in the grid, Return picks the selection (the first match after
 /// a search), and Esc closes the picker. A pick calls `onPick` and closes
 /// the picker.
@@ -66,6 +67,16 @@ public struct ReactionPickerView: View {
     static let padding: CGFloat = 10
     static let gridHeight: CGFloat = 256
     static let cornerRadius: CGFloat = 6
+
+    /// Whether the search field takes the focus when the picker opens. On
+    /// the Mac it does, so the keys work at once. On iOS the picker is a
+    /// sheet (MATRIX-249), and the keyboard would cover its grid: a tap on
+    /// the field starts a search.
+    #if os(macOS)
+        static let focusesSearchAtOpen = true
+    #else
+        static let focusesSearchAtOpen = false
+    #endif
 
     /// The picker's width: the grid and its padding.
     public static var width: CGFloat {
@@ -209,7 +220,7 @@ public struct ReactionPickerView: View {
         }
         .padding(Self.padding)
         .frame(width: Self.width)
-        .onAppear { isSearchFocused = true }
+        .onAppear { isSearchFocused = Self.focusesSearchAtOpen }
         .onChange(of: query) { _, _ in selection = nil }
         #if os(macOS)
             .onExitCommand(perform: close)

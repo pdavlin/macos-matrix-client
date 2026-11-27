@@ -43,6 +43,12 @@ struct TimelineRowContext {
     /// Puts the keyboard focus in the composer under the timeline: "Reply in
     /// Thread" in the thread screen (MATRIX-245).
     var focusComposer: @MainActor () -> Void = {}
+    /// The client that ranks the quick reactions and records a reaction use
+    /// (MATRIX-249, MATRIX-262). Nil for the DEBUG fixture.
+    var client: MatrixClient?
+    /// Shows the reaction picker sheet on a message: "Add Reaction…" in the
+    /// long-press menu (MATRIX-249).
+    var openReactionPicker: @MainActor (TimelineReactionPickerRequest) -> Void = { _ in }
 }
 
 /// Reply and send-failure actions for non-SDK rows, keyed by row id.
@@ -68,6 +74,7 @@ struct TimelineRowContent: View {
             .environment(\.timelineTypography, context.typography)
             .environment(\.timelineShowsReadReceipts, context.showsReadReceipts)
             .environment(\.ownAccountAvatarUrl, context.ownAvatarUrl)
+            .environment(\.reactionEmojiName, context.reactionEmojiName)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -206,8 +213,9 @@ struct TimelineReactionPill: Models.Reaction {
     var id: String { key }
 }
 
-/// Message actions for rows that take none from the shared views. Reactions
-/// and pins are outside the iOS fence (E-APP-05 §8).
+/// Message actions for rows that take none from the shared views: the DEBUG
+/// fixture and the timeline gate. Pins are outside the iOS fence (E-APP-05
+/// §8). SDK rows take reactions (MATRIX-249).
 struct TimelineNoActions: UI.MessageEventActions {
     func toggleReaction(key _: String) {}
     func reply() {}
@@ -224,7 +232,24 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
     let showsSenderHeader: Bool
     let context: TimelineRowContext
 
-    func toggleReaction(key _: String) {}
+    /// A chip tap, and the chip's long-press menu (MATRIX-249).
+    func toggleReaction(key: String) {
+        context.toggleReaction(key: key, on: event.eventOrTransactionId)
+    }
+
+    /// Runs one action of the long-press menu: the reply entries and the
+    /// reaction entries (MATRIX-249).
+    func perform(_ action: MessageAction) {
+        switch action {
+        case .reply: reply()
+        case .replyInThread: replyInThread()
+        case let .toggleReaction(key): toggleReaction(key: key)
+        case .openReactionPicker: context.openReactionPicker(TimelineReactionPickerRequest(itemId: event.eventOrTransactionId))
+        case .pin, .edit, .forward, .copyText, .copyLink, .unpin, .quickLook, .playInline, .saveToDownloads, .redact,
+             .copyMessages, .openOriginalLink, .copyOriginalLink, .bookmark, .removeBookmark, .showEditHistory:
+            break
+        }
+    }
 
     func reply() {
         Logger.timelineIOS.info("reply target set: \(event.eventOrTransactionId.id, privacy: .public)")
@@ -274,12 +299,19 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
         return root == event.eventOrTransactionId.id
     }
 
+    /// The message as the shared action model reads it for the long-press
+    /// menu. Not `actionSubject`: that one would add the Mac's right-click
+    /// menu to the row.
+    private var menuSubject: MessageActionSubject {
+        var subject = MessageActionSubject(event: event, msg: msgLike, pinnedEventIds: [], redactPermission: .none)
+        subject.repliesInThreads = context.repliesInThreads
+        return subject
+    }
+
     /// The reply entries of the long-press menu, from the shared action
     /// model (MATRIX-232, MATRIX-245).
     private var replyActions: [MessageAction] {
-        var subject = MessageActionSubject(event: event, msg: msgLike, pinnedEventIds: [], redactPermission: .none)
-        subject.repliesInThreads = context.repliesInThreads
-        return TimelineReplyMenu.actions(for: subject, inThread: context.timeline?.focusedThreadId != nil)
+        TimelineReplyMenu.actions(for: menuSubject, inThread: context.timeline?.focusedThreadId != nil)
     }
 
     /// Retries a failed local echo, as the Mac `ChatMessageView` does: a
@@ -372,6 +404,9 @@ private struct TimelineMessageRow: View, UI.MessageEventActions {
         }
         .environment(\.timelineRowIsThreadRoot, isThreadScreenRoot)
         .contextMenu {
+            // MATRIX-249: the reactions first, as the Mac hover row starts
+            // with them.
+            TimelineReactionMenuSection(subject: menuSubject, reactions: event.reactions, context: context, perform: perform)
             ForEach(replyActions, id: \.self) { action in
                 Button(
                     UI.MessageActionPresentation.title(of: action),

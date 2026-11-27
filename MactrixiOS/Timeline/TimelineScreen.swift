@@ -116,7 +116,8 @@ struct LiveTimelineContainer: View {
                         ownAvatarUrl: appState.matrixClient?.ownAvatarUrl,
                         repliesInThreads: timeline.repliesInThreads,
                         openThread: openThread,
-                        focusComposer: { composerFocusRequest += 1 }
+                        focusComposer: { composerFocusRequest += 1 },
+                        client: appState.matrixClient
                     )
                 } composer: {
                     ComposerBar(
@@ -140,6 +141,12 @@ struct LiveTimelineContainer: View {
                 feed = LiveTimelineFeed(timeline: timeline)
                 composerTarget = LiveComposerTarget(timeline: timeline)
             }
+        }
+        // The account's recent emoji rank the quick reactions (MATRIX-262)
+        // and fill the picker's recent row (MATRIX-249), as on the Mac. A
+        // no-op once the list has loaded in this session.
+        .task(priority: .utility) {
+            await appState.matrixClient?.loadRecentEmojisIfNeeded()
         }
         .task(id: ReadKey(count: timeline.timelineItems.count, active: scenePhase == .active), priority: .background) {
             guard isRoomTimeline, scenePhase == .active else { return }
@@ -189,10 +196,15 @@ struct TimelineContainer: View {
     var repliesInThreads = false
     var openThread: @MainActor (ThreadScreenRequest) -> Void = { _ in }
     var focusComposer: @MainActor () -> Void = {}
+    /// Reactions (MATRIX-249): see `TimelineRowContext`.
+    var client: MatrixClient?
 
     /// The file the full-screen viewer shows. Presented from here, not from
     /// a cell: a cell is recycled or reconfigured at any update.
     @State private var viewerItem: MediaViewerItem?
+    /// The message the reaction picker sheet reacts to (MATRIX-249), from
+    /// here for the same reason.
+    @State private var reactionPicker: TimelineReactionPickerRequest?
 
     @AppStorage(TypographyToken.fontSizeStorageKey) private var fontSize = TypographyToken.defaultBaseFontSize
 
@@ -200,24 +212,30 @@ struct TimelineContainer: View {
         TimelineTypography(base: CGFloat(fontSize))
     }
 
+    private var rowContext: TimelineRowContext {
+        TimelineRowContext(
+            timeline: timeline,
+            imageLoader: imageLoader,
+            ownUserId: ownUserId,
+            showsReadReceipts: showsReadReceipts,
+            typography: typography,
+            retryPagination: { [feed] in feed.retryPagination() },
+            media: media,
+            openMedia: { viewerItem = $0 },
+            fallbackActions: fallbackActions,
+            ownAvatarUrl: ownAvatarUrl,
+            repliesInThreads: repliesInThreads,
+            openThread: openThread,
+            focusComposer: focusComposer,
+            client: client,
+            openReactionPicker: { reactionPicker = $0 }
+        )
+    }
+
     var body: some View {
         TimelineCollectionRepresentable(
             feed: feed,
-            rowContext: TimelineRowContext(
-                timeline: timeline,
-                imageLoader: imageLoader,
-                ownUserId: ownUserId,
-                showsReadReceipts: showsReadReceipts,
-                typography: typography,
-                retryPagination: { [feed] in feed.retryPagination() },
-                media: media,
-                openMedia: { viewerItem = $0 },
-                fallbackActions: fallbackActions,
-                ownAvatarUrl: ownAvatarUrl,
-                repliesInThreads: repliesInThreads,
-                openThread: openThread,
-                focusComposer: focusComposer
-            )
+            rowContext: rowContext
         )
         .overlay(alignment: .bottomTrailing) {
             if !feed.isAtBottom {
@@ -235,6 +253,14 @@ struct TimelineContainer: View {
         .background(Color(.systemBackground))
         .fullScreenCover(item: $viewerItem) { item in
             MediaViewerScreen(item: item)
+        }
+        .sheet(item: $reactionPicker) { request in
+            if let roomId = timeline?.room.id {
+                let rowContext = rowContext
+                TimelineReactionPickerSheet(client: client, roomId: roomId, imageLoader: imageLoader) { emoji in
+                    rowContext.toggleReaction(key: emoji, on: request.itemId)
+                }
+            }
         }
     }
 }
