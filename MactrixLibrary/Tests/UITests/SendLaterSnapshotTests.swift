@@ -9,6 +9,10 @@ import Testing
 /// composer, its list, and the clock on a chat-list row. A fixed now
 /// (Wednesday 2026-11-18 10:00 in Chicago), calendar, and locale. Local
 /// gate only, as the other snapshots (contract R-8).
+///
+/// MATRIX-267: macOS 27.3 (26C5047e) makes the `.stepperField` date picker
+/// 4 pt taller than 26C5035r did (now 24 pt), so the sheet was recorded
+/// again. A tolerance cannot help: a size change fails at any precision.
 @MainActor
 @Suite(.referenceScaleScreen)
 struct SendLaterSnapshotTests {

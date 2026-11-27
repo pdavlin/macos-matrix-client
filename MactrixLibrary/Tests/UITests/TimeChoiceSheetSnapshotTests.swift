@@ -10,6 +10,10 @@ import Testing
 /// Chicago), calendar, and locale. The typed times use the short-form rule,
 /// not NSDataDetector, which reads against the system clock. Local gate
 /// only, as the other snapshots (contract R-8).
+///
+/// MATRIX-267: macOS 27.3 (26C5047e) makes the `.stepperField` date picker
+/// 4 pt taller than 26C5035r did (now 24 pt), so both were recorded again.
+/// A tolerance cannot help: a size change fails at any precision.
 @MainActor
 @Suite(.referenceScaleScreen)
 struct TimeChoiceSheetSnapshotTests {

@@ -10,6 +10,11 @@ import Testing
 ///
 /// Same capture as the other snapshots: a fixed 2x scale and a pinned
 /// appearance, at the inspector's ideal width.
+///
+/// MATRIX-267: macOS 27.3 (26C5047e) puts the content of a
+/// `ContentUnavailableView(_:systemImage:)` 3 pt lower in the same frame
+/// than 26C5035r did, so `empty` was recorded again. No tolerance: the
+/// empty state is the subject, and the move changes 3 % of the pixels.
 @MainActor
 @Suite(.referenceScaleScreen)
 struct ThreadListSnapshotTests {

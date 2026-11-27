@@ -130,6 +130,11 @@ struct BookmarkSnapshotTests {
         assertSnapshot(of: snapshot(of: view), as: .scaledImage)
     }
 
+    /// MATRIX-267: macOS 27.3 (26C5047e) puts the content of a
+    /// `ContentUnavailableView(_:systemImage:description:)` 9 pt lower in
+    /// the same frame than 26C5035r did, so this was recorded again. No
+    /// tolerance: the empty state is the subject, and the move changes 3 %
+    /// of the pixels.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["CI"] == nil))
     func emptyBookmarkList() {
         let view = BookmarkListView(rows: [], imageLoader: nil, open: { _ in }, remove: { _ in })
